@@ -3,9 +3,12 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, event
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.database import Base
+
+JSON_TYPE = JSON().with_variant(JSONB(), "postgresql")
 
 
 def utc_now() -> datetime:
@@ -75,8 +78,8 @@ class StageSubmission(Base):
     stage_id = Column(Integer, ForeignKey("pilot_stages.id"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     status = Column(String(32), nullable=False, default="submitted")
-    form_data = Column(JSON, nullable=False, default=dict)
-    checklist = Column(JSON, nullable=False, default=dict)
+    form_data = Column(JSON_TYPE, nullable=False, default=dict)
+    checklist = Column(JSON_TYPE, nullable=False, default=dict)
     submitted_by = Column(String(120), nullable=False)
     submitted_at = Column(DateTime, nullable=False, default=utc_now)
 
@@ -99,7 +102,7 @@ class StageApproval(Base):
     decision = Column(String(16), nullable=False)
     reviewer = Column(String(120), nullable=False)
     reason = Column(String(1000), nullable=True)
-    correction_items = Column(JSON, nullable=False, default=list)
+    correction_items = Column(JSON_TYPE, nullable=False, default=list)
     reviewed_at = Column(DateTime, nullable=False, default=utc_now)
 
     submission = relationship("StageSubmission", back_populates="review")
@@ -136,7 +139,7 @@ class ImmutableSnapshot(Base):
     stage_number = Column(Integer, nullable=False)
     version = Column(Integer, nullable=False)
     name = Column(String(255), nullable=False, unique=True)
-    content = Column(JSON, nullable=False)
+    content = Column(JSON_TYPE, nullable=False)
     content_hash = Column(String(64), nullable=False)
     created_at = Column(DateTime, nullable=False, default=utc_now)
 
