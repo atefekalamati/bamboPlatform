@@ -3,6 +3,19 @@
 from app.schemas.building import BuildingCreate, BuildingRead, BuildingUpdate
 from app.schemas.equipment import EquipmentCreate, EquipmentRead, EquipmentUpdate
 from app.schemas.sensor import SensorCreate, SensorRead, SensorUpdate
+from app.schemas.workflow import (
+    GateRead,
+    PilotCreate,
+    PilotDetail,
+    PilotRead,
+    SnapshotRead,
+    StageActionResult,
+    StageDecision,
+    StageRead,
+    StageReject,
+    StageSubmit,
+    SubmissionRead,
+)
 
 __all__ = [
     "BuildingCreate",
@@ -14,4 +27,15 @@ __all__ = [
     "SensorCreate",
     "SensorRead",
     "SensorUpdate",
+    "GateRead",
+    "PilotCreate",
+    "PilotDetail",
+    "PilotRead",
+    "SnapshotRead",
+    "StageActionResult",
+    "StageDecision",
+    "StageRead",
+    "StageReject",
+    "StageSubmit",
+    "SubmissionRead",
 ]
