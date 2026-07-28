@@ -17,6 +17,7 @@ from app.models import (
     StageSubmission,
 )
 from app.schemas.workflow import PilotCreate, StageReject, StageSubmit
+from app.services.security import add_audit_log
 from app.workflow import (
     FINAL_OUTCOMES,
     GATE_DEFINITIONS,
@@ -30,7 +31,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def create_pilot(db: Session, payload: PilotCreate) -> Pilot:
+def create_pilot(db: Session, payload: PilotCreate, actor_user_id: int | None = None) -> Pilot:
     year = payload.pilot_year or (_now().year - 621)
     sequence = (
         db.query(func.coalesce(func.max(Pilot.sequence), 0))
@@ -60,6 +61,15 @@ def create_pilot(db: Session, payload: PilotCreate) -> Pilot:
         for code, title, after_stage in GATE_DEFINITIONS
     ]
     db.add(pilot)
+    db.flush()
+    add_audit_log(
+        db,
+        action="pilots.created",
+        entity_type="Pilot",
+        entity_id=pilot.id,
+        actor_user_id=actor_user_id,
+        new_data={"code": pilot.code, "project_system_name": pilot.project_system_name},
+    )
     db.commit()
     db.refresh(pilot)
     return pilot
@@ -130,7 +140,12 @@ def _raise_validation_error(stage_number: int, submission: StageSubmission) -> N
 
 
 def submit_stage(
-    db: Session, pilot_id: int, stage_number: int, payload: StageSubmit
+    db: Session,
+    pilot_id: int,
+    stage_number: int,
+    payload: StageSubmit,
+    submitted_by: str,
+    actor_user_id: int | None = None,
 ) -> tuple[PilotStage, StageSubmission]:
     stage = get_stage(db, pilot_id, stage_number)
     if stage.status == "locked" or stage.pilot.current_stage != stage_number:
@@ -156,7 +171,7 @@ def submit_stage(
         version=stage.latest_version + 1,
         form_data=payload.form_data,
         checklist=payload.checklist,
-        submitted_by=payload.submitted_by,
+        submitted_by=submitted_by,
         submitted_at=submitted_at,
     )
     _raise_validation_error(stage_number, submission)
@@ -164,6 +179,15 @@ def submit_stage(
     stage.status = "submitted"
     stage.submitted_at = submitted_at
     db.add(submission)
+    db.flush()
+    add_audit_log(
+        db,
+        action="stages.submitted",
+        entity_type="PilotStage",
+        entity_id=stage.id,
+        actor_user_id=actor_user_id,
+        new_data={"stage": stage.number, "version": submission.version},
+    )
     db.commit()
     db.refresh(stage)
     db.refresh(submission)
@@ -183,7 +207,12 @@ def _latest_submission(stage: PilotStage) -> StageSubmission:
 
 
 def approve_stage(
-    db: Session, pilot_id: int, stage_number: int, reviewer: str
+    db: Session,
+    pilot_id: int,
+    stage_number: int,
+    reviewer: str,
+    actor_user_id: int | None = None,
+    comment: str | None = None,
 ) -> tuple[PilotStage, StageSubmission, ImmutableSnapshot]:
     stage = get_stage(db, pilot_id, stage_number)
     if stage.status != "submitted":
@@ -253,6 +282,16 @@ def approve_stage(
         stage.pilot.status = "converted" if outcome == "contract" else "closed"
 
     db.add(snapshot)
+    db.flush()
+    add_audit_log(
+        db,
+        action="stages.approved",
+        entity_type="PilotStage",
+        entity_id=stage.id,
+        actor_user_id=actor_user_id,
+        new_data={"stage": stage.number, "version": submission.version},
+        reason=comment,
+    )
     db.commit()
     db.refresh(stage)
     db.refresh(submission)
@@ -261,7 +300,12 @@ def approve_stage(
 
 
 def reject_stage(
-    db: Session, pilot_id: int, stage_number: int, payload: StageReject
+    db: Session,
+    pilot_id: int,
+    stage_number: int,
+    payload: StageReject,
+    reviewer: str,
+    actor_user_id: int | None = None,
 ) -> tuple[PilotStage, StageSubmission]:
     stage = get_stage(db, pilot_id, stage_number)
     if stage.status != "submitted":
@@ -276,13 +320,24 @@ def reject_stage(
     review = StageApproval(
         submission=submission,
         decision="rejected",
-        reviewer=payload.reviewer,
+        reviewer=reviewer,
         reason=payload.reason,
         correction_items=payload.correction_items,
     )
     submission.status = "rejected"
     stage.status = "needs_revision"
     db.add(review)
+    db.flush()
+    add_audit_log(
+        db,
+        action="stages.rejected",
+        entity_type="PilotStage",
+        entity_id=stage.id,
+        actor_user_id=actor_user_id,
+        old_data={"status": "submitted"},
+        new_data={"status": "needs_revision", "version": submission.version},
+        reason=payload.reason or "; ".join(payload.correction_items),
+    )
     db.commit()
     db.refresh(stage)
     db.refresh(submission)

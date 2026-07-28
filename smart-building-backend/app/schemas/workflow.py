@@ -54,11 +54,10 @@ class PilotDetail(PilotRead):
 class StageSubmit(BaseModel):
     form_data: dict[str, Any] = Field(default_factory=dict)
     checklist: dict[str, bool] = Field(default_factory=dict)
-    submitted_by: str = Field(min_length=2, max_length=120)
 
 
 class StageDecision(BaseModel):
-    reviewer: str = Field(min_length=2, max_length=120)
+    comment: str | None = Field(default=None, max_length=1000)
 
 
 class StageReject(StageDecision):

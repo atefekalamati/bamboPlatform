@@ -21,3 +21,23 @@ class WorkflowError(Exception):
             "errors": self.errors,
             "trace_id": str(uuid4()),
         }
+
+
+@dataclass
+class SecurityError(Exception):
+    code: str
+    message: str
+    status_code: int
+    errors: list[dict[str, Any]]
+    retry_after: int | None = None
+
+    def response_body(self) -> dict[str, Any]:
+        body = {
+            "code": self.code,
+            "message": self.message,
+            "errors": self.errors,
+            "trace_id": str(uuid4()),
+        }
+        if self.retry_after is not None:
+            body["retry_after"] = self.retry_after
+        return body

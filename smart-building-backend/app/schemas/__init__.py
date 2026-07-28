@@ -3,6 +3,21 @@
 from app.schemas.building import BuildingCreate, BuildingRead, BuildingUpdate
 from app.schemas.equipment import EquipmentCreate, EquipmentRead, EquipmentUpdate
 from app.schemas.sensor import SensorCreate, SensorRead, SensorUpdate
+from app.schemas.security import (
+    AuditLogRead,
+    AuthToken,
+    OtpRequestInput,
+    OtpRequestResult,
+    PermissionRead,
+    RoleCreate,
+    RolePermissionsUpdate,
+    RoleRead,
+    RoleSummary,
+    UserCreate,
+    UserRead,
+    UserRolesUpdate,
+    UserStatusUpdate,
+)
 from app.schemas.workflow import (
     GateRead,
     PilotCreate,
@@ -27,6 +42,19 @@ __all__ = [
     "SensorCreate",
     "SensorRead",
     "SensorUpdate",
+    "AuditLogRead",
+    "AuthToken",
+    "OtpRequestInput",
+    "OtpRequestResult",
+    "PermissionRead",
+    "RoleCreate",
+    "RolePermissionsUpdate",
+    "RoleRead",
+    "RoleSummary",
+    "UserCreate",
+    "UserRead",
+    "UserRolesUpdate",
+    "UserStatusUpdate",
     "GateRead",
     "PilotCreate",
     "PilotDetail",

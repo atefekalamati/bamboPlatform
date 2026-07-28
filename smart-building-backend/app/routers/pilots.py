@@ -16,22 +16,34 @@ from app.schemas.workflow import (
     StageSubmit,
 )
 from app.services.workflow import approve_stage, create_pilot, reject_stage, submit_stage
+from app.services.security import AuthContext, require_permission
 
 router = APIRouter(prefix="/pilots", tags=["pilots"])
 
 
 @router.post("", response_model=PilotDetail, status_code=status.HTTP_201_CREATED)
-def create_pilot_endpoint(payload: PilotCreate, db: Session = Depends(get_db)) -> Pilot:
-    return create_pilot(db, payload)
+def create_pilot_endpoint(
+    payload: PilotCreate,
+    context: AuthContext = Depends(require_permission("pilots.create")),
+    db: Session = Depends(get_db),
+) -> Pilot:
+    return create_pilot(db, payload, actor_user_id=context.user.id)
 
 
 @router.get("", response_model=list[PilotRead])
-def list_pilots(db: Session = Depends(get_db)) -> list[Pilot]:
+def list_pilots(
+    _: AuthContext = Depends(require_permission("pilots.read")),
+    db: Session = Depends(get_db),
+) -> list[Pilot]:
     return db.query(Pilot).order_by(Pilot.id).all()
 
 
 @router.get("/{pilot_id}", response_model=PilotDetail)
-def get_pilot(pilot_id: int, db: Session = Depends(get_db)) -> Pilot:
+def get_pilot(
+    pilot_id: int,
+    _: AuthContext = Depends(require_permission("pilots.read")),
+    db: Session = Depends(get_db),
+) -> Pilot:
     pilot = db.get(Pilot, pilot_id)
     if not pilot:
         raise HTTPException(status_code=404, detail="Pilot not found")
@@ -43,9 +55,17 @@ def submit_stage_endpoint(
     pilot_id: int,
     stage_number: int,
     payload: StageSubmit,
+    context: AuthContext = Depends(require_permission("checklists.manage")),
     db: Session = Depends(get_db),
 ) -> StageActionResult:
-    stage, submission = submit_stage(db, pilot_id, stage_number, payload)
+    stage, submission = submit_stage(
+        db,
+        pilot_id,
+        stage_number,
+        payload,
+        submitted_by=context.user.display_name,
+        actor_user_id=context.user.id,
+    )
     return StageActionResult(stage=stage, submission=submission)
 
 
@@ -54,9 +74,17 @@ def approve_stage_endpoint(
     pilot_id: int,
     stage_number: int,
     payload: StageDecision,
+    context: AuthContext = Depends(require_permission("gate_approval.approve")),
     db: Session = Depends(get_db),
 ) -> StageActionResult:
-    stage, submission, snapshot = approve_stage(db, pilot_id, stage_number, payload.reviewer)
+    stage, submission, snapshot = approve_stage(
+        db,
+        pilot_id,
+        stage_number,
+        reviewer=context.user.display_name,
+        actor_user_id=context.user.id,
+        comment=payload.comment,
+    )
     return StageActionResult(stage=stage, submission=submission, snapshot=snapshot)
 
 
@@ -65,9 +93,17 @@ def reject_stage_endpoint(
     pilot_id: int,
     stage_number: int,
     payload: StageReject,
+    context: AuthContext = Depends(require_permission("gate_approval.reject")),
     db: Session = Depends(get_db),
 ) -> StageActionResult:
-    stage, submission = reject_stage(db, pilot_id, stage_number, payload)
+    stage, submission = reject_stage(
+        db,
+        pilot_id,
+        stage_number,
+        payload,
+        reviewer=context.user.display_name,
+        actor_user_id=context.user.id,
+    )
     return StageActionResult(stage=stage, submission=submission)
 
 
@@ -76,7 +112,10 @@ def reject_stage_endpoint(
     response_model=list[SnapshotRead],
 )
 def list_stage_snapshots(
-    pilot_id: int, stage_number: int, db: Session = Depends(get_db)
+    pilot_id: int,
+    stage_number: int,
+    _: AuthContext = Depends(require_permission("pilots.read")),
+    db: Session = Depends(get_db),
 ) -> list[ImmutableSnapshot]:
     return (
         db.query(ImmutableSnapshot)

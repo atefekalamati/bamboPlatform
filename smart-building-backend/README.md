@@ -9,6 +9,11 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
 - PostgreSQL production configuration with psycopg
 - Alembic schema migrations and PostgreSQL JSONB storage
 - SQLite-isolated unit and migration tests
+- OTP request/verify flow with expiry, attempt limits, mobile/IP rate limiting, and masking
+- Opaque bearer sessions with hashed tokens and revocation
+- User, role, grouped permission, and toggle-style RBAC APIs
+- Backend permission enforcement for every Pilot workflow endpoint
+- Audit logging for authentication, users, roles, permissions, and stage transitions
 - Unique `PIL-{year}-{sequence}` and `project-{number}` identifiers
 - Automatic creation of all 19 PRD stages and gates G1 through G5
 - Sequential stage locking and transition validation
@@ -29,6 +34,22 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 - `POST /pilots/{id}/stages/{stage}/reject`
 - `GET /pilots/{id}/stages/{stage}/snapshots`
 
+## Authentication and RBAC API
+
+- `POST /auth/otp/request`
+- `POST /auth/otp/verify`
+- `GET /auth/me`
+- `POST /auth/logout`
+- `GET /users`
+- `POST /users`
+- `PUT /users/{id}/roles`
+- `PATCH /users/{id}/status`
+- `GET /roles`
+- `POST /roles`
+- `GET /roles/permissions`
+- `PUT /roles/{id}/permissions`
+- `GET /audit`
+
 ## Run locally
 
 ```powershell
@@ -43,6 +64,12 @@ uvicorn app.main:app --reload
 ```
 
 OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
+
+The mobile configured by `BOOTSTRAP_SUPER_ADMIN_MOBILE` receives the
+`super_admin` role after its first successful OTP verification. The console
+OTP provider and `debug_code` response are enabled only in development/test.
+Production intentionally rejects OTP requests until an approved SMS provider
+adapter is configured.
 
 ## Test
 

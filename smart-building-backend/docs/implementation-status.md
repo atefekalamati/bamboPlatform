@@ -19,19 +19,24 @@ Authoritative source:
 | Stage-specific validation for all domains | Partial | Checklist/form definitions exist; DWG, incident, permission, and SLA validators remain |
 | PostgreSQL configuration | Implemented | psycopg URL, local Compose service, PostgreSQL SQL compilation test |
 | Alembic migrations | Implemented foundation | Initial upgrade/downgrade and metadata drift tests |
+| OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, login/logout tests |
+| Production SMS provider | Blocked by PRD question | Provider company and API limits are not specified |
+| User/Role/Permission | Implemented | Grouped permissions, system roles, assignment and toggle APIs |
+| Backend authorization | Implemented for current APIs | Pilot and workflow routes enforce live session permissions |
+| Privilege escalation protection | Implemented | Delegation and last-Super-Admin security tests |
+| Audit log | Implemented foundation | Auth, RBAC, user, pilot, and stage actions are recorded |
 
 ## Remaining MVP backend areas
 
 - Live PostgreSQL integration test in CI or a Docker-enabled environment
-- User, role, permission, and backend authorization
-- OTP authentication, sessions/tokens, and rate limiting
+- Approved production OTP/SMS provider adapter and notification templates
 - Full F01-F05 data contracts
 - Project, owner, contact, floor, and DWG version storage
 - Mission scheduling and conflict validation
 - Incident lifecycle and critical-incident gates
 - Notifications and delivery failure handling
 - SLA calculation
-- Audit log
+- Audit pagination/filtering and retention policy
 - External evidence checks
 - Commercial proposal and final outcome details
 - PostgreSQL integration, security, OpenAPI contract, and end-to-end tests
