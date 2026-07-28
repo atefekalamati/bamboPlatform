@@ -3,7 +3,7 @@ import os
 import pytest
 from sqlalchemy import text
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test_smart_building.db")
 
 from app.database import SessionLocal, init_db
 from app.models import Building, Equipment, Sensor
@@ -15,7 +15,7 @@ def test_database_initialization_and_relationships():
     with SessionLocal() as session:
         building = Building(
             name="Bamboo Tower",
-            address="Tehran, Iran",
+            address="Mashhad, Iran",
             description="Smart building pilot",
             total_floors=12,
             status="active",
