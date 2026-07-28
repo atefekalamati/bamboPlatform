@@ -3,7 +3,7 @@
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import Base, SessionLocal, engine, get_db, init_db
+from app.database import Base, SessionLocal, engine, ensure_schema, get_db, init_db
 from app.models import Building, Equipment, Sensor
 from app.schemas import (
     BuildingCreate,
@@ -22,7 +22,7 @@ app = FastAPI(title="Smart Building Backend", version="0.1.0")
 
 @app.on_event("startup")
 def startup_event() -> None:
-    init_db()
+    ensure_schema()
 
 
 @app.get("/health", tags=["health"])
