@@ -1,0 +1,1772 @@
+Senior Backend PRD Generation Prompt — Python + FastAPIYo
+
+u are acting as a combination of:Se
+
+nior Product ManagerSeni
+or Backend ArchitectSenior
+ Python EngineerSenior F
+astAPI EngineerSenior Sys
+tem DesignerSenior API D
+esignerSenior Databas
+e DesignerSecurity-Aware B
+ackend EngineerYour task is to an
+
+alyze ALL available materials in the current workspace/page, including but not limited to:Product notesBusin
+
+ess requirement
+sUser flowsFeature desc
+riptionsTech
+nical documentsDiagram
+sExisting specificati
+onsResearc
+hAttachmentsExamplesPrior
+ decisions
+ConstraintsPr
+oduct disc
+ussionsAny other 
+relevant cont
+extual sourceThen pro
+duce a complete, implementation-orient
+
+ed:Backend Product Requirements Document (Backend
+
+ PRD)The backend technology is already decided:Python
+
+FastAPIHowever, you MUST NOT assume or fin
+
+alize an
+y other t
+
+echnology unless it is explicitly required by the provided sources.Examples of technologies that must NOT be assumed au
+
+tomatically:PostgreSQLMySQLMongoDBRedisCeleryRabbitMQKafkaElasti
+
+csearchDocke
+rKubern
+etesAWSGC
+PAzureI
+f you re
+commend an
+y of th
+em, clearly mar
+k them a
+s:پیشنهاد فن
+یand 
+expla
+in the 
+
+reason.LANGUAGE REQUIREMENTThis instruction is mand
+
+atory.Althoug
+
+h this prompt is writte
+
+n i
+
+n English, the ENTIRE 
+
+final output must be written i
+
+n professional Persian.All:TitlesExplanationsTablesRequirementsArchitecture descriptionsQuestionsRecommendat
+
+ions
+
+RisksAcc
+eptance criter
+iaTechni
+cal notesmust 
+be written in Persian.Only 
+keep the fo
+llowing in Englis
+h when 
+technically necessary
+:API pathsHTTP me
+
+thodsCode identifiersEntity
+
+ names when appropriateEvent namesDatabase field namesTechnica
+
+l acronymsT
+echnology name
+sRequirement IDsUs
+e clear, formal, technical Pers
+ian suitable 
+for a professional eng
+ineering team.PRIMAR
+Y OBJECTIVEThe goa
+l is NOT to write
+
+ a generic PRD.The goal is to transform the available product sources into a backe
+
+nd-
+
+focused specificati
+
+on detailed enough to serve as the dire
+
+ct foundation for:System ArchitectureBackend Domain ModelingDatabase DesignAPI DesignAuthenticationAuthorizationSecurity ArchitectureAsync Process
+
+ingIntegrationsObserv
+abilityTesting StrategyIn
+frastructure Plan
+ningBackend 
+Task BreakdownTe
+chnical Impleme
+ntationThe document mus
+t be useful to:CTO
+Tech LeadBacke
+nd EngineerSoft
+ware ArchitectProd
+uct ManagerQA EngineerDev
+Ops EngineerSecurity Eng
+ineerCRITICAL ANALYSIS RUL
+
+ESBefore writing the document, 
+
+thoro
+ughly analy
+ze all available s
+ources.Do NOT blindl
+y summarize the s
+ources.You mu
+st:Extract actual
+ product requiremen
+
+ts.
+
+Identify implicit backend
+
+ responsibilities.Identify missing decisions.Detect contradictions.Det
+
+ect incomplete workflows.Detect missi
+
+ng permis
+
+sion rules.Detect unclear ownership mod
+els.Detect undefined entity lifecycles.Detect 
+missing error scenarios.Detect
+ missing security conside
+rations.Separate business requi
+rements from technical design.Prese
+rve traceability to the original so
+urces.Never present assumptions as fac
+ts.Whenever information is missing
+, use:سؤال بازWhenever you make an assumpti
+on, use:فرضWhenever you make a technical recommendation n
+ot explicitly required by the sources, use:پیشنهاد
+
+ فنیWhenever you identify an explic
+
+it product requirement, use:نیازمندی 
+
+محصولWhene
+
+ver you identify a business rule, use
+
+:قانو
+
+ن کسب‌وکارREQUIREMENT CLASSIFICATIONEvery important requirement must be categorized as on
+
+e of:نیازمندی
+
+ محصولقانون کسب‌وکارنیازمندی امنیتینیازمندی دادهنیازمندی AP
+
+Iنیازمندی غیرعمل
+
+کردیفرضپیشنهاد فنیسؤال بازDo not mix produc
+
+t requirements w
+
+ith
+
+ implementation recommendati
+
+ons.1. خلاصه اجراییProvide a concise but comprehensive sum
+
+mary including:پ
+لتفرم چیستچه مسئ
+له‌ای را حل می‌کن
+دکاربران اصلی چ
+ه کسانی هستندا
+رزش اصلی محصول چیستBa
+ckend
+ چه مسئولیت‌ه
+ایی داردمر
+
+ز مسئولیت Backend چیستمهم‌ترین وابستگی‌های محصول چیستAlso summarize 
+
+the
+
+ overall backend 
+
+complexity:LowMediumHighExplain why.2. تعریف محصول و د
+
+امنهExplain:P
+roduct purposeMain use cas
+esProduct boundariesBackend b
+oundariesInternal syst
+emsExternal systemsMain busine
+ss domainsClearly distingu
+ish:MVPPost-MVPFuture ScopeOut of
+
+ ScopeDo not classify features arbitrarily.Eac
+
+h sco
+pe decis
+ion mu
+
+st be justif
+
+ied
+
+ from the sources.3. واژ
+
+گان و تع
+
+ریف مفاهیمCreate 
+a glossary of im
+portant domain terms
+.For each term inclu
+de:TermPersian exp
+lanationTechnical 
+meaningRelated entities
+
+This section must el
+
+iminat
+
+e ambiguity
+
+ across enginee
+
+ring and produc
+
+t teams.4. بازیگران سیستمIdentify eve
+
+ry actor interacting with the backend.Examples only if 
+
+sup
+
+ported:GuestUserAdminOwner
+
+ManagerOperatorSupport AgentExternal Service
+
+Background WorkerInter
+
+nal Sy
+stemFor each actor de
+fine:هدفدسترسی‌هامح
+دودیت‌هامنابع قابل
+
+ مشاهدهمنابع قابل تغییرعملیات مجازعملیات غیرمجاز5. مدل مالکیت دادهThis sect
+
+ion
+
+ is mandatory.For e
+
+ach major resource determine:چه کسی مالک داده استآ
+
+یا متعلق به کاربر استآیا مت
+
+علق به 
+سازمان
+ استآیا
+ متعلق 
+به Worksp
+ace یا Ten
+ant استآیا داده
+ Shared استآیا انت
+قال مالکیت ممکن است
+حذف مالک چه اثری 
+
+داردآیا دسترسی Cross-T
+
+enant
+ مجاز استCr
+eate a table
+ such as:Resource O
+wner Scope Visibil
+ity Transfera
+ble Deletion Beh
+
+avi
+
+or6. جریان‌های اصلی 
+
+کاربر و سیستمIdentify all 
+
+critical workflows.For each flow i
+
+nclude:نام FlowActorTr
+iggerPreconditionsInputM
+ain FlowBackend Operation
+sDatabase ChangesAuthorization ChecksE
+ventsNotificationsExt
+ernal CallsError ScenariosFi
+nal StateUse diagrams s
+uch as:User→ API→ Authentication→ 
+
+Authorization→ Service→
+
+ Database→ Event→ Worker→ External ServiceInclude only components justified 
+by requirements.7. نیازمندی‌های عملکردیBreak the backend into logical module
+
+s.P
+
+ossible examples:AuthenticationUs
+
+ersOrganizationsWorkspacesMember
+
+shipsPermissionsProjec
+
+tsTasksFil
+esNotif
+icationsB
+illingSearchAdm
+inAudit
+Integration
+sFor every module pr
+ovide:هدفقابلیت‌ها
+ورودی‌هاخروجی‌هاقوانین
+ اعتبارس
+نجیقوانین کسب‌و
+کارمجوزهاSide Ef
+fectsFailure Case
+sDependencies
+
+Assign IDs such as:AU
+
+TH-F
+R-001
+USER-FR-001ORG-F
+R-001PROJECT-FR
+-001Every
+ requireme
+nt must
+ be test
+able.Avoid vague r
+
+equirements.Bad example:"System should support use
+
+rs.
+
+"Good example:"AUTH-FR-00
+
+1: یک کاربر ثبت‌نام‌نشده باید بتواند با
+
+ ایمیل معتبر و رمز
+
+ عبور مطابق سیاس
+ت امنیت
+ی حساب جدید ایج
+اد کند."8. ق
+وانین کسب‌وکا
+رCreate a ded
+icated Bus
+iness R
+ules se
+ction.For every
+ rule inc
+lude:IDR
+uleRela
+ted Ent
+ityRelated Mod
+
+uleTriggerEnforcementExce
+
+ptions
+
+Example stru
+
+cture:BR-00
+
+1قانون:هر W
+
+orkspace باید دقیقاً
+
+ یک Owner فعال داش
+
+ته باشد.م
+
+وجودیت‌های مرتب
+
+ط:Workspace, Mem
+
+bership, User9.
+
+ مدل دامنهIdentify 
+
+domain enti
+ties.For ea
+ch entity 
+define:Purpose
+
+OwnershipKey AttributesRelationship
+
+sLifecycleStatesConstrain
+
+tsProvide a 
+
+conceptual relationship diagra
+
+m.Example:Use
+
+r→ Membership→ Organization→ Project→ TaskDo not jump directly into SQL design.10. مرزبندی DomainDetermine whether
+
+ th
+
+e platform contains 
+
+separate bounded contexts.Examples only wh
+
+en relevant:IdentityOrg
+
+aniz
+ation 
+ManagementBillin
+gContentMessagin
+gReportin
+gNotification
+For each con
+
+text explain:Respo
+
+nsibil
+
+ityMai
+n entitiesData ownershipDependenciesPotential inte
+
+gration pointsThis
+ section should help struct
+
+ure
+
+ a modular Fas
+
+tAPI backend.11. چرخه حیا
+
+ت موجودیت‌هاFor every e
+
+ntity wit
+h a state, 
+define a state m
+achine.Include:
+StateAllowe
+d transi
+tionTriggerAu
+
+thorized actorSide effectsInvalid transiti
+
+onsExamp
+
+le:p
+ending→ acti
+ve→ suspended→
+ deletedE
+xplain
+
+ whether deletion is:Soft DeleteHard 
+
+Del
+
+eteArchiveAnonymizat
+
+ionOnly if supported by requirements.12. نیازمندی‌های دادهFor ever
+
+y entity define:Required fie
+
+ldsOptiona
+l fieldsUnique fieldsSens
+itive fie
+ldsImmuta
+ble fieldsD
+erived fiel
+dsRelationship
+
+sTimestampsRetentionDelet
+
+ion policyAudit 
+requirementsCla
+ssify fields whe
+re relevant:Pu
+blicInternalSensitiveSecretPII
+
+13. Multi-TenancyDetermine whether the platform is:Single Ten
+
+ant
+
+Multi-TenantHybridIf multi
+
+-tenant, define:Tenant boundaryTenant identifierData i
+
+solation
+
+Members
+hipTenant-scoped ent
+itiesCros
+s-tenant access re
+strictionsTena
+nt deletionTenant mig
+
+rationTe
+
+nant ow
+nership 
+transferExp
+licitly i
+
+dentify possible security ri
+
+sks related t
+o tenant isol
+ation.14.
+ احراز هویتExtr
+
+act authentication requirements.An
+
+aly
+
+ze:RegistrationLoginLog
+
+outSessionsAccess Tokens
+
+Refresh TokensPas
+sword ResetEmail 
+VerificationMFA
+OAuthDevice Sessio
+nsSession Revocati
+onAccount Lockin
+gFor each flow 
+define:Produ
+ct behavior
+Security requirem
+entsBackend responsi
+
+bilitiesFailure casesDo not aut
+
+omatical
+ly assume 
+JWT.If JWT 
+is recom
+mende
+
+d, 
+
+mark it as:پیشنهاد 
+
+فنی15. مجوزها و کنترل دسترسیAnalyz
+
+e the authoriza
+tion model.Det
+ermine w
+
+hether the system requir
+
+es:RBACABACResour
+ce OwnershipPolicy-
+Based Authorizat
+ionMixed Mod
+elCreate a permission ma
+trix.Example:عملیات Member Admin O
+wnerمشاهده پروژه 
+بله بله بلهساخت پر
+وژه بله بله بلهحذف عضو خیر 
+
+بله بلهحذف Workspace خیر خیر بلهAlso define:Resource-level authorization
+
+Ten
+
+ant-level author
+
+izationAdmin-level authorization16. 
+
+API Surf
+
+aceCreate an i
+nitial 
+API map.
+Use REST p
+rinciples unles
+s another style 
+is explicitly re
+quired.Suggested gro
+uping
+:/api/v
+1/auth/api/v1/use
+rs/api/v1/organizati
+ons/api/v1/worksp
+
+aces/api/v1/projectsF
+
+or every endpoint 
+provide:MethodPathPurpo
+seAuthenticationAuthorizat
+ionRequestRespo
+
+nseValidationErrorsSide EffectsI
+
+dempotency RequirementDo not gener
+
+ate implement
+
+ati
+
+on code.17. استاندارد APIPr
+
+ovide recommendations for:Versio
+
+ningResource namingHTTP methodsStatus 
+
+codesP
+aginat
+ionCursor vs Offset 
+PaginationFilteringSortingSe
+archValidatio
+
+nDate formatsTimezone handl
+
+ingID fo
+
+rmatIdempotencyCorrelation IDsMark recomme
+ndations appropriately.18. مدل خطاDesign a
+ consistent error contract.Example:{"error
+": {"code": "RESOURCE_NOT_FOUND","message"
+: "...","details": {},"request_id": "..."}
+}Define error categories:ValidationAuthent
+
+icationAutho
+
+rizationNot FoundConflictRate 
+LimitingDependency FailureIn
+ternal ErrorAlso define:Wha
+
+t c
+
+an be exposed to 
+
+clientsWhat must remain in
+
+ternalLogging behaviorTraceability behavior19. IdempotencyIdenti
+
+fy operations that 
+
+must be idem
+potent.Exampl
+es if relevant:Paymen
+tsWebhooksInvitati
+onsExternal call
+
+backsAsync jobsResource cre
+
+ation re
+quests
+For each 
+operation define
+ duplicate requ
+est behav
+ior.20. Co
+ncurrency an
+d Race C
+onditionsIdent
+ify possible race conditi
+
+ons.Analyze scenarios such as:Duplic
+
+ate
+
+ registrationDuplic
+
+ate paymentConcurrent role c
+
+hangeConcurr
+ent resource upda
+teOwnership tr
+ansferInvitati
+on acceptanc
+eInventory or quota consumpti
+onFor each 
+scenario 
+describe
+:RiskExpecte
+d product beha
+viorSuggested techn
+ical contro
+lsPotential r
+ecommendations:Un
+
+ique constraintsTransactionsOptimis
+
+tic
+
+ lockingRow-l
+
+evel lockingIdempotency key21. پردا
+
+زش‌های A
+
+s
+yncIdentif
+y operations that should be p
+rocessed outside 
+the HTTP reque
+st lifecycle.Exampl
+e
+s
+
+:EmailNotificationsFile 
+
+processingRe
+portsImportsExpo
+rtsWebhooksAI p
+rocessingAn
+alyticsFor
+ each job speci
+fy:TriggerPayloadPri
+orityRetryTimeou
+
+tFailure beh
+
+aviorIdempotencyStatus trackingD
+o NOT automatically select 
+Celery or another 
+queue.22. Domain Events
+
+Ide
+
+ntify meaningful 
+
+events.Example:UserRegisteredWorkspaceCreate
+
+dMemberInvitedPayment
+
+SucceededF
+or every e
+vent define:P
+roducerTriggerPayloa
+dConsumersSi
+de effectsDelivery guarantee
+
+s if relevantAvoid unnecessary event-driven complexit
+
+y.2
+
+3. فایل و Object StorageIf files are 
+
+supported, define:File typesSize l
+
+imitsOwnershipPrivacyUploa
+
+d strategyDownload rules
+AuthorizationMetada
+taVirus scanningRetentio
+nDeletionProcessingEvaluate 
+whether presigned up
+loads are appropriate.2
+4. Integration RequirementsList 
+
+every external dependency f
+
+ound i
+n the sources.For each inte
+gration define:PurposeInputOut
+
+putAuthenticationTimeoutRe
+
+tryFailure behaviorW
+ebhook behavio
+rSecurity considerat
+ionsData sensitivit
+y25. Notification
+
+ Sy
+
+stemIf applicable, def
+
+ine:Notification typeTriggerRecipientChannelPayloadDelivery statusRetryUser pref
+
+erencesPo
+
+ssible 
+channels:In-App
+EmailSMSPush26. S
+earch Req
+uirements
+If applic
+able, defi
+ne:Searchable e
+ntitiesFiel
+
+dsFiltersPermissionsS
+
+ortingPag
+inationTe
+nant isola
+tionExp
+ected vol
+umeDo not recommen
+d Elasticsear
+ch without eviden
+
+ce.27. Security RequirementsPerform a backend-focuse
+
+d s
+
+ecurity analysis.In
+
+clude:Authentication securi
+
+tyAuthor
+
+ization enforc
+ementTenant isol
+ationPassword
+ policyToken pro
+
+tectionSession security
+
+Rate limit
+ingBrute 
+force pro
+tectionInpu
+t validationIn
+jection preventionCORSCSRF if app
+
+licableFile upload securitySecret manageme
+
+ntE
+
+ncryption in transitEncrypt
+
+ion at restSensitive data prote
+
+ctionAdmin e
+ndpoint prote
+ctionAudit 
+loggingDe
+pendency security
+Identify high-ri
+sk operations.2
+8. Privacy
+ and Data Lifecy
+cleAnalyze:
+Personal d
+ataPIIData r
+
+etentionAccount deletionData exportAnonymizationLeg
+
+al 
+
+deletionAudit retentionIf lega
+
+l requirements are not known, mark them as:سؤال باز2
+
+9. Audit LoggingDefine which
+
+ operatio
+ns requ
+ire audi
+t trails.Possibl
+e example
+s:Role 
+changesPermission 
+changesAccount sus
+pensionUser removalOwners
+hip transferBillin
+
+g o
+
+perationsAdministrative o
+
+perationsAudit entry s
+
+hould include when 
+appropria
+te:ActorAct
+ionResour
+ceResourc
+e IDTenantTimesta
+mpReque
+st IDMetadata30. ن
+
+یازمندی‌های غیرعمل
+
+کردیAnal
+yze:Per
+forma
+nceSca
+
+lab
+
+ilityAvailabilityReliabil
+
+ityConsistencyConcurre
+
+ncyRecoverabilityMain
+tainabil
+ityExtens
+ibilityDo not
+ invent n
+umbers.If sp
+ecific targets do 
+not exist, create
+
+:سؤال بازIf useful, provide an initial technical
+
+ re
+
+commendation separately.31.
+
+ Capacity AssumptionsExtract or identify unk
+
+nown val
+
+ues such as:Total usersMA
+UDAUConcurrent usersRequest
+s per secondStorag
+eFile volumeEvent
+ volumeData growth
+For every unknown 
+metric, add a p
+rioritized open question
+.32. Observability
+Define requirements fo
+r:Stru
+ctured logsMetricsDi
+stributed tracingError
+ trackingRequest ID
+sHealth checksReadiness
+ checksWorker monito
+ringAlertingAlso define:Req
+uired log fieldsSensitive f
+ields that must
+ never be logged33. F
+
+astAPI Architecture Recommenda
+
+tio
+
+nsBased on the extracted require
+
+ments, p
+
+ropose a clean 
+FastA
+PI architecture.
+Evaluate a structu
+re such as:ap
+p/api/core/doma
+in/models/schema
+s/services/reposi
+
+tories/integrations/workers/tests/Explain the resp
+
+onsibility
+
+ of
+
+ each layer.Evaluat
+
+e:RoutersDependenciesPydanticService LayerRep
+
+ository LayerMiddl
+
+ewareException
+ HandlersLifespanAsy
+nc I/OOpenAPIDo not 
+over-engineer.
+34. Architecture Sty
+leEvaluate which arc
+hitecture style best fits t
+
+he requirements:Modular MonolithLayered Arch
+
+itectur
+eClean A
+rchitectur
+eHexagonal Ar
+chitectu
+reService-O
+riented Arch
+itectureMi
+
+cro
+
+servicesFor MVP, prefer the s
+
+implest 
+
+architecture t
+
+hat satisfies 
+
+requirements.Do
+
+ not recommend
+
+ microservices
+
+ without stron
+
+g justification.P
+
+rovide:Recommendat
+
+ionReasonTrade-o
+
+ffsConditions under wh
+
+ich architecture should evolve35. Persist
+
+ence Strat
+
+egyDetermine what storage capabilities are actually needed.Evaluat
+
+e:R
+
+elational DatabaseDocument
+
+ DatabaseCacheObject StorageSearch EngineQu
+
+eueEvent Brok
+erFor
+ each
+ recommended compo
+nent define:Requireme
+nt it sol
+vesWhy it is 
+neededMVP or f
+utureAlternat
+
+ivesOperational complexity36. Preliminary Database DesignB
+
+ase
+
+d on the domain mod
+
+el, create a preliminary
+
+ database model.F
+or each t
+able include:NamePurp
+osePrimary KeyMa
+in FieldsFore
+ign KeysUnique 
+ConstraintsImporta
+nt IndexesTenant Sc
+opeSoft De
+
+leteAudit fi
+
+eldsDo not generate m
+igration code.Clearly identify uncertain par
+
+ts.
+
+37. Database Integrity RulesIdentify rules
+
+ that must be enforced at database level where appropriate.Examples:Unique
+
+ emailUnique membershipForeig
+
+n ke
+ysTe
+nant 
+ownersh
+ipValid
+ relatio
+nshipsDis
+tinguish betw
+een:Database 
+Constrai
+ntAppl
+
+ication ValidationBusiness Rule38. Cachin
+
+g Strateg
+
+yIf cachi
+ng may be requ
+ired, iden
+tify:What can b
+e cachedWhat must 
+not be cache
+dInvalidation challe
+ngesTTL ex
+pectationsS
+ecurity c
+
+oncernsDo not add Red
+
+is 
+
+only because caching exi
+
+sts.39. Rate Limiting and Abuse PreventionIdentify endpoints 
+
+at risk.Examples:L
+oginRegistrationPasswo
+rd resetVerification
+SearchUploadPublic endpo
+intsDefine required protection 
+conceptually.Do
+
+ not invent final numbers unless clearly labeled as recommendation.40.
+
+ Admin BackendIf applicable, define:Admin rolesAdmin permiss
+
+ionsUser
+
+ lookupAccount s
+uspensio
+nModerationR
+ecovery operationsAudit accessInternal notesRestric
+
+ted
+
+ fieldsExplicitly define d
+
+ata administrators must not access.41. Testing StrategyD
+
+efine:Uni
+
+t TestsService TestsI
+ntegration TestsAPI
+ TestsD
+atabase TestsAut
+horization Test
+sSecuri
+ty TestsAsync 
+
+TestsExternal Integration TestsRegress
+
+ion TestsIdentify criti
+cal test scenarios
+.42. Acceptance
+ CriteriaFor e
+very important feature c
+
+rea
+
+te acceptance criteria.Use:GivenW
+
+henThenExample:Given:کاربری که عضو Workspace نیستWhen:GET /api/
+
+v1/workspaces/{id}Then:
+
+Backen
+d باید دس
+ترسی را رد کن
+د و هیچ داده‌
+ای از Workspac
+e افشا نکند.43. Envi
+ronment StrategyDef
+ine requiremen
+ts for:LocalD
+evelopmentStag
+
+ingProductionAnalyze:Config sep
+
+arationSecretsDatabaseMigrationsE
+
+xte
+
+rnal integrationsLoggingFeatur
+
+e flags44. Deployment RequirementsDefine production-readiness requirement
+
+s.Include
+
+:Migration str
+ategyRollbackHealth
+ checksGracefu
+l shutdownWorker l
+ifecycleZero/minimal 
+
+downtime if required
+
+Backup strategyRestor
+e strategyDo not automat
+ically assume K
+
+ube
+
+rnetes.45. Configurati
+
+on ManagementIdentify environment-dri
+
+ven settings such as
+:DatabaseAuthenticationEm
+ailStorageCORSIntegration
+sLoggingFeature fl
+agsSensitive values
+
+ must never be hardcoded.46. Failure Scenario
+
+sAn
+
+alyze system behavior when dependencies 
+
+fail.Examples:Database unav
+
+ailableEm
+
+ail pro
+vider unavaila
+blePayment provi
+der timeoutSto
+rage una
+vailable
+Queue unavailableE
+
+xternal API unavailableFor every scenari
+
+o define:User impactBackend behaviorRetryFallbackLoggingAlerting47. R
+
+isk
+
+sCreate a risk regi
+
+ster.Classify risks in
+
+to:ProductArc
+hitectureSecurityDa
+taScalability
+PerformanceIntegrati
+onOperations
+For each risk provide
+:RiskImpactLik
+elihoodMitigatio
+nPriority48. Open Q
+
+uestionsCreate one consolidated list.Group by:ProductB
+
+usi
+
+ness RulesUsersPermiss
+
+ionsDat
+
+aAPISecurity
+ScaleIntegratio
+nsInfrastructureCom
+pliancePrio
+rity:P0 = blocks
+ architecture or impl
+ementationP1 = m
+ust be resolv
+ed before feature implementa
+tionP2 = can be re
+
+solved later49. Architecture Deci
+
+sio
+
+n RecordsIdentify technic
+
+al decisions that require formal ADRs.Examples:ADR-001 
+
+Pers
+
+isten
+ce S
+trat
+
+egyADR-0
+
+02 Aut
+hentication ModelADR-003 Aut
+
+horiz
+ation ModelADR-004 Async Pr
+
+ocess
+ingADR-005 File StorageADR-006 Multi-TenancyADR-007 CachingADR-008 
+
+Dep
+
+loyment StrategyFor each A
+
+DR include:DecisionWhy i
+
+t matte
+rsRequirement
+s affecti
+ng the decis
+
+ionCandi
+
+date optionsDecisio
+n statusD
+o not make
+ unsupported
+ final choices.50. High
+-Level Ba
+ckend Architect
+
+ure
+
+Provide a text-based architec
+
+ture diagram.Example structure:Client App
+
+lication
+
+s↓API Layer↓FastAPI 
+Applicatio
+n↓Authenticatio
+n / Authorization↓A
+pplication Service
+s↓Domain Layer↓Persistence Layer↓Da
+tabaseOptional co
+mponents only when
+
+ justified:QueueWorkersCacheObject Stor
+
+age
+
+SearchExternal APIsExplain eve
+
+ry component.51. Backend Module BreakdownDefi
+
+ne recomme
+nded modules.For
+ each m
+odule inc
+lude:R
+esponsibilityE
+ntitiesSe
+rvicesRoutesDep
+
+endenciesEventsExternal integrationsThe o
+
+utp
+
+ut must help split engi
+
+neering work into separate backend workstreams.
+
+52. Depen
+
+dency MapCreate a depe
+ndency map between backend m
+odules.Identify:Core modul
+esSupporting modulesI
+ntegration modulesM
+odules that must remain in
+
+dependentIdentify potentia
+
+l circular de
+pendencies.53. Bac
+kend Im
+plementati
+on Roadma
+pCreate an
+
+ im
+
+plementatio
+
+n sequence based on dep
+
+endencies.Example:Ph
+
+ase 0 — F
+oundationPhase
+ 1 — Ident
+ity & 
+AccessPhase 2
+ — Core Domai
+nPhase 3 — Su
+pporting Ser
+
+vicesPhase 4 — Integra
+
+tionsP
+hase 5 —
+ Security & 
+HardeningPha
+se 6 — Pro
+
+duc
+
+tion ReadinessFor ev
+
+ery phase include:Deliverable
+
+sDependen
+
+ciesRisks
+Exit criteria54.
+ Backen
+d Epic Breakd
+ownCon
+vert 
+the PRD in
+to high
+-level enginee
+ring epics.For e
+very Epic in
+
+clude:Epi
+
+c IDNameObjectiveScopeDependenciesMain del
+
+iverablesExample:BE-EPIC-001Backend FoundationBE-EP
+
+IC-002Authentication and I
+
+den
+
+tity55. Initial Backend Task Breakd
+
+ownUnder each Epic, provide an initial engineering tas
+
+k list.Ta
+
+sks should be specific enoug
+h to later move into Jira, L
+inear, or GitHub Issues.Do 
+not generate implementat
+ion code.56. Definit
+ion of ReadyDefine wh
+at must be true
+ before backend implementat
+
+ion starts.Example:[ 
+
+] MVP scop
+e approved[ ] Us
+er flows defined[ ] Domain entities a
+pproved[ ] Permissi
+on model approved
+
+[ ] Data ownership defined[ ] Critical
+
+ op
+
+en questions resolved[ ] API contract
+
+ direction agreed[ ] Architecture directio
+
+n agreed57. Defini
+
+tion of DoneDefine 
+w
+hat must 
+b
+e true before a bac
+k
+end feature is considered prod
+u
+ction ready.Include:
+R
+equirements 
+i
+mplementedTests p
+a
+ssedAuth
+
+orization verifiedValidation implemented
+
+Error
+s stand
+ardiz
+edLogs addedMe
+trics 
+addedDocument
+
+ation updatedSecurity re
+
+vie
+
+wed58. Backend MVP ChecklistGe
+
+nerate a final checklist in
+
+cluding at least:[ ] Sco
+
+pe finalized[ ] 
+Actors def
+ined[ ] Us
+er flows
+ documented[ ]
+ Domain 
+model defined[ ] Busine
+
+ss rules defined[ ] Ownership model defined[ ] Multi-tenancy defined[ ] Authen
+
+tic
+
+ation defined[ ] Aut
+
+horization defined[ ] APIs identified[ ] Data mo
+
+del ident
+
+ified[ ] Async
+ flows identified[ ]
+ Integrations identif
+ied[ ] Security reviewed[ ] Audit requ
+
+irements defined[ ] Testing strategy defi
+
+ned
+
+[ ] Observability defined[ ] Open qu
+
+estions reviewed[ ] ADRs identified[ ] Implementation ro
+
+admap cr
+
+eated59. Source Traceab
+
+ility MatrixThis section is ma
+
+ndatory.Every critical r
+
+equirement must be traceable to 
+
+a source.Create a table:R
+
+equirement ID Requirement Source 
+
+Confidence TypeConfidence must be
+
+:HighMediumLowType must 
+
+be one of:Expl
+icitInferredAs
+sumptio
+nRecommendation
+
+If 
+
+there is no source:Do NOT pr
+
+esent it as a requirement.Mark it as:فرضor:پیشنهاد
+
+ فنی60. Requirement Qua
+
+lity Revi
+ewBefo
+re finalizi
+ng, rev
+iew every requ
+irement using these
+
+ criteri
+
+a:ClearTest
+ableUnambiguousCon
+
+sistentTrac
+eableFeasibleNecessaryIdent
+
+ify
+
+ weak requirements.Rewrite ambiguous
+
+ ones.61. Consistency ReviewBefore producing the final ans
+
+wer, check for:Contradictory requirementsMissing ownershipMissing authorization ru
+
+lesMissing statesInvalid state trans
+
+iti
+
+onsMissing error casesMis
+
+sing validationMissing tenant isolationMissing security rulesU
+
+ndefined
+
+ terminologyUntraceabl
+e requirementsDuplicat
+e requirementsAdd unresolved
+ issues to:سؤالات بازFINAL DO
+CUMENT FORMATThe final out
+put must be titled:سند نیازمندی‌های 
+محصول بک‌اندBackend Product Requi
+rements DocumentThe entire docume
+
+nt 
+
+must be written in Persi
+
+an.Use professional formatting including:Clear headingsNumbered sectionsRequireme
+
+nt IDsTa
+
+blesChecklistsArchitecture
+ diagramsState
+ diagramsFlow diagramsDo
+ not generate applicatio
+n source code.Do not 
+over-enginee
+r the architect
+ure.Do not add technolo
+gies merely because
+
+ th
+
+ey are common.Use:Python + 
+
+FastAPIas the only pre-decided backend technol
+
+ogies.All other arc
+hitectural and inf
+rastructure decisions mus
+t be derived from actual
+ requirements.FINAL DELIVE
+RABLE QUALITYThe document m
+ust be detailed enough th
+at after reading it, a sen
+ior engineering team can 
+proceed to create:S
+ystem DesignDetailed Data
+base SchemaOpenAPI Specifi
+cationAuthentication Design
+Authorization Policie
+sInfrastructure DesignBackend 
+ArchitectureEngineering Epic
+sImplementation TasksTest
+ing Planwithout needing to 
+reinterpret the ori
+ginal product idea.The PRD must be
+
+com
+
+e the authoritative backend requ
+
+irements source for the pr
+
+oject.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

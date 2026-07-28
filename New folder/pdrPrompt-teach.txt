@@ -1,0 +1,3790 @@
+Senior Backend PRD Generation Prompt — Python + FastAPIYo
+
+u are acting as a combination of:Se
+
+nior Product ManagerSeni
+or Backend ArchitectSenior
+ Python EngineerSenior F
+astAPI EngineerSenior Sys
+tem DesignerSenior API D
+esignerSenior Databas
+e DesignerSecurity-Aware B
+ackend EngineerYour task is to an
+
+alyze ALL available materials in the current workspace/page, including but not limited to:Product notesBusin
+
+ess requirement
+sUser flowsFeature desc
+riptionsTech
+nical documentsDiagram
+sExisting specificati
+onsResearc
+hAttachmentsExamplesPrior
+ decisions
+ConstraintsPr
+oduct disc
+ussionsAny other 
+relevant cont
+extual sourceThen pro
+duce a complete, implementation-orient
+
+ed:Backend Product Requirements Document (Backend
+
+ PRD)The backend technology is already decided:Python
+
+FastAPIHowever, you MUST NOT assume or fin
+
+alize an
+y other t
+
+echnology unless it is explicitly required by the provided sources.Examples of technologies that must NOT be assumed au
+
+tomatically:PostgreSQLMySQLMongoDBRedisCeleryRabbitMQKafkaElasti
+
+csearchDocke
+rKubern
+etesAWSGC
+PAzureI
+f you re
+commend an
+y of th
+em, clearly mar
+k them a
+s:پیشنهاد فن
+یand 
+expla
+in the 
+
+reason.LANGUAGE REQUIREMENTThis instruction is mand
+
+atory.Althoug
+
+h this prompt is writte
+
+n i
+
+n English, the ENTIRE 
+
+final output must be written i
+
+n professional Persian.All:TitlesExplanationsTablesRequirementsArchitecture descriptionsQuestionsRecommendat
+
+ions
+
+RisksAcc
+eptance criter
+iaTechni
+cal notesmust 
+be written in Persian.Only 
+keep the fo
+llowing in Englis
+h when 
+technically necessary
+:API pathsHTTP me
+
+thodsCode identifiersEntity
+
+ names when appropriateEvent namesDatabase field namesTechnica
+
+l acronymsT
+echnology name
+sRequirement IDsUs
+e clear, formal, technical Pers
+ian suitable 
+for a professional eng
+ineering team.PRIMAR
+Y OBJECTIVEThe goa
+l is NOT to write
+
+ a generic PRD.The goal is to transform the available product sources into a backe
+
+nd-
+
+focused specificati
+
+on detailed enough to serve as the dire
+
+ct foundation for:System ArchitectureBackend Domain ModelingDatabase DesignAPI DesignAuthenticationAuthorizationSecurity ArchitectureAsync Process
+
+ingIntegrationsObserv
+abilityTesting StrategyIn
+frastructure Plan
+ningBackend 
+Task BreakdownTe
+chnical Impleme
+ntationThe document mus
+t be useful to:CTO
+Tech LeadBacke
+nd EngineerSoft
+ware ArchitectProd
+uct ManagerQA EngineerDev
+Ops EngineerSecurity Eng
+ineerCRITICAL ANALYSIS RUL
+
+ESBefore writing the document, 
+
+thoro
+ughly analy
+ze all available s
+ources.Do NOT blindl
+y summarize the s
+ources.You mu
+st:Extract actual
+ product requiremen
+
+ts.
+
+Identify implicit backend
+
+ responsibilities.Identify missing decisions.Detect contradictions.Det
+
+ect incomplete workflows.Detect missi
+
+ng permis
+
+sion rules.Detect unclear ownership mod
+els.Detect undefined entity lifecycles.Detect 
+missing error scenarios.Detect
+ missing security conside
+rations.Separate business requi
+rements from technical design.Prese
+rve traceability to the original so
+urces.Never present assumptions as fac
+ts.Whenever information is missing
+, use:سؤال بازWhenever you make an assumpti
+on, use:فرضWhenever you make a technical recommendation n
+ot explicitly required by the sources, use:پیشنهاد
+
+ فنیWhenever you identify an explic
+
+it product requirement, use:نیازمندی 
+
+محصولWhene
+
+ver you identify a business rule, use
+
+:قانو
+
+ن کسب‌وکارREQUIREMENT CLASSIFICATIONEvery important requirement must be categorized as on
+
+e of:نیازمندی
+
+ محصولقانون کسب‌وکارنیازمندی امنیتینیازمندی دادهنیازمندی AP
+
+Iنیازمندی غیرعمل
+
+کردیفرضپیشنهاد فنیسؤال بازDo not mix produc
+
+t requirements w
+
+ith
+
+ implementation recommendati
+
+ons.1. خلاصه اجراییProvide a concise but comprehensive sum
+
+mary including:پ
+لتفرم چیستچه مسئ
+له‌ای را حل می‌کن
+دکاربران اصلی چ
+ه کسانی هستندا
+رزش اصلی محصول چیستBa
+ckend
+ چه مسئولیت‌ه
+ایی داردمر
+
+ز مسئولیت Backend چیستمهم‌ترین وابستگی‌های محصول چیستAlso summarize 
+
+the
+
+ overall backend 
+
+complexity:LowMediumHighExplain why.2. تعریف محصول و د
+
+امنهExplain:P
+roduct purposeMain use cas
+esProduct boundariesBackend b
+oundariesInternal syst
+emsExternal systemsMain busine
+ss domainsClearly distingu
+ish:MVPPost-MVPFuture ScopeOut of
+
+ ScopeDo not classify features arbitrarily.Eac
+
+h sco
+pe decis
+ion mu
+
+st be justif
+
+ied
+
+ from the sources.3. واژ
+
+گان و تع
+
+ریف مفاهیمCreate 
+a glossary of im
+portant domain terms
+.For each term inclu
+de:TermPersian exp
+lanationTechnical 
+meaningRelated entities
+
+This section must el
+
+iminat
+
+e ambiguity
+
+ across enginee
+
+ring and produc
+
+t teams.4. بازیگران سیستمIdentify eve
+
+ry actor interacting with the backend.Examples only if 
+
+sup
+
+ported:GuestUserAdminOwner
+
+ManagerOperatorSupport AgentExternal Service
+
+Background WorkerInter
+
+nal Sy
+stemFor each actor de
+fine:هدفدسترسی‌هامح
+دودیت‌هامنابع قابل
+
+ مشاهدهمنابع قابل تغییرعملیات مجازعملیات غیرمجاز5. مدل مالکیت دادهThis sect
+
+ion
+
+ is mandatory.For e
+
+ach major resource determine:چه کسی مالک داده استآ
+
+یا متعلق به کاربر استآیا مت
+
+علق به 
+سازمان
+ استآیا
+ متعلق 
+به Worksp
+ace یا Ten
+ant استآیا داده
+ Shared استآیا انت
+قال مالکیت ممکن است
+حذف مالک چه اثری 
+
+داردآیا دسترسی Cross-T
+
+enant
+ مجاز استCr
+eate a table
+ such as:Resource O
+wner Scope Visibil
+ity Transfera
+ble Deletion Beh
+
+avi
+
+or6. جریان‌های اصلی 
+
+کاربر و سیستمIdentify all 
+
+critical workflows.For each flow i
+
+nclude:نام FlowActorTr
+iggerPreconditionsInputM
+ain FlowBackend Operation
+sDatabase ChangesAuthorization ChecksE
+ventsNotificationsExt
+ernal CallsError ScenariosFi
+nal StateUse diagrams s
+uch as:User→ API→ Authentication→ 
+
+Authorization→ Service→
+
+ Database→ Event→ Worker→ External ServiceInclude only components justified 
+by requirements.7. نیازمندی‌های عملکردیBreak the backend into logical module
+
+s.P
+
+ossible examples:AuthenticationUs
+
+ersOrganizationsWorkspacesMember
+
+shipsPermissionsProjec
+
+tsTasksFil
+esNotif
+icationsB
+illingSearchAdm
+inAudit
+Integration
+sFor every module pr
+ovide:هدفقابلیت‌ها
+ورودی‌هاخروجی‌هاقوانین
+ اعتبارس
+نجیقوانین کسب‌و
+کارمجوزهاSide Ef
+fectsFailure Case
+sDependencies
+
+Assign IDs such as:AU
+
+TH-F
+R-001
+USER-FR-001ORG-F
+R-001PROJECT-FR
+-001Every
+ requireme
+nt must
+ be test
+able.Avoid vague r
+
+equirements.Bad example:"System should support use
+
+rs.
+
+"Good example:"AUTH-FR-00
+
+1: یک کاربر ثبت‌نام‌نشده باید بتواند با
+
+ ایمیل معتبر و رمز
+
+ عبور مطابق سیاس
+ت امنیت
+ی حساب جدید ایج
+اد کند."8. ق
+وانین کسب‌وکا
+رCreate a ded
+icated Bus
+iness R
+ules se
+ction.For every
+ rule inc
+lude:IDR
+uleRela
+ted Ent
+ityRelated Mod
+
+uleTriggerEnforcementExce
+
+ptions
+
+Example stru
+
+cture:BR-00
+
+1قانون:هر W
+
+orkspace باید دقیقاً
+
+ یک Owner فعال داش
+
+ته باشد.م
+
+وجودیت‌های مرتب
+
+ط:Workspace, Mem
+
+bership, User9.
+
+ مدل دامنهIdentify 
+
+domain enti
+ties.For ea
+ch entity 
+define:Purpose
+
+OwnershipKey AttributesRelationship
+
+sLifecycleStatesConstrain
+
+tsProvide a 
+
+conceptual relationship diagra
+
+m.Example:Use
+
+r→ Membership→ Organization→ Project→ TaskDo not jump directly into SQL design.10. مرزبندی DomainDetermine whether
+
+ th
+
+e platform contains 
+
+separate bounded contexts.Examples only wh
+
+en relevant:IdentityOrg
+
+aniz
+ation 
+ManagementBillin
+gContentMessagin
+gReportin
+gNotification
+For each con
+
+text explain:Respo
+
+nsibil
+
+ityMai
+n entitiesData ownershipDependenciesPotential inte
+
+gration pointsThis
+ section should help struct
+
+ure
+
+ a modular Fas
+
+tAPI backend.11. چرخه حیا
+
+ت موجودیت‌هاFor every e
+
+ntity wit
+h a state, 
+define a state m
+achine.Include:
+StateAllowe
+d transi
+tionTriggerAu
+
+thorized actorSide effectsInvalid transiti
+
+onsExamp
+
+le:p
+ending→ acti
+ve→ suspended→
+ deletedE
+xplain
+
+ whether deletion is:Soft DeleteHard 
+
+Del
+
+eteArchiveAnonymizat
+
+ionOnly if supported by requirements.12. نیازمندی‌های دادهFor ever
+
+y entity define:Required fie
+
+ldsOptiona
+l fieldsUnique fieldsSens
+itive fie
+ldsImmuta
+ble fieldsD
+erived fiel
+dsRelationship
+
+sTimestampsRetentionDelet
+
+ion policyAudit 
+requirementsCla
+ssify fields whe
+re relevant:Pu
+blicInternalSensitiveSecretPII
+
+13. Multi-TenancyDetermine whether the platform is:Single Ten
+
+ant
+
+Multi-TenantHybridIf multi
+
+-tenant, define:Tenant boundaryTenant identifierData i
+
+solation
+
+Members
+hipTenant-scoped ent
+itiesCros
+s-tenant access re
+strictionsTena
+nt deletionTenant mig
+
+rationTe
+
+nant ow
+nership 
+transferExp
+licitly i
+
+dentify possible security ri
+
+sks related t
+o tenant isol
+ation.14.
+ احراز هویتExtr
+
+act authentication requirements.An
+
+aly
+
+ze:RegistrationLoginLog
+
+outSessionsAccess Tokens
+
+Refresh TokensPas
+sword ResetEmail 
+VerificationMFA
+OAuthDevice Sessio
+nsSession Revocati
+onAccount Lockin
+gFor each flow 
+define:Produ
+ct behavior
+Security requirem
+entsBackend responsi
+
+bilitiesFailure casesDo not aut
+
+omatical
+ly assume 
+JWT.If JWT 
+is recom
+mende
+
+d, 
+
+mark it as:پیشنهاد 
+
+فنی15. مجوزها و کنترل دسترسیAnalyz
+
+e the authoriza
+tion model.Det
+ermine w
+
+hether the system requir
+
+es:RBACABACResour
+ce OwnershipPolicy-
+Based Authorizat
+ionMixed Mod
+elCreate a permission ma
+trix.Example:عملیات Member Admin O
+wnerمشاهده پروژه 
+بله بله بلهساخت پر
+وژه بله بله بلهحذف عضو خیر 
+
+بله بلهحذف Workspace خیر خیر بلهAlso define:Resource-level authorization
+
+Ten
+
+ant-level author
+
+izationAdmin-level authorization16. 
+
+API Surf
+
+aceCreate an i
+nitial 
+API map.
+Use REST p
+rinciples unles
+s another style 
+is explicitly re
+quired.Suggested gro
+uping
+:/api/v
+1/auth/api/v1/use
+rs/api/v1/organizati
+ons/api/v1/worksp
+
+aces/api/v1/projectsF
+
+or every endpoint 
+provide:MethodPathPurpo
+seAuthenticationAuthorizat
+ionRequestRespo
+
+nseValidationErrorsSide EffectsI
+
+dempotency RequirementDo not gener
+
+ate implement
+
+ati
+
+on code.17. استاندارد APIPr
+
+ovide recommendations for:Versio
+
+ningResource namingHTTP methodsStatus 
+
+codesP
+aginat
+ionCursor vs Offset 
+PaginationFilteringSortingSe
+archValidatio
+
+nDate formatsTimezone handl
+
+ingID fo
+
+rmatIdempotencyCorrelation IDsMark recomme
+ndations appropriately.18. مدل خطاDesign a
+ consistent error contract.Example:{"error
+": {"code": "RESOURCE_NOT_FOUND","message"
+: "...","details": {},"request_id": "..."}
+}Define error categories:ValidationAuthent
+
+icationAutho
+
+rizationNot FoundConflictRate 
+LimitingDependency FailureIn
+ternal ErrorAlso define:Wha
+
+t c
+
+an be exposed to 
+
+clientsWhat must remain in
+
+ternalLogging behaviorTraceability behavior19. IdempotencyIdenti
+
+fy operations that 
+
+must be idem
+potent.Exampl
+es if relevant:Paymen
+tsWebhooksInvitati
+onsExternal call
+
+backsAsync jobsResource cre
+
+ation re
+quests
+For each 
+operation define
+ duplicate requ
+est behav
+ior.20. Co
+ncurrency an
+d Race C
+onditionsIdent
+ify possible race conditi
+
+ons.Analyze scenarios such as:Duplic
+
+ate
+
+ registrationDuplic
+
+ate paymentConcurrent role c
+
+hangeConcurr
+ent resource upda
+teOwnership tr
+ansferInvitati
+on acceptanc
+eInventory or quota consumpti
+onFor each 
+scenario 
+describe
+:RiskExpecte
+d product beha
+viorSuggested techn
+ical contro
+lsPotential r
+ecommendations:Un
+
+ique constraintsTransactionsOptimis
+
+tic
+
+ lockingRow-l
+
+evel lockingIdempotency key21. پردا
+
+زش‌های A
+
+s
+yncIdentif
+y operations that should be p
+rocessed outside 
+the HTTP reque
+st lifecycle.Exampl
+e
+s
+
+:EmailNotificationsFile 
+
+processingRe
+portsImportsExpo
+rtsWebhooksAI p
+rocessingAn
+alyticsFor
+ each job speci
+fy:TriggerPayloadPri
+orityRetryTimeou
+
+tFailure beh
+
+aviorIdempotencyStatus trackingD
+o NOT automatically select 
+Celery or another 
+queue.22. Domain Events
+
+Ide
+
+ntify meaningful 
+
+events.Example:UserRegisteredWorkspaceCreate
+
+dMemberInvitedPayment
+
+SucceededF
+or every e
+vent define:P
+roducerTriggerPayloa
+dConsumersSi
+de effectsDelivery guarantee
+
+s if relevantAvoid unnecessary event-driven complexit
+
+y.2
+
+3. فایل و Object StorageIf files are 
+
+supported, define:File typesSize l
+
+imitsOwnershipPrivacyUploa
+
+d strategyDownload rules
+AuthorizationMetada
+taVirus scanningRetentio
+nDeletionProcessingEvaluate 
+whether presigned up
+loads are appropriate.2
+4. Integration RequirementsList 
+
+every external dependency f
+
+ound i
+n the sources.For each inte
+gration define:PurposeInputOut
+
+putAuthenticationTimeoutRe
+
+tryFailure behaviorW
+ebhook behavio
+rSecurity considerat
+ionsData sensitivit
+y25. Notification
+
+ Sy
+
+stemIf applicable, def
+
+ine:Notification typeTriggerRecipientChannelPayloadDelivery statusRetryUser pref
+
+erencesPo
+
+ssible 
+channels:In-App
+EmailSMSPush26. S
+earch Req
+uirements
+If applic
+able, defi
+ne:Searchable e
+ntitiesFiel
+
+dsFiltersPermissionsS
+
+ortingPag
+inationTe
+nant isola
+tionExp
+ected vol
+umeDo not recommen
+d Elasticsear
+ch without eviden
+
+ce.27. Security RequirementsPerform a backend-focuse
+
+d s
+
+ecurity analysis.In
+
+clude:Authentication securi
+
+tyAuthor
+
+ization enforc
+ementTenant isol
+ationPassword
+ policyToken pro
+
+tectionSession security
+
+Rate limit
+ingBrute 
+force pro
+tectionInpu
+t validationIn
+jection preventionCORSCSRF if app
+
+licableFile upload securitySecret manageme
+
+ntE
+
+ncryption in transitEncrypt
+
+ion at restSensitive data prote
+
+ctionAdmin e
+ndpoint prote
+ctionAudit 
+loggingDe
+pendency security
+Identify high-ri
+sk operations.2
+8. Privacy
+ and Data Lifecy
+cleAnalyze:
+Personal d
+ataPIIData r
+
+etentionAccount deletionData exportAnonymizationLeg
+
+al 
+
+deletionAudit retentionIf lega
+
+l requirements are not known, mark them as:سؤال باز2
+
+9. Audit LoggingDefine which
+
+ operatio
+ns requ
+ire audi
+t trails.Possibl
+e example
+s:Role 
+changesPermission 
+changesAccount sus
+pensionUser removalOwners
+hip transferBillin
+
+g o
+
+perationsAdministrative o
+
+perationsAudit entry s
+
+hould include when 
+appropria
+te:ActorAct
+ionResour
+ceResourc
+e IDTenantTimesta
+mpReque
+st IDMetadata30. ن
+
+یازمندی‌های غیرعمل
+
+کردیAnal
+yze:Per
+forma
+nceSca
+
+lab
+
+ilityAvailabilityReliabil
+
+ityConsistencyConcurre
+
+ncyRecoverabilityMain
+tainabil
+ityExtens
+ibilityDo not
+ invent n
+umbers.If sp
+ecific targets do 
+not exist, create
+
+:سؤال بازIf useful, provide an initial technical
+
+ re
+
+commendation separately.31.
+
+ Capacity AssumptionsExtract or identify unk
+
+nown val
+
+ues such as:Total usersMA
+UDAUConcurrent usersRequest
+s per secondStorag
+eFile volumeEvent
+ volumeData growth
+For every unknown 
+metric, add a p
+rioritized open question
+.32. Observability
+Define requirements fo
+r:Stru
+ctured logsMetricsDi
+stributed tracingError
+ trackingRequest ID
+sHealth checksReadiness
+ checksWorker monito
+ringAlertingAlso define:Req
+uired log fieldsSensitive f
+ields that must
+ never be logged33. F
+
+astAPI Architecture Recommenda
+
+tio
+
+nsBased on the extracted require
+
+ments, p
+
+ropose a clean 
+FastA
+PI architecture.
+Evaluate a structu
+re such as:ap
+p/api/core/doma
+in/models/schema
+s/services/reposi
+
+tories/integrations/workers/tests/Explain the resp
+
+onsibility
+
+ of
+
+ each layer.Evaluat
+
+e:RoutersDependenciesPydanticService LayerRep
+
+ository LayerMiddl
+
+ewareException
+ HandlersLifespanAsy
+nc I/OOpenAPIDo not 
+over-engineer.
+34. Architecture Sty
+leEvaluate which arc
+hitecture style best fits t
+
+he requirements:Modular MonolithLayered Arch
+
+itectur
+eClean A
+rchitectur
+eHexagonal Ar
+chitectu
+reService-O
+riented Arch
+itectureMi
+
+cro
+
+servicesFor MVP, prefer the s
+
+implest 
+
+architecture t
+
+hat satisfies 
+
+requirements.Do
+
+ not recommend
+
+ microservices
+
+ without stron
+
+g justification.P
+
+rovide:Recommendat
+
+ionReasonTrade-o
+
+ffsConditions under wh
+
+ich architecture should evolve35. Persist
+
+ence Strat
+
+egyDetermine what storage capabilities are actually needed.Evaluat
+
+e:R
+
+elational DatabaseDocument
+
+ DatabaseCacheObject StorageSearch EngineQu
+
+eueEvent Brok
+erFor
+ each
+ recommended compo
+nent define:Requireme
+nt it sol
+vesWhy it is 
+neededMVP or f
+utureAlternat
+
+ivesOperational complexity36. Preliminary Database DesignB
+
+ase
+
+d on the domain mod
+
+el, create a preliminary
+
+ database model.F
+or each t
+able include:NamePurp
+osePrimary KeyMa
+in FieldsFore
+ign KeysUnique 
+ConstraintsImporta
+nt IndexesTenant Sc
+opeSoft De
+
+leteAudit fi
+
+eldsDo not generate m
+igration code.Clearly identify uncertain par
+
+ts.
+
+37. Database Integrity RulesIdentify rules
+
+ that must be enforced at database level where appropriate.Examples:Unique
+
+ emailUnique membershipForeig
+
+n ke
+ysTe
+nant 
+ownersh
+ipValid
+ relatio
+nshipsDis
+tinguish betw
+een:Database 
+Constrai
+ntAppl
+
+ication ValidationBusiness Rule38. Cachin
+
+g Strateg
+
+yIf cachi
+ng may be requ
+ired, iden
+tify:What can b
+e cachedWhat must 
+not be cache
+dInvalidation challe
+ngesTTL ex
+pectationsS
+ecurity c
+
+oncernsDo not add Red
+
+is 
+
+only because caching exi
+
+sts.39. Rate Limiting and Abuse PreventionIdentify endpoints 
+
+at risk.Examples:L
+oginRegistrationPasswo
+rd resetVerification
+SearchUploadPublic endpo
+intsDefine required protection 
+conceptually.Do
+
+ not invent final numbers unless clearly labeled as recommendation.40.
+
+ Admin BackendIf applicable, define:Admin rolesAdmin permiss
+
+ionsUser
+
+ lookupAccount s
+uspensio
+nModerationR
+ecovery operationsAudit accessInternal notesRestric
+
+ted
+
+ fieldsExplicitly define d
+
+ata administrators must not access.41. Testing StrategyD
+
+efine:Uni
+
+t TestsService TestsI
+ntegration TestsAPI
+ TestsD
+atabase TestsAut
+horization Test
+sSecuri
+ty TestsAsync 
+
+TestsExternal Integration TestsRegress
+
+ion TestsIdentify criti
+cal test scenarios
+.42. Acceptance
+ CriteriaFor e
+very important feature c
+
+rea
+
+te acceptance criteria.Use:GivenW
+
+henThenExample:Given:کاربری که عضو Workspace نیستWhen:GET /api/
+
+v1/workspaces/{id}Then:
+
+Backen
+d باید دس
+ترسی را رد کن
+د و هیچ داده‌
+ای از Workspac
+e افشا نکند.43. Envi
+ronment StrategyDef
+ine requiremen
+ts for:LocalD
+evelopmentStag
+
+ingProductionAnalyze:Config sep
+
+arationSecretsDatabaseMigrationsE
+
+xte
+
+rnal integrationsLoggingFeatur
+
+e flags44. Deployment RequirementsDefine production-readiness requirement
+
+s.Include
+
+:Migration str
+ategyRollbackHealth
+ checksGracefu
+l shutdownWorker l
+ifecycleZero/minimal 
+
+downtime if required
+
+Backup strategyRestor
+e strategyDo not automat
+ically assume K
+
+ube
+
+rnetes.45. Configurati
+
+on ManagementIdentify environment-dri
+
+ven settings such as
+:DatabaseAuthenticationEm
+ailStorageCORSIntegration
+sLoggingFeature fl
+agsSensitive values
+
+ must never be hardcoded.46. Failure Scenario
+
+sAn
+
+alyze system behavior when dependencies 
+
+fail.Examples:Database unav
+
+ailableEm
+
+ail pro
+vider unavaila
+blePayment provi
+der timeoutSto
+rage una
+vailable
+Queue unavailableE
+
+xternal API unavailableFor every scenari
+
+o define:User impactBackend behaviorRetryFallbackLoggingAlerting47. R
+
+isk
+
+sCreate a risk regi
+
+ster.Classify risks in
+
+to:ProductArc
+hitectureSecurityDa
+taScalability
+PerformanceIntegrati
+onOperations
+For each risk provide
+:RiskImpactLik
+elihoodMitigatio
+nPriority48. Open Q
+
+uestionsCreate one consolidated list.Group by:ProductB
+
+usi
+
+ness RulesUsersPermiss
+
+ionsDat
+
+aAPISecurity
+ScaleIntegratio
+nsInfrastructureCom
+pliancePrio
+rity:P0 = blocks
+ architecture or impl
+ementationP1 = m
+ust be resolv
+ed before feature implementa
+tionP2 = can be re
+
+solved later49. Architecture Deci
+
+sio
+
+n RecordsIdentify technic
+
+al decisions that require formal ADRs.Examples:ADR-001 
+
+Pers
+
+isten
+ce S
+trat
+
+egyADR-0
+
+02 Aut
+hentication ModelADR-003 Aut
+
+horiz
+ation ModelADR-004 Async Pr
+
+ocess
+ingADR-005 File StorageADR-006 Multi-TenancyADR-007 CachingADR-008 
+
+Dep
+
+loyment StrategyFor each A
+
+DR include:DecisionWhy i
+
+t matte
+rsRequirement
+s affecti
+ng the decis
+
+ionCandi
+
+date optionsDecisio
+n statusD
+o not make
+ unsupported
+ final choices.50. High
+-Level Ba
+ckend Architect
+
+ure
+
+Provide a text-based architec
+
+ture diagram.Example structure:Client App
+
+lication
+
+s↓API Layer↓FastAPI 
+Applicatio
+n↓Authenticatio
+n / Authorization↓A
+pplication Service
+s↓Domain Layer↓Persistence Layer↓Da
+tabaseOptional co
+mponents only when
+
+ justified:QueueWorkersCacheObject Stor
+
+age
+
+SearchExternal APIsExplain eve
+
+ry component.51. Backend Module BreakdownDefi
+
+ne recomme
+nded modules.For
+ each m
+odule inc
+lude:R
+esponsibilityE
+ntitiesSe
+rvicesRoutesDep
+
+endenciesEventsExternal integrationsThe o
+
+utp
+
+ut must help split engi
+
+neering work into separate backend workstreams.
+
+52. Depen
+
+dency MapCreate a depe
+ndency map between backend m
+odules.Identify:Core modul
+esSupporting modulesI
+ntegration modulesM
+odules that must remain in
+
+dependentIdentify potentia
+
+l circular de
+pendencies.53. Bac
+kend Im
+plementati
+on Roadma
+pCreate an
+
+ im
+
+plementatio
+
+n sequence based on dep
+
+endencies.Example:Ph
+
+ase 0 — F
+oundationPhase
+ 1 — Ident
+ity & 
+AccessPhase 2
+ — Core Domai
+nPhase 3 — Su
+pporting Ser
+
+vicesPhase 4 — Integra
+
+tionsP
+hase 5 —
+ Security & 
+HardeningPha
+se 6 — Pro
+
+duc
+
+tion ReadinessFor ev
+
+ery phase include:Deliverable
+
+sDependen
+
+ciesRisks
+Exit criteria54.
+ Backen
+d Epic Breakd
+ownCon
+vert 
+the PRD in
+to high
+-level enginee
+ring epics.For e
+very Epic in
+
+clude:Epi
+
+c IDNameObjectiveScopeDependenciesMain del
+
+iverablesExample:BE-EPIC-001Backend FoundationBE-EP
+
+IC-002Authentication and I
+
+den
+
+tity55. Initial Backend Task Breakd
+
+ownUnder each Epic, provide an initial engineering tas
+
+k list.Ta
+
+sks should be specific enoug
+h to later move into Jira, L
+inear, or GitHub Issues.Do 
+not generate implementat
+ion code.56. Definit
+ion of ReadyDefine wh
+at must be true
+ before backend implementat
+
+ion starts.Example:[ 
+
+] MVP scop
+e approved[ ] Us
+er flows defined[ ] Domain entities a
+pproved[ ] Permissi
+on model approved
+
+[ ] Data ownership defined[ ] Critical
+
+ op
+
+en questions resolved[ ] API contract
+
+ direction agreed[ ] Architecture directio
+
+n agreed57. Defini
+
+tion of DoneDefine 
+w
+hat must 
+b
+e true before a bac
+k
+end feature is considered prod
+u
+ction ready.Include:
+R
+equirements 
+i
+mplementedTests p
+a
+ssedAuth
+
+orization verifiedValidation implemented
+
+Error
+s stand
+ardiz
+edLogs addedMe
+trics 
+addedDocument
+
+ation updatedSecurity re
+
+vie
+
+wed58. Backend MVP ChecklistGe
+
+nerate a final checklist in
+
+cluding at least:[ ] Sco
+
+pe finalized[ ] 
+Actors def
+ined[ ] Us
+er flows
+ documented[ ]
+ Domain 
+model defined[ ] Busine
+
+ss rules defined[ ] Ownership model defined[ ] Multi-tenancy defined[ ] Authen
+
+tic
+
+ation defined[ ] Aut
+
+horization defined[ ] APIs identified[ ] Data mo
+
+del ident
+
+ified[ ] Async
+ flows identified[ ]
+ Integrations identif
+ied[ ] Security reviewed[ ] Audit requ
+
+irements defined[ ] Testing strategy defi
+
+ned
+
+[ ] Observability defined[ ] Open qu
+
+estions reviewed[ ] ADRs identified[ ] Implementation ro
+
+admap cr
+
+eated59. Source Traceab
+
+ility MatrixThis section is ma
+
+ndatory.Every critical r
+
+equirement must be traceable to 
+
+a source.Create a table:R
+
+equirement ID Requirement Source 
+
+Confidence TypeConfidence must be
+
+:HighMediumLowType must 
+
+be one of:Expl
+icitInferredAs
+sumptio
+nRecommendation
+
+If 
+
+there is no source:Do NOT pr
+
+esent it as a requirement.Mark it as:فرضor:پیشنهاد
+
+ فنی60. Requirement Qua
+
+lity Revi
+ewBefo
+re finalizi
+ng, rev
+iew every requ
+irement using these
+
+ criteri
+
+a:ClearTest
+ableUnambiguousCon
+
+sistentTrac
+eableFeasibleNecessaryIdent
+
+ify
+
+ weak requirements.Rewrite ambiguous
+
+ ones.61. Consistency ReviewBefore producing the final ans
+
+wer, check for:Contradictory requirementsMissing ownershipMissing authorization ru
+
+lesMissing statesInvalid state trans
+
+iti
+
+onsMissing error casesMis
+
+sing validationMissing tenant isolationMissing security rulesU
+
+ndefined
+
+ terminologyUntraceabl
+e requirementsDuplicat
+e requirementsAdd unresolved
+ issues to:سؤالات بازFINAL DO
+CUMENT FORMATThe final out
+put must be titled:سند نیازمندی‌های 
+محصول بک‌اندBackend Product Requi
+rements DocumentThe entire docume
+
+nt 
+
+must be written in Persi
+
+an.Use professional formatting including:Clear headingsNumbered sectionsRequireme
+
+nt IDsTa
+
+blesChecklistsArchitecture
+ diagramsState
+ diagramsFlow diagramsDo
+ not generate applicatio
+n source code.Do not 
+over-enginee
+r the architect
+ure.Do not add technolo
+gies merely because
+
+ th
+
+ey are common.Use:Python + 
+
+FastAPIas the only pre-decided backend technol
+
+ogies.All other arc
+hitectural and inf
+rastructure decisions mus
+t be derived from actual
+ requirements.FINAL DELIVE
+RABLE QUALITYThe document m
+ust be detailed enough th
+at after reading it, a sen
+ior engineering team can 
+proceed to create:S
+ystem DesignDetailed Data
+base SchemaOpenAPI Specifi
+cationAuthentication Design
+Authorization Policie
+sInfrastructure DesignBackend 
+ArchitectureEngineering Epic
+sImplementation TasksTest
+ing Planwithout needing to 
+reinterpret the ori
+ginal product idea.The PRD must be
+
+com
+
+e the authoritative backend requ
+
+irements source for the pr
+
+oject.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# MASTER PROMPT — Beginner-Friendly, Source-Complete Backend PRD for Python + FastAPI
+
+You are acting simultaneously as a:
+
+* Senior Product Manager
+* Senior Business Analyst
+* Senior Backend Architect
+* Senior Python Engineer
+* Senior FastAPI Engineer
+* Senior API Designer
+* Senior Database Designer
+* Senior Security Engineer
+* Senior DevOps-Aware Backend Engineer
+* Senior Technical Writer
+* Technical Mentor for a Beginner Developer
+
+Your responsibility is to analyze ALL resources available in this workspace/page and create a complete, professional, educational, implementation-oriented Backend Product Requirements Document.
+
+The target reader is a beginner who is designing and building a backend platform for the first time.
+
+Therefore, you must NOT assume that the reader already understands backend architecture, API design, databases, authentication, authorization, infrastructure, deployment, security, testing, queues, caching, observability, or software architecture concepts.
+
+The backend implementation technology already decided is:
+
+* Python
+* FastAPI
+
+No other technology should be treated as already decided unless explicitly confirmed by the source materials.
+
+---
+
+# MANDATORY OUTPUT LANGUAGE
+
+The entire final document MUST be written in professional Persian.
+
+This includes:
+
+* Explanations
+* Requirements
+* Instructions
+* Recommendations
+* Tables
+* Checklists
+* Questions
+* Risks
+* Architecture explanations
+* Implementation steps
+* Beginner guidance
+
+Keep English only where technically appropriate, including:
+
+* Python
+* FastAPI
+* HTTP
+* REST
+* API
+* SQL
+* JWT
+* OAuth
+* Entity names
+* Database field names
+* Endpoint paths
+* Event names
+* Requirement IDs
+* Technology names
+* Standard technical acronyms
+
+Whenever an English technical term is introduced for the first time, explain its meaning in Persian.
+
+Example:
+
+**Idempotency (تکرارپذیری امن درخواست):**
+یعنی اجرای چندباره یک درخواست مشخص نباید باعث ایجاد نتیجه تکراری یا ناخواسته شود.
+
+---
+
+# PRIMARY OBJECTIVE
+
+Your goal is NOT merely to write a PRD.
+
+Your goal is to transform all available source materials into a complete roadmap that allows a beginner to understand:
+
+1. What the platform is.
+2. What the backend must do.
+3. Why each backend component is necessary.
+4. What must be designed before implementation.
+5. What technical decisions must be made.
+6. Which decisions are already defined by the sources.
+7. Which decisions are still unknown.
+8. What should be implemented first.
+9. What should be implemented later.
+10. How different backend components relate to each other.
+11. How to move from product requirements to backend implementation.
+12. How to verify whether each implementation step is correct.
+
+The final document must function as:
+
+* Backend PRD
+* Backend planning guide
+* Beginner learning guide
+* Backend architecture preparation document
+* API planning document
+* Database planning document
+* Security planning document
+* Development roadmap
+* Implementation checklist
+* Technical decision guide
+
+The reader should be able to start from this document even if this is their first backend project.
+
+---
+
+# ABSOLUTE SOURCE ANALYSIS REQUIREMENT
+
+This requirement is critical.
+
+You MUST inspect and analyze ALL available source materials.
+
+Do not use only the most important files.
+
+Do not ignore files because they appear minor.
+
+Do not silently skip documents.
+
+Do not only summarize files.
+
+Do not rely only on one main specification when additional information exists elsewhere.
+
+Sources may include:
+
+* Documents
+* PDFs
+* Notes
+* Markdown files
+* Text files
+* Product descriptions
+* Screenshots
+* Images
+* Diagrams
+* Tables
+* Research
+* User stories
+* Existing PRDs
+* Business documents
+* Technical notes
+* Feature lists
+* UI descriptions
+* Design documents
+* Existing API descriptions
+* Database notes
+* Architecture notes
+* Meeting notes
+* Client requests
+* Examples
+* Attachments
+* Previous decisions
+* Any other information available in the workspace
+
+Every source must be reviewed.
+
+---
+
+# SOURCE INVENTORY — REQUIRED FIRST STEP
+
+Before creating the PRD, create a complete inventory of the available sources.
+
+Create a table:
+
+| Source ID | File / Source Name | Type | Purpose | Relevant Topics | Importance | Used In |
+| --------- | ------------------ | ---- | ------- | --------------- | ---------- | ------- |
+
+Assign identifiers such as:
+
+SRC-001
+SRC-002
+SRC-003
+
+For every source explain:
+
+* What this source contains
+* Why it matters
+* Which backend requirements can be extracted from it
+* Which parts are unclear
+* Whether it conflicts with another source
+* Which PRD sections use information from it
+
+If a source contains no useful backend information, DO NOT silently ignore it.
+
+Explicitly write:
+
+`این منبع بررسی شد، اما نیازمندی مستقیمی برای Backend از آن استخراج نشد.`
+
+Explain why.
+
+---
+
+# SOURCE COVERAGE REPORT
+
+After analyzing all sources, create a coverage report.
+
+For every source determine:
+
+* Fully analyzed
+* Partially usable
+* Ambiguous
+* Contradictory
+* Not relevant to backend
+
+No source should disappear from the analysis.
+
+At the end of the document provide:
+
+| Source | Reviewed | Requirements Extracted | Open Questions | PRD Sections |
+| ------ | -------: | ---------------------: | -------------: | ------------ |
+
+The purpose is to prove that every source has been considered.
+
+---
+
+# NO UNSUPPORTED ASSUMPTIONS
+
+Do NOT invent requirements.
+
+Every important statement must be classified.
+
+Use the following labels in Persian:
+
+`نیازمندی صریح`
+
+Information directly stated in a source.
+
+`نیازمندی استنباط‌شده`
+
+A requirement logically derived from the source.
+
+`قانون کسب‌وکار`
+
+A business rule affecting system behavior.
+
+`نیازمندی امنیتی`
+
+A security requirement.
+
+`نیازمندی داده`
+
+A data-related requirement.
+
+`پیشنهاد فنی`
+
+A technical recommendation that is not explicitly required.
+
+`فرض`
+
+Something assumed because required information is missing.
+
+`سؤال باز`
+
+A question that must be answered before or during implementation.
+
+Never present:
+
+* Assumptions
+* Recommendations
+* Guesses
+
+as confirmed requirements.
+
+---
+
+# BEGINNER-FIRST EXPLANATION RULE
+
+The target reader is a beginner.
+
+Therefore, whenever you introduce an important backend concept, explain:
+
+## این چیست؟
+
+Explain the concept in simple Persian.
+
+## چرا به آن نیاز داریم؟
+
+Explain why it matters for this specific platform.
+
+## در این پروژه چه کاربردی دارد؟
+
+Connect it to the actual product.
+
+## اگر انجام نشود چه مشکلی ایجاد می‌شود؟
+
+Explain the consequence.
+
+## چه تصمیمی باید گرفته شود؟
+
+Explain what the developer needs to decide.
+
+## چه کاری باید انجام شود؟
+
+Provide practical action items.
+
+## خروجی این مرحله چیست؟
+
+Explain what artifact or decision should exist after completing the step.
+
+For example, do not simply write:
+
+"Authorization is required."
+
+Instead explain:
+
+**Authorization چیست؟**
+
+Authorization مشخص می‌کند یک کاربر پس از ورود به سیستم اجازه انجام چه عملیاتی را دارد.
+
+**چرا در این پروژه لازم است؟**
+
+...
+
+**چه کاری باید انجام شود؟**
+
+1. نقش‌های کاربران مشخص شوند.
+2. Permissionهای هر نقش تعیین شوند.
+3. Ownership منابع مشخص شود.
+4. Permission Matrix ساخته شود.
+5. قوانین دسترسی در APIها اعمال شوند.
+6. تست‌های مربوط به دسترسی نوشته شوند.
+
+**خروجی مورد انتظار:**
+
+یک Permission Matrix تأییدشده و مجموعه قوانین Authorization.
+
+Apply this teaching approach throughout the document.
+
+---
+
+# ACTION-ORIENTED RULE
+
+For every major section provide:
+
+### وضعیت فعلی
+
+What is currently known from the sources?
+
+### موارد مشخص‌شده
+
+What decisions are already clear?
+
+### موارد نامشخص
+
+What information is missing?
+
+### کاری که باید انجام شود
+
+Exact next actions.
+
+### چه کسی باید تصمیم بگیرد؟
+
+If applicable:
+
+* Product Owner
+* Backend Developer
+* Tech Lead
+* Business Owner
+* DevOps
+* Security
+* Client
+
+### خروجی مورد انتظار
+
+What should exist after the task is completed?
+
+### پیش‌نیاز
+
+What must be completed first?
+
+### وابستگی
+
+What later work depends on this decision?
+
+---
+
+# STEP-BY-STEP RULE
+
+Do not merely describe what exists.
+
+For every technical area, explain the correct order of work.
+
+Example:
+
+Do NOT say only:
+
+"Database schema should be designed."
+
+Instead explain:
+
+1. ابتدا موجودیت‌های دامنه شناسایی شوند.
+2. سپس Relationshipها مشخص شوند.
+3. Ownership داده تعیین شود.
+4. Business Rules بررسی شوند.
+5. Cardinality روابط مشخص شود.
+6. Constraints شناسایی شوند.
+7. Data Types انتخاب شوند.
+8. Indexهای مورد نیاز بررسی شوند.
+9. Schema اولیه ساخته شود.
+10. Schema با API و Business Rules تطبیق داده شود.
+
+Then explain what the beginner should have at the end.
+
+---
+
+# DO NOT JUMP DIRECTLY TO TECHNOLOGY
+
+Technology selection must come AFTER understanding requirements.
+
+Do not automatically assume:
+
+* PostgreSQL
+* MySQL
+* MongoDB
+* Redis
+* Celery
+* RabbitMQ
+* Kafka
+* Elasticsearch
+* Docker
+* Kubernetes
+* Nginx
+* AWS
+* Azure
+* GCP
+* S3
+* Terraform
+* CI/CD platform
+
+Python and FastAPI are the only predetermined technologies.
+
+If additional technologies are recommended, explain:
+
+1. مشکل چیست؟
+2. آیا این مشکل در MVP وجود دارد؟
+3. چرا به این فناوری نیاز است؟
+4. آیا بدون آن می‌توان MVP را ساخت؟
+5. جایگزین‌های آن چیست؟
+6. مزایا چیست؟
+7. معایب چیست؟
+8. پیچیدگی عملیاتی آن چقدر است؟
+9. پیشنهاد برای فرد مبتدی چیست؟
+10. چه زمانی باید آن را اضافه کرد؟
+
+Prefer simplicity.
+
+Avoid over-engineering.
+
+---
+
+# 1. خلاصه اجرایی محصول
+
+Explain in simple but professional Persian:
+
+* پلتفرم چیست؟
+* چه مسئله‌ای را حل می‌کند؟
+* کاربران چه کسانی هستند؟
+* ارزش اصلی محصول چیست؟
+* Backend چه وظیفه‌ای دارد؟
+* Frontend چه چیزی از Backend انتظار دارد؟
+* سیستم‌های خارجی چه ارتباطی با Backend دارند؟
+
+Then provide:
+
+### برداشت ساده برای فرد مبتدی
+
+Explain the backend in very simple terms.
+
+---
+
+# 2. تحلیل کامل منابع
+
+Analyze every source individually.
+
+For each source provide:
+
+### Source ID
+
+### نام منبع
+
+### نوع منبع
+
+### خلاصه محتوا
+
+### اطلاعات مرتبط با Backend
+
+### نیازمندی‌های استخراج‌شده
+
+### Business Rules
+
+### Entities mentioned
+
+### User Flows mentioned
+
+### Permissions mentioned
+
+### Integrations mentioned
+
+### Security implications
+
+### Missing information
+
+### Possible contradictions
+
+### Related sources
+
+### Sections affected in this PRD
+
+Do this for every source.
+
+---
+
+# 3. نقشه اطلاعات استخراج‌شده از منابع
+
+Create a map showing which information came from which sources.
+
+Example:
+
+SRC-001
+→ Authentication
+→ User Profile
+→ Subscription
+
+SRC-002
+→ Admin
+→ Permissions
+
+SRC-003
+→ Payment
+→ Invoice
+
+Identify overlapping sources.
+
+---
+
+# 4. تناقض‌های منابع
+
+Find all contradictions.
+
+For each contradiction show:
+
+* Source A
+* Source B
+* Contradiction
+* Impact
+* Required decision
+* Priority
+
+Do not choose one version unless evidence clearly supports it.
+
+---
+
+# 5. اطلاعات ناقص منابع
+
+Identify everything that should exist for backend design but is missing.
+
+Examples:
+
+* Unknown role permissions
+* Unknown user lifecycle
+* Unknown deletion behavior
+* Unknown payment failure behavior
+* Unknown file size
+* Unknown scaling requirements
+
+Explain why each missing item matters.
+
+---
+
+# 6. دامنه محصول
+
+Define:
+
+* MVP
+* Post-MVP
+* Future Scope
+* Out of Scope
+
+For each item include:
+
+* Why it belongs there
+* Source
+* Backend impact
+
+---
+
+# 7. واژه‌نامه پروژه
+
+Create a complete glossary.
+
+For every important term:
+
+| Term | معنی | کاربرد در پروژه | مثال |
+| ---- | ---- | --------------- | ---- |
+
+Explain technical terminology for beginners.
+
+---
+
+# 8. بازیگران سیستم
+
+Identify all actors.
+
+For every actor explain:
+
+* کیست؟
+* چه هدفی دارد؟
+* چه کاری انجام می‌دهد؟
+* چه داده‌ای می‌بیند؟
+* چه داده‌ای ایجاد می‌کند؟
+* چه چیزی را ویرایش می‌کند؟
+* چه چیزی را حذف می‌کند؟
+* چه کاری نباید انجام دهد؟
+
+Create an actor matrix.
+
+---
+
+# 9. User Journey و System Flow
+
+Identify every important user journey.
+
+For each one provide:
+
+1. Starting point
+2. Actor
+3. Preconditions
+4. User action
+5. API request
+6. Authentication
+7. Authorization
+8. Validation
+9. Business logic
+10. Database effect
+11. Event generation
+12. Async tasks
+13. External integrations
+14. Response
+15. Error cases
+16. Final state
+
+Also explain each step for a beginner.
+
+---
+
+# 10. Functional Requirements
+
+Break all functionality into modules.
+
+For EVERY module include:
+
+* What is this module?
+* Why does the product need it?
+* What sources mention it?
+* What entities belong to it?
+* What APIs may be required?
+* What business rules exist?
+* What permissions exist?
+* What validations exist?
+* What side effects exist?
+* What edge cases exist?
+* What is unknown?
+
+Generate Requirement IDs.
+
+Example:
+
+AUTH-FR-001
+AUTH-FR-002
+USER-FR-001
+
+---
+
+# 11. Business Rules
+
+Extract all business rules.
+
+For every rule specify:
+
+* ID
+* Rule
+* Source
+* Related module
+* Related entities
+* Enforcement point
+* Exceptions
+* Test scenarios
+
+Explain what a Business Rule is before the section.
+
+---
+
+# 12. Domain Model
+
+Explain what Domain Modeling means.
+
+Then identify all entities.
+
+For each entity:
+
+* Definition
+* Purpose
+* Owner
+* Attributes
+* Relationships
+* States
+* Lifecycle
+* Rules
+* Permissions
+* Data classification
+
+Provide a conceptual diagram.
+
+---
+
+# 13. Entity Relationship Analysis
+
+Explain:
+
+* One-to-One
+* One-to-Many
+* Many-to-Many
+
+Then determine relationships for the project.
+
+For each relation explain WHY.
+
+---
+
+# 14. Data Ownership
+
+This section is mandatory.
+
+For every entity define:
+
+* Owner
+* Tenant
+* Visibility
+* Editable by
+* Deletable by
+* Transferable
+* Shared
+* Private
+* Retention behavior
+
+Explain why ownership is important for authorization and security.
+
+---
+
+# 15. Multi-Tenancy
+
+First explain:
+
+**Multi-Tenancy چیست؟**
+
+Then determine whether the project needs it.
+
+If yes, explain step-by-step:
+
+* Tenant definition
+* Tenant ID
+* Membership
+* Data isolation
+* Tenant-level permissions
+* Tenant deletion
+* Tenant ownership
+* Cross-tenant risks
+
+Provide a security checklist.
+
+---
+
+# 16. Entity Lifecycle
+
+Explain what lifecycle and state machine mean.
+
+For each entity with states create:
+
+Current State
+→ Action
+→ Next State
+
+Include invalid transitions.
+
+Explain how these states affect API and database design.
+
+---
+
+# 17. Authentication
+
+Teach authentication from the beginning.
+
+Explain:
+
+* Authentication چیست؟
+* Login چیست؟
+* Session چیست؟
+* Token چیست؟
+* Access Token چیست؟
+* Refresh Token چیست؟
+* JWT چیست؟
+* Cookie-based session چیست؟
+* Password Hashing چیست؟
+* Email Verification چیست؟
+* Password Reset چیست؟
+
+Then identify what this platform actually requires.
+
+Separate:
+
+* Product requirement
+* Security requirement
+* Technical recommendation
+
+Do not assume JWT automatically.
+
+---
+
+# 18. Authorization
+
+Explain Authorization and its difference from Authentication.
+
+Explain:
+
+* Roles
+* Permissions
+* RBAC
+* ABAC
+* Ownership
+* Policy-based access
+
+Then determine what the project needs.
+
+Create a complete Permission Matrix.
+
+---
+
+# 19. Database Planning
+
+Do NOT immediately generate database tables.
+
+Teach the correct sequence:
+
+1. Domain Model
+2. Entity Relationships
+3. Business Rules
+4. Ownership
+5. Fields
+6. Constraints
+7. Data Types
+8. Indexes
+9. Tables
+10. Schema review
+
+Then produce a preliminary database design.
+
+For each table explain:
+
+* Why it exists
+* What it stores
+* Primary key
+* Foreign keys
+* Important fields
+* Unique constraints
+* Indexes
+* Tenant scope
+* Soft delete
+* Audit fields
+
+Explain each database concept when first introduced.
+
+---
+
+# 20. Database Integrity
+
+Explain:
+
+* Primary Key
+* Foreign Key
+* Unique Constraint
+* NOT NULL
+* Index
+* Transaction
+
+Then map them to the project.
+
+---
+
+# 21. API Fundamentals
+
+Before presenting endpoints explain:
+
+* API چیست؟
+* REST چیست؟
+* Endpoint چیست؟
+* Request چیست؟
+* Response چیست؟
+* HTTP Method چیست؟
+* Status Code چیست؟
+* Header چیست؟
+* Query Parameter چیست؟
+* Path Parameter چیست؟
+* Request Body چیست؟
+
+Use project-specific examples.
+
+---
+
+# 22. API Map
+
+Create a complete proposed API inventory.
+
+For every endpoint include:
+
+* ID
+* Method
+* Path
+* Purpose
+* Actor
+* Authentication
+* Authorization
+* Request
+* Validation
+* Response
+* Errors
+* Side effects
+* Idempotency
+* Source requirement
+
+---
+
+# 23. API Request/Response Contracts
+
+For important endpoints show conceptual request and response examples.
+
+Do NOT generate implementation code.
+
+Explain the structure.
+
+---
+
+# 24. HTTP Status Codes
+
+Explain relevant status codes:
+
+* 200
+* 201
+* 204
+* 400
+* 401
+* 403
+* 404
+* 409
+* 422
+* 429
+* 500
+
+Explain when this specific backend should use them.
+
+---
+
+# 25. Validation
+
+Explain validation.
+
+Identify:
+
+* Required fields
+* Format rules
+* Length rules
+* Range rules
+* Business validation
+* Cross-field validation
+* Database validation
+
+For each important input, specify validation rules.
+
+---
+
+# 26. Error Handling
+
+Explain why consistent errors matter.
+
+Design one common error model.
+
+Show examples.
+
+Explain:
+
+* User-facing error
+* Internal error
+* Validation error
+* Authentication error
+* Authorization error
+* Conflict
+* Dependency failure
+
+---
+
+# 27. Security
+
+Teach backend security from first principles.
+
+Analyze:
+
+* Password protection
+* Token protection
+* Authentication attacks
+* Authorization bypass
+* IDOR
+* Injection
+* Rate limiting
+* Brute force
+* File security
+* CORS
+* CSRF
+* Sensitive information
+* Logging risks
+* Secrets
+* Admin security
+* Dependency vulnerabilities
+
+For each risk provide:
+
+* Meaning
+* Example
+* Does this project face it?
+* Prevention
+* Required action
+
+---
+
+# 28. Sensitive Data and PII
+
+Explain PII.
+
+Identify all potentially sensitive fields.
+
+Classify:
+
+* Public
+* Internal
+* Sensitive
+* Secret
+* PII
+
+Explain storage and logging requirements.
+
+---
+
+# 29. Async Processing
+
+Explain:
+
+* Synchronous processing
+* Asynchronous processing
+* Queue
+* Worker
+* Background Job
+
+Then identify if the project actually needs async processing.
+
+For each async job:
+
+* Trigger
+* Payload
+* Retry
+* Failure
+* Status
+* Idempotency
+
+Explain when a beginner should introduce a queue and when NOT to.
+
+---
+
+# 30. Events
+
+Explain:
+
+* Domain Event
+* Producer
+* Consumer
+
+Identify useful events.
+
+Avoid event-driven architecture unless justified.
+
+---
+
+# 31. Caching
+
+Explain caching.
+
+Then answer:
+
+* Does MVP need caching?
+* What could be cached?
+* Why?
+* What risks exist?
+* When should caching be introduced?
+
+Do not automatically recommend Redis.
+
+---
+
+# 32. File Storage
+
+If applicable, explain:
+
+* File upload
+* Object storage
+* Private/public files
+* Presigned URL
+* File metadata
+* File access permission
+* File validation
+
+Then provide project-specific recommendations.
+
+---
+
+# 33. External Integrations
+
+For every integration found in sources:
+
+* What is it?
+* Why needed?
+* Data sent
+* Data received
+* Authentication
+* Error behavior
+* Retry
+* Timeout
+* Webhook
+* Security
+* Implementation dependency
+
+Explain technical terms.
+
+---
+
+# 34. Webhooks
+
+If applicable, explain what a webhook is.
+
+Then define:
+
+* Sender
+* Receiver
+* Authentication
+* Signature validation
+* Retry
+* Duplicate events
+* Idempotency
+
+---
+
+# 35. Notifications
+
+Determine notification requirements.
+
+Explain channels:
+
+* In-App
+* Email
+* SMS
+* Push
+
+For each notification:
+
+* Trigger
+* Recipient
+* Content type
+* Priority
+* Retry
+* Read/unread state
+
+---
+
+# 36. Search
+
+Explain possible levels:
+
+1. Database filtering
+2. Database text search
+3. Dedicated search engine
+
+Determine which level MVP requires.
+
+Avoid unnecessary technology.
+
+---
+
+# 37. Pagination
+
+Explain why pagination is needed.
+
+Compare:
+
+* Offset Pagination
+* Cursor Pagination
+
+Recommend based on actual requirements.
+
+---
+
+# 38. Rate Limiting
+
+Explain rate limiting.
+
+Identify risky endpoints.
+
+Explain recommended protection for:
+
+* Login
+* Register
+* Password Reset
+* Verification
+* Search
+* Upload
+* Public endpoints
+
+---
+
+# 39. Idempotency
+
+Explain idempotency with a beginner-friendly example.
+
+Identify relevant endpoints.
+
+Explain implementation requirements conceptually.
+
+---
+
+# 40. Transactions and Concurrency
+
+Explain:
+
+* Database Transaction
+* Race Condition
+* Concurrency
+* Lock
+* Optimistic Locking
+
+Identify project-specific risks.
+
+For every risk explain how it can happen.
+
+---
+
+# 41. Non-Functional Requirements
+
+Explain what Non-Functional Requirements are.
+
+Analyze:
+
+* Performance
+* Scalability
+* Availability
+* Reliability
+* Maintainability
+* Security
+* Recoverability
+* Extensibility
+
+Do not invent numbers.
+
+Unknown values must become Open Questions.
+
+---
+
+# 42. Expected Scale
+
+Determine what is known about:
+
+* Users
+* Active users
+* Concurrent users
+* Requests per second
+* Storage
+* Upload volume
+* Data growth
+
+Explain why these metrics affect architecture decisions.
+
+---
+
+# 43. Logging
+
+Explain:
+
+* What logs are
+* Why they are needed
+* What to log
+* What NOT to log
+
+Provide recommended structured log fields.
+
+---
+
+# 44. Monitoring and Observability
+
+Explain differences between:
+
+* Logs
+* Metrics
+* Traces
+* Error tracking
+* Alerts
+
+Then determine minimum requirements for MVP.
+
+---
+
+# 45. Audit Logs
+
+Explain the difference between normal logs and audit logs.
+
+Identify actions requiring audit logs.
+
+---
+
+# 46. Health Checks
+
+Explain:
+
+* Liveness
+* Readiness
+* Health Check
+
+Determine what FastAPI endpoints or checks will eventually be needed conceptually.
+
+---
+
+# 47. Configuration
+
+Explain environment configuration.
+
+Identify variables such as:
+
+* Database connection
+* Secret keys
+* API keys
+* Email config
+* Storage config
+* CORS
+* Logging
+
+Explain why secrets must not be hardcoded.
+
+---
+
+# 48. Environment Strategy
+
+Explain:
+
+* Local
+* Development
+* Testing
+* Staging
+* Production
+
+Explain why separate environments exist.
+
+Define expected purpose of each.
+
+---
+
+# 49. Database Migration
+
+Explain what a migration is and why it matters.
+
+Describe the expected workflow conceptually.
+
+---
+
+# 50. Deployment
+
+Explain deployment for a beginner.
+
+Cover:
+
+* Application server
+* Environment variables
+* Database
+* Migration
+* Reverse proxy if needed
+* HTTPS
+* Worker if needed
+* Storage
+* Monitoring
+
+Do not unnecessarily introduce Kubernetes.
+
+---
+
+# 51. Backup and Restore
+
+Explain:
+
+* Backup
+* Restore
+* Recovery Point
+* Recovery Time
+
+Determine what data requires backups.
+
+Create open questions where retention requirements are unknown.
+
+---
+
+# 52. Testing
+
+Explain each test type:
+
+* Unit Test
+* Integration Test
+* API Test
+* Database Test
+* Permission Test
+* Security Test
+* End-to-End Test
+
+Show what should be tested in this project.
+
+---
+
+# 53. Acceptance Criteria
+
+For each major requirement create testable acceptance criteria.
+
+Use:
+
+Given
+When
+Then
+
+Explain the pattern before using it.
+
+---
+
+# 54. FastAPI Project Architecture
+
+Teach the beginner how responsibilities should be separated.
+
+Evaluate a structure such as:
+
+app/
+api/
+core/
+domain/
+models/
+schemas/
+services/
+repositories/
+integrations/
+workers/
+tests/
+
+For each directory explain:
+
+* Purpose
+* What belongs there
+* What should not belong there
+* Example responsibility
+
+Do NOT generate implementation source code.
+
+---
+
+# 55. Architecture Style
+
+Explain in simple terms:
+
+* Layered Architecture
+* Modular Monolith
+* Clean Architecture
+* Hexagonal Architecture
+* Microservices
+
+Then recommend the simplest suitable option.
+
+For a beginner, actively avoid unnecessary architectural complexity.
+
+If a Modular Monolith is sufficient, explain why.
+
+---
+
+# 56. Technical Decision Matrix
+
+For each important undecided technology or architecture choice create:
+
+| Decision | Needed Now? | Options | Recommendation | Why | Beginner Complexity |
+| -------- | ----------: | ------- | -------------- | --- | ------------------- |
+
+Potential decisions:
+
+* Database
+* ORM
+* Authentication strategy
+* Async queue
+* Cache
+* Storage
+* Search
+* Deployment
+* Monitoring
+
+Only include decisions relevant to this project.
+
+---
+
+# 57. ADR List
+
+Explain Architecture Decision Records.
+
+Generate required ADR candidates.
+
+For each:
+
+* ID
+* Decision
+* Context
+* Options
+* Decision required before
+* Priority
+
+---
+
+# 58. Dependencies Between Components
+
+Create a dependency map.
+
+Example:
+
+Authentication
+↓
+Users
+↓
+Organizations
+↓
+Projects
+
+Explain why implementation order matters.
+
+---
+
+# 59. Implementation Order
+
+This section is extremely important.
+
+Provide the exact recommended order for a beginner.
+
+For example:
+
+## Stage 1 — Understand Product
+
+What to read.
+
+What to extract.
+
+What output to create.
+
+## Stage 2 — Domain Modeling
+
+What to do.
+
+## Stage 3 — Data Model
+
+What to do.
+
+## Stage 4 — API Design
+
+What to do.
+
+## Stage 5 — FastAPI Foundation
+
+What to prepare.
+
+## Stage 6 — Authentication
+
+What to build.
+
+## Stage 7 — Authorization
+
+What to build.
+
+## Stage 8 — Core Modules
+
+What to build.
+
+## Stage 9 — Integrations
+
+What to build.
+
+## Stage 10 — Testing
+
+What to build.
+
+## Stage 11 — Security
+
+What to review.
+
+## Stage 12 — Deployment
+
+What to prepare.
+
+For every stage include:
+
+* Purpose
+* Prerequisites
+* Tasks
+* Expected output
+* Common beginner mistakes
+* Completion criteria
+
+---
+
+# 60. Backend Roadmap
+
+Create phases:
+
+* Foundation
+* Identity
+* Core Domain
+* Supporting Features
+* Integrations
+* Hardening
+* Production Readiness
+
+Adapt to actual requirements.
+
+---
+
+# 61. Epics
+
+Create Backend Epics.
+
+Example:
+
+BE-EPIC-001 — Backend Foundation
+
+For each Epic include:
+
+* Objective
+* Why needed
+* Dependencies
+* Deliverables
+* Acceptance criteria
+
+---
+
+# 62. Tasks
+
+Break each Epic into beginner-friendly tasks.
+
+Each task must explain:
+
+* What to do
+* Why
+* Prerequisite
+* Expected output
+* How to know it is completed
+
+Avoid tasks such as:
+
+"Implement Auth"
+
+Instead write tasks such as:
+
+"Define User entity fields and validation rules before implementing authentication."
+
+---
+
+# 63. Beginner Mistakes
+
+Create a dedicated section:
+
+# اشتباهات رایج فرد مبتدی در این پروژه
+
+Include project-specific risks such as:
+
+* Coding before understanding requirements
+* Designing tables too early
+* Mixing authentication and authorization
+* Storing plain passwords
+* Forgetting ownership checks
+* Trusting client-provided IDs
+* Missing database constraints
+* Overusing microservices
+* Adding Redis without need
+* Ignoring migrations
+* Ignoring tests
+* Hardcoding secrets
+* Missing error handling
+
+Explain why each mistake matters.
+
+---
+
+# 64. Things NOT to Build Yet
+
+Identify features or infrastructure that should NOT be added during early MVP unless requirements justify them.
+
+Possible examples:
+
+* Microservices
+* Kafka
+* Kubernetes
+* Complex event architecture
+* Multiple databases
+* Premature caching
+* Advanced search infrastructure
+
+Explain why postponing them helps a beginner.
+
+---
+
+# 65. Definition of Ready
+
+Explain what Definition of Ready means.
+
+Create a checklist that must be completed before coding begins.
+
+---
+
+# 66. Definition of Done
+
+Explain Definition of Done.
+
+Create a checklist for each backend feature.
+
+---
+
+# 67. Before Writing Code Checklist
+
+Create a detailed checklist.
+
+Examples:
+
+[ ] Product scope understood
+[ ] All source files reviewed
+[ ] Actors identified
+[ ] User flows identified
+[ ] Entities identified
+[ ] Business rules documented
+[ ] Ownership defined
+[ ] Permissions defined
+[ ] Database direction defined
+[ ] API direction defined
+[ ] Security risks identified
+[ ] Open questions reviewed
+
+---
+
+# 68. MVP Production Readiness Checklist
+
+Create a separate checklist covering:
+
+* Security
+* Database
+* Backup
+* Authentication
+* Authorization
+* Validation
+* Errors
+* Logs
+* Monitoring
+* Tests
+* Configuration
+* Deployment
+* Secrets
+* Documentation
+
+---
+
+# 69. Open Questions
+
+Create a comprehensive list of missing information.
+
+For every question specify:
+
+* ID
+* Question
+* Why it matters
+* Blocking what?
+* Who should answer?
+* Priority
+
+Priority:
+
+P0 = blocks architecture or development
+P1 = required before implementing related feature
+P2 = can be resolved later
+
+---
+
+# 70. Risks
+
+Create a risk register.
+
+For every risk explain:
+
+* Risk
+* Beginner-friendly explanation
+* Impact
+* Probability
+* Prevention
+* Required action
+* Priority
+
+---
+
+# 71. Final Source Traceability Matrix
+
+Every critical requirement must map back to one or more sources.
+
+Use:
+
+| Requirement ID | Requirement | Source ID | Source Location | Type | Confidence |
+| -------------- | ----------- | --------- | --------------- | ---- | ---------- |
+
+Type:
+
+* Explicit
+* Inferred
+* Assumption
+* Recommendation
+
+Confidence:
+
+* High
+* Medium
+* Low
+
+---
+
+# 72. Unused Source Report
+
+This section is mandatory.
+
+List every source from which no backend requirement was extracted.
+
+For each explain why.
+
+This ensures no source was forgotten.
+
+---
+
+# 73. Final Beginner Roadmap
+
+At the end of the document provide a very clear section:
+
+# حالا دقیقاً از کجا شروع کنم؟
+
+Write it as if the reader has never built a backend before.
+
+Provide a numbered sequence.
+
+Example format:
+
+### قدم 1
+
+این بخش از PRD را مطالعه کن.
+
+### قدم 2
+
+این تصمیم را بگیر.
+
+### قدم 3
+
+این خروجی را بساز.
+
+### قدم 4
+
+بعد از تأیید آن، به مرحله بعد برو.
+
+For every step mention:
+
+* What to read
+* What to decide
+* What to create
+* What to verify
+* What not to do yet
+
+The beginner must clearly understand what their next action is.
+
+---
+
+# 74. Recommended Learning Topics
+
+Based specifically on this project's requirements, create a learning roadmap.
+
+Divide topics into:
+
+## قبل از شروع کدنویسی
+
+## هنگام ساخت Foundation
+
+## هنگام ساخت Authentication
+
+## هنگام طراحی Database
+
+## هنگام طراحی API
+
+## قبل از Deployment
+
+For each topic explain:
+
+* What to learn
+* Why it is relevant
+* Required depth:
+
+  * Basic
+  * Intermediate
+  * Advanced
+
+Do not create a generic Python curriculum.
+
+Only include knowledge relevant to this project.
+
+---
+
+# 75. Final Implementation Readiness Assessment
+
+At the very end, evaluate whether the project is ready for backend implementation.
+
+Choose:
+
+* آماده
+* تقریباً آماده
+* نیازمند تصمیم‌های مهم
+* هنوز آماده نیست
+
+Explain why.
+
+Then provide:
+
+## مواردی که قبل از کدنویسی باید حل شوند
+
+## مواردی که می‌توان هنگام توسعه حل کرد
+
+## مواردی که برای Post-MVP قابل تعویق هستند
+
+---
+
+# FINAL QUALITY RULES
+
+Before finishing, perform a complete self-review.
+
+Check that:
+
+* Every source was reviewed.
+* Every source appears in Source Inventory.
+* Every source appears in Source Coverage Report.
+* Important requirements are traceable.
+* No unsupported requirement is presented as fact.
+* All major entities are explained.
+* All major flows are explained.
+* Ownership is defined.
+* Authorization is defined.
+* Missing permissions are identified.
+* Missing states are identified.
+* Missing error cases are identified.
+* Security risks are identified.
+* Beginner explanations are included.
+* Action items are included.
+* Implementation order is included.
+* No unnecessary architecture is introduced.
+* Technical terms are explained.
+* Open questions are prioritized.
+* Final roadmap is understandable without prior backend experience.
+
+If any item fails this review, fix the document before finalizing.
+
+---
+
+# FINAL DOCUMENT TITLE
+
+The final document must be titled:
+
+# سند جامع نیازمندی‌ها و نقشه اجرای بک‌اند
+
+## Backend Product Requirements Document & Implementation Guide
+
+### Python + FastAPI
+
+The final result must be written entirely in Persian except for technical terms where appropriate.
+
+The document should not merely tell the developer WHAT the backend needs.
+
+It must explain:
+
+**WHAT → WHY → HOW TO PLAN → WHAT TO DO NEXT → WHAT OUTPUT TO PRODUCE → HOW TO VERIFY IT**
+
+for every important part of the project.
+
+The final document should allow a beginner, with appropriate learning and careful execution, to move systematically from the source materials to:
+
+Product Understanding
+→ Requirements
+→ Domain Model
+→ Business Rules
+→ Permissions
+→ Data Model
+→ API Design
+→ Architecture
+→ FastAPI Structure
+→ Implementation
+→ Testing
+→ Security
+→ Deployment
+→ Production Readiness
+
+without losing important information contained in the original sources.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
