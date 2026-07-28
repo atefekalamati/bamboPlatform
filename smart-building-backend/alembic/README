@@ -1,0 +1,7 @@
+Alembic migrations for the BAMBO Pilot Backend.
+
+Create schema:
+    python -m alembic upgrade head
+
+Create a new migration:
+    python -m alembic revision --autogenerate -m "description"

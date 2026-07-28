@@ -6,7 +6,9 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
 ## Implemented
 
 - FastAPI application and OpenAPI documentation
-- SQLAlchemy database and session management
+- PostgreSQL production configuration with psycopg
+- Alembic schema migrations and PostgreSQL JSONB storage
+- SQLite-isolated unit and migration tests
 - Unique `PIL-{year}-{sequence}` and `project-{number}` identifiers
 - Automatic creation of all 19 PRD stages and gates G1 through G5
 - Sequential stage locking and transition validation
@@ -34,6 +36,9 @@ cd smart-building-backend
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+Copy-Item .env.example .env
+docker compose up -d db
+python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -45,5 +50,6 @@ OpenAPI documentation is available at `http://127.0.0.1:8000/docs`.
 python -m pytest -q
 ```
 
-SQLite is currently used for local development and tests. PostgreSQL and
-Alembic migrations remain required before production deployment.
+Production schema changes must be made through Alembic. The application does
+not call `create_all` for PostgreSQL. SQLite schema creation remains available
+only for isolated tests and lightweight local diagnostics.

@@ -1,14 +1,12 @@
-"""Database configuration and session management for the smart building backend."""
+"""Database engine and session management for the BAMBO backend."""
 
-import os
-from datetime import datetime
 from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./smart_building.db")
+from app.config import get_database_url, is_sqlite_url
 
 engine = None
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, future=True, bind=None)
@@ -20,12 +18,12 @@ def get_engine():
     """Create or refresh the SQLAlchemy engine for the current DATABASE_URL."""
     global engine
 
-    database_url = os.getenv("DATABASE_URL", DATABASE_URL)
+    database_url = get_database_url()
     if engine is None or str(engine.url) != database_url:
         if engine is not None:
             engine.dispose()
-        engine_kwargs = {"future": True}
-        if database_url.startswith("sqlite"):
+        engine_kwargs = {"future": True, "pool_pre_ping": True}
+        if is_sqlite_url(database_url):
             engine_kwargs["connect_args"] = {"check_same_thread": False}
             if database_url == "sqlite:///:memory:":
                 engine_kwargs["poolclass"] = StaticPool
@@ -37,21 +35,22 @@ def get_engine():
 
 def get_session():
     """Create a database session bound to the current engine."""
-    return sessionmaker(autocommit=False, autoflush=False, future=True, bind=get_engine())()
+    get_engine()
+    return SessionLocal()
 
 
 def init_db() -> None:
-    """Create all database tables."""
+    """Create tables for isolated SQLite tests; production uses Alembic."""
     import app.models  # noqa: F401
 
     with get_engine().begin() as connection:
         Base.metadata.create_all(bind=connection)
-    return None
 
 
 def ensure_schema() -> None:
-    """Ensure the database schema exists before using sessions."""
-    init_db()
+    """Keep SQLite test/dev startup convenient without bypassing production migrations."""
+    if is_sqlite_url():
+        init_db()
 
 
 def get_db() -> Generator:

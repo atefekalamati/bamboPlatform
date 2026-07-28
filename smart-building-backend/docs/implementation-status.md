@@ -17,10 +17,12 @@ Authoritative source:
 | Immutable snapshot after approval | Implemented | Snapshot hash, ORM mutation guard, and test |
 | Exact field-level stage error | Implemented foundation | PRD error contract and API test |
 | Stage-specific validation for all domains | Partial | Checklist/form definitions exist; DWG, incident, permission, and SLA validators remain |
+| PostgreSQL configuration | Implemented | psycopg URL, local Compose service, PostgreSQL SQL compilation test |
+| Alembic migrations | Implemented foundation | Initial upgrade/downgrade and metadata drift tests |
 
 ## Remaining MVP backend areas
 
-- PostgreSQL configuration and Alembic migrations
+- Live PostgreSQL integration test in CI or a Docker-enabled environment
 - User, role, permission, and backend authorization
 - OTP authentication, sessions/tokens, and rate limiting
 - Full F01-F05 data contracts
