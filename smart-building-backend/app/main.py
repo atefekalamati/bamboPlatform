@@ -12,6 +12,7 @@ from app.routers.product import router as product_router
 from app.routers.operations import router as operations_router
 from app.routers.experience import router as experience_router
 from app.routers.evaluation import router as evaluation_router
+from app.routers.commercial import router as commercial_router
 from app.routers.security import audit_router, auth_router, roles_router, users_router
 from app.services.security import seed_security_data
 
@@ -24,7 +25,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="BAMBO Pilot Backend", version="0.7.0", lifespan=lifespan)
+app = FastAPI(title="BAMBO Pilot Backend", version="0.8.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(roles_router)
@@ -34,6 +35,7 @@ app.include_router(product_router)
 app.include_router(operations_router)
 app.include_router(experience_router)
 app.include_router(evaluation_router)
+app.include_router(commercial_router)
 
 
 @app.exception_handler(WorkflowError)

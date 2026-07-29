@@ -102,6 +102,24 @@ class Pilot(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    commercial_proposal = relationship(
+        "CommercialProposal",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    customer_follow_ups = relationship(
+        "CustomerFollowUp",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        order_by="CustomerFollowUp.id",
+    )
+    final_outcome = relationship(
+        "FinalOutcome",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class PilotStage(Base):

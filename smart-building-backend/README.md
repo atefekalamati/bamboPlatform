@@ -51,6 +51,14 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
   with a text-only one-page summary
 - Canonical stages 14-16 and G5 validation using all continuation cycles,
   minimal external-evidence status, evaluation, and F04 closing-session data
+- CommercialProposal persistence for stage 17 with project/floor/area/frequency,
+  period, users, support, feature, decision-maker, follow-up, and secure
+  proposal-file metadata (name, size, and SHA-256 only; no path or URL)
+- Four-slot customer follow-up calendar for stage 18 (`day_0`, `day_2`,
+  `day_5`, and `day_7_10`) with obstacle, action, owner, due time, and result
+- Canonical final outcome for stage 19, including contract handoff details,
+  dedicated Pilot Manager confirmation, source-change invalidation, and
+  preserved immutable snapshots
 - Automatic creation of all 19 PRD stages and gates G1 through G5
 - Sequential stage locking and transition validation
 - Stage submission, approval, rejection, and revision versions
@@ -101,6 +109,14 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 - `GET|PUT /missions/{id}/continuation-review`
 - `GET|PUT /pilots/{id}/evaluation`
 
+## Commercial closing API
+
+- `GET|PUT /pilots/{id}/commercial-proposal`
+- `GET /pilots/{id}/commercial-follow-ups`
+- `PUT /pilots/{id}/commercial-follow-ups/{schedule_slot}`
+- `GET|PUT /pilots/{id}/final-outcome`
+- `POST /pilots/{id}/final-outcome/approve`
+
 ## Authentication and RBAC API
 
 - `POST /auth/otp/request`
@@ -146,6 +162,11 @@ the mission itself remains safely persisted for operational follow-up.
 Main-output notifications use the same explicit delivery model. Stage 11 accepts
 either a delivered provider result or a recorded alternate contact method; a
 failed SMS without alternate delivery cannot pass.
+
+Saving or changing a commercial proposal creates a follow-up notification for
+the responsible user. Development/test records console delivery; production
+records an explicit unconfigured-provider failure until an approved adapter is
+available.
 
 DWG files currently use the configurable local backend under
 `DWG_STORAGE_ROOT`. `DWG_MAX_BYTES` must be set explicitly in production.

@@ -60,6 +60,15 @@ from app.schemas.evaluation import (
     PilotEvaluationRead,
     PilotEvaluationUpdate,
 )
+from app.schemas.commercial import (
+    CommercialProposalRead,
+    CommercialProposalUpdate,
+    CustomerFollowUpRead,
+    CustomerFollowUpUpdate,
+    FinalOutcomeApprove,
+    FinalOutcomeRead,
+    FinalOutcomeUpdate,
+)
 from app.schemas.workflow import (
     GateRead,
     PilotCreate,
@@ -80,6 +89,10 @@ __all__ = [
     "BuildingUpdate",
     "ContinuationReviewRead",
     "ContinuationReviewUpdate",
+    "CommercialProposalRead",
+    "CommercialProposalUpdate",
+    "CustomerFollowUpRead",
+    "CustomerFollowUpUpdate",
     "EquipmentCreate",
     "EquipmentRead",
     "EquipmentUpdate",
@@ -106,6 +119,9 @@ __all__ = [
     "FormF03Update",
     "FormF04Patch",
     "FormF04Read",
+    "FinalOutcomeApprove",
+    "FinalOutcomeRead",
+    "FinalOutcomeUpdate",
     "OwnerCreate",
     "OwnerRead",
     "MissionCreate",

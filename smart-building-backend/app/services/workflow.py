@@ -733,6 +733,136 @@ def _canonical_submission_data(
                 ),
             },
         )
+    if stage.number == 17:
+        proposal = pilot.commercial_proposal
+        if proposal is None:
+            return {}, {}
+        return (
+            {
+                "project_count": proposal.project_count,
+                "floor_count": proposal.floor_count,
+                "area_sqm": proposal.area_sqm,
+                "frequency": proposal.frequency,
+                "period": proposal.period,
+                "user_count": proposal.user_count,
+                "support_scope": proposal.support_scope,
+                "features": proposal.features,
+                "proposal_file": {
+                    "name": proposal.proposal_file_name,
+                    "size": proposal.proposal_file_size,
+                    "sha256": proposal.proposal_file_sha256,
+                },
+                "decision_maker": proposal.decision_maker,
+                "follow_up_date": proposal.follow_up_at.isoformat(),
+                "responsible_user_id": proposal.responsible_user_id,
+            },
+            {
+                "proposal_file_registered": bool(
+                    proposal.proposal_file_name
+                    and proposal.proposal_file_size > 0
+                    and len(proposal.proposal_file_sha256) == 64
+                ),
+            },
+        )
+    if stage.number == 18:
+        required_slots = ("day_0", "day_2", "day_5", "day_7_10")
+        follow_ups_by_slot = {
+            item.schedule_slot: item for item in pilot.customer_follow_ups
+        }
+        follow_ups = [
+            {
+                "schedule_slot": slot,
+                "obstacle": follow_ups_by_slot[slot].obstacle,
+                "action": follow_ups_by_slot[slot].action,
+                "owner_user_id": follow_ups_by_slot[slot].owner_user_id,
+                "due_at": follow_ups_by_slot[slot].due_at.isoformat(),
+                "result": follow_ups_by_slot[slot].result,
+                "completed_at": follow_ups_by_slot[slot].completed_at.isoformat(),
+            }
+            for slot in required_slots
+            if slot in follow_ups_by_slot
+        ]
+        complete = len(follow_ups) == len(required_slots) and all(
+            item["obstacle"].strip()
+            and item["action"].strip()
+            and item["owner_user_id"]
+            and item["due_at"]
+            and item["result"].strip()
+            for item in follow_ups
+        )
+        return (
+            {
+                "follow_ups": follow_ups,
+                "obstacle": {
+                    item["schedule_slot"]: item["obstacle"] for item in follow_ups
+                },
+                "action": {
+                    item["schedule_slot"]: item["action"] for item in follow_ups
+                },
+                "owner": {
+                    item["schedule_slot"]: item["owner_user_id"]
+                    for item in follow_ups
+                },
+                "due_at": {
+                    item["schedule_slot"]: item["due_at"] for item in follow_ups
+                },
+                "result": {
+                    item["schedule_slot"]: item["result"] for item in follow_ups
+                },
+            },
+            {"follow_up_registered": complete},
+        )
+    if stage.number == 19:
+        outcome = pilot.final_outcome
+        if outcome is None:
+            return {}, {}
+        contract_details_complete = (
+            outcome.outcome != "contract"
+            or (
+                outcome.success_owner_user_id is not None
+                and outcome.periodic_capture is not None
+                and outcome.contracted_user_count is not None
+                and outcome.first_capture_at is not None
+            )
+        )
+        ready_date_complete = (
+            outcome.outcome != "ready_on_date" or outcome.ready_at is not None
+        )
+        closing_reason_complete = (
+            outcome.outcome not in {"rejected", "closed"}
+            or bool(outcome.reason and outcome.reason.strip())
+        )
+        return (
+            {
+                "outcome": outcome.outcome,
+                "reason": outcome.reason,
+                "ready_at": (
+                    outcome.ready_at.isoformat() if outcome.ready_at else None
+                ),
+                "success_owner_user_id": outcome.success_owner_user_id,
+                "periodic_capture": outcome.periodic_capture,
+                "contracted_user_count": outcome.contracted_user_count,
+                "first_capture_at": (
+                    outcome.first_capture_at.isoformat()
+                    if outcome.first_capture_at
+                    else None
+                ),
+                "responsible_user_id": outcome.responsible_user_id,
+                "approved_by_user_id": outcome.approved_by_user_id,
+                "approved_at": (
+                    outcome.approved_at.isoformat() if outcome.approved_at else None
+                ),
+            },
+            {
+                "final_result_registered": bool(
+                    outcome.outcome
+                    and contract_details_complete
+                    and ready_date_complete
+                    and closing_reason_complete
+                ),
+                "pilot_manager_approved": outcome.pilot_manager_approved,
+            },
+        )
     return payload.form_data, payload.checklist
 
 
@@ -831,13 +961,18 @@ def invalidate_from_stage(
             gate.status = "locked"
             gate.passed_at = None
     pilot.current_stage = stage_number
-    pilot.status = (
-        "candidate"
-        if stage_number <= 2
-        else "waiting_documents"
-        if stage_number <= 4
-        else "operations"
-    )
+    if stage_number <= 2:
+        pilot.status = "candidate"
+    elif stage_number <= 4:
+        pilot.status = "waiting_documents"
+    elif stage_number <= 13:
+        pilot.status = "operations"
+    elif stage_number <= 16:
+        pilot.status = "evaluating"
+    elif stage_number == 17:
+        pilot.status = "evaluating"
+    else:
+        pilot.status = "proposal_sent"
     add_audit_log(
         db,
         action="stages.invalidated",
