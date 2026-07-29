@@ -1,4 +1,4 @@
-from conftest import BOOTSTRAP_MOBILE, login_with_otp
+from conftest import BOOTSTRAP_MOBILE, login_with_otp, sample_pilot_payload
 
 
 def test_otp_login_masks_mobile_and_logout_revokes_session(client):
@@ -78,7 +78,7 @@ def test_permission_toggle_applies_to_existing_session(client, super_admin_heade
     assert client.get("/pilots", headers=viewer_headers).status_code == 200
     denied = client.post(
         "/pilots",
-        json={"display_name": "پایلوت غیرمجاز", "pilot_year": 1405},
+        json=sample_pilot_payload(),
         headers=viewer_headers,
     )
     assert denied.status_code == 403
@@ -93,7 +93,7 @@ def test_permission_toggle_applies_to_existing_session(client, super_admin_heade
 
     allowed = client.post(
         "/pilots",
-        json={"display_name": "پایلوت مجاز", "pilot_year": 1405},
+        json=sample_pilot_payload(),
         headers=viewer_headers,
     )
     assert allowed.status_code == 201

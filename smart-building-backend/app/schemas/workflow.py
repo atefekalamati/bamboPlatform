@@ -5,10 +5,14 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.product import OwnerCreate, ProjectCreate, ProjectRead
+
 
 class PilotCreate(BaseModel):
-    display_name: str = Field(min_length=2, max_length=255)
+    display_name: str | None = Field(default=None, min_length=2, max_length=255)
     pilot_year: int | None = Field(default=None, ge=1300, le=2000)
+    owner: OwnerCreate
+    project: ProjectCreate
 
 
 class GateRead(BaseModel):
@@ -47,6 +51,7 @@ class PilotRead(BaseModel):
 
 
 class PilotDetail(PilotRead):
+    project: ProjectRead
     stages: list[StageRead]
     gates: list[GateRead]
 

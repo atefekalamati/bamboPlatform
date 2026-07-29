@@ -1,5 +1,6 @@
 import pytest
 
+from conftest import sample_pilot_payload, save_valid_f01
 
 STAGE_1_CHECKLIST = {
     "project_active": True,
@@ -22,7 +23,7 @@ STAGE_2_CHECKLIST = {
 def create_pilot(client, headers):
     response = client.post(
         "/pilots",
-        json={"display_name": "مالک نمونه - مشهد", "pilot_year": 1405},
+        json=sample_pilot_payload(),
         headers=headers,
     )
     assert response.status_code == 201
@@ -94,13 +95,11 @@ def test_stage_validation_returns_field_level_error_contract(client, super_admin
 def test_rejection_revision_gate_and_immutable_snapshots(client, super_admin_headers):
     pilot = create_pilot(client, super_admin_headers)
     pilot_id = pilot["id"]
+    save_valid_f01(client, pilot_id, super_admin_headers)
 
     stage_1_submit = client.post(
         f"/pilots/{pilot_id}/stages/1/submit",
-        json={
-            "form_data": {"owner_name": "مالک نمونه", "project_address": "مشهد"},
-            "checklist": STAGE_1_CHECKLIST,
-        },
+        json={},
         headers=super_admin_headers,
     )
     assert stage_1_submit.status_code == 200
@@ -124,10 +123,7 @@ def test_rejection_revision_gate_and_immutable_snapshots(client, super_admin_hea
 
     stage_2_submit = client.post(
         f"/pilots/{pilot_id}/stages/2/submit",
-        json={
-            "form_data": {"site_coordinator_phone": "09150000000"},
-            "checklist": STAGE_2_CHECKLIST,
-        },
+        json={},
         headers=super_admin_headers,
     )
     assert stage_2_submit.status_code == 200
@@ -149,10 +145,7 @@ def test_rejection_revision_gate_and_immutable_snapshots(client, super_admin_hea
 
     revised = client.post(
         f"/pilots/{pilot_id}/stages/2/submit",
-        json={
-            "form_data": {"site_coordinator_phone": "09151111111"},
-            "checklist": STAGE_2_CHECKLIST,
-        },
+        json={},
         headers=super_admin_headers,
     )
     assert revised.status_code == 200

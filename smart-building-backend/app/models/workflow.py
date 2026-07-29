@@ -42,6 +42,24 @@ class Pilot(Base):
         cascade="all, delete-orphan",
         order_by="PilotGate.after_stage",
     )
+    project = relationship(
+        "Project",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    form_f01 = relationship(
+        "FormF01",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    form_f02 = relationship(
+        "FormF02",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class PilotStage(Base):

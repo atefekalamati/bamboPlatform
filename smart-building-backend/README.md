@@ -15,12 +15,19 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
 - Backend permission enforcement for every Pilot workflow endpoint
 - Audit logging for authentication, users, roles, permissions, and stage transitions
 - Unique `PIL-{year}-{sequence}` and `project-{number}` identifiers
+- Canonical Owner, primary Contact, Project, F01, F02, Floor, and DWG entities
+- F01-driven stages 1/2 and F02-driven stage 4; client checklist payloads cannot
+  override the canonical form data
+- Secure DWG-only streaming upload with extension, MIME, signature, and size checks
+- SHA-256 duplicate detection, per-Floor version history, protected download, and
+  standardized Jalali-date filenames
+- Automatic reopening of affected workflow stages when approved source data or a
+  DWG version changes
 - Automatic creation of all 19 PRD stages and gates G1 through G5
 - Sequential stage locking and transition validation
 - Stage submission, approval, rejection, and revision versions
 - Field-level `STAGE_VALIDATION_FAILED` error contract
 - SHA-256 hashed immutable JSON snapshots after approval
-- Initial building/equipment/sensor scaffold from the earlier prototype
 
 See `docs/implementation-status.md` for PRD coverage and remaining work.
 
@@ -33,6 +40,15 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 - `POST /pilots/{id}/stages/{stage}/approve`
 - `POST /pilots/{id}/stages/{stage}/reject`
 - `GET /pilots/{id}/stages/{stage}/snapshots`
+
+## Project data and DWG API
+
+- `GET|PUT /pilots/{id}/forms/f01`
+- `GET|PUT /pilots/{id}/forms/f02`
+- `GET|POST /pilots/{id}/floors`
+- `POST /floors/{id}/dwg`
+- `GET /floors/{id}/dwg/versions`
+- `GET /dwg/versions/{id}/download`
 
 ## Authentication and RBAC API
 
@@ -70,6 +86,11 @@ The mobile configured by `BOOTSTRAP_SUPER_ADMIN_MOBILE` receives the
 OTP provider and `debug_code` response are enabled only in development/test.
 Production intentionally rejects OTP requests until an approved SMS provider
 adapter is configured.
+
+DWG files currently use the configurable local backend under
+`DWG_STORAGE_ROOT`. `DWG_MAX_BYTES` must be set explicitly in production.
+The PRD still requires a product decision for the final storage backend and
+maximum file size.
 
 ## Test
 

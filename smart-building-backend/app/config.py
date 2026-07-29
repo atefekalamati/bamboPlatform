@@ -1,6 +1,7 @@
 """Environment-backed application configuration."""
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -36,3 +37,21 @@ def get_int_setting(name: str, default: int) -> int:
 
 def get_bootstrap_super_admin_mobile() -> str | None:
     return os.getenv("BOOTSTRAP_SUPER_ADMIN_MOBILE")
+
+
+def get_dwg_storage_root() -> Path:
+    return Path(os.getenv("DWG_STORAGE_ROOT", "./storage/dwg")).resolve()
+
+
+def get_dwg_max_bytes() -> int:
+    configured = os.getenv("DWG_MAX_BYTES")
+    if get_app_env() == "production" and configured is None:
+        raise RuntimeError("DWG_MAX_BYTES must be configured in production")
+    return int(configured or str(50 * 1024 * 1024))
+
+
+def get_dwg_storage_backend() -> str:
+    backend = os.getenv("DWG_STORAGE_BACKEND", "local")
+    if backend != "local":
+        raise RuntimeError(f"Unsupported DWG storage backend: {backend}")
+    return backend
