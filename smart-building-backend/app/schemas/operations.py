@@ -195,11 +195,13 @@ class MissionFloorUpdate(BaseModel):
 class NotificationRead(BaseModel):
     id: int
     public_id: str
+    pilot_id: int | None = None
     template: str
     status: str
     provider_status: str
     attempts: int
     last_error: str | None
+    alternate_contact_method: str | None = None
     sent_at: datetime | None
     created_at: datetime
 

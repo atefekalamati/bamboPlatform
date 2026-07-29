@@ -161,6 +161,7 @@ class Notification(Base):
     id = Column(Integer, primary_key=True)
     public_id = Column(String(36), nullable=False, unique=True, index=True)
     mission_id = Column(Integer, ForeignKey("missions.id"), nullable=True, index=True)
+    pilot_id = Column(Integer, ForeignKey("pilots.id"), nullable=True, index=True)
     recipient_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     recipient_mobile = Column(String(20), nullable=False)
     channel = Column(String(16), nullable=False, default="sms")
@@ -170,6 +171,7 @@ class Notification(Base):
     provider_status = Column(String(120), nullable=False)
     attempts = Column(Integer, nullable=False, default=0)
     last_error = Column(String(500), nullable=True)
+    alternate_contact_method = Column(String(500), nullable=True)
     sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now, index=True)
     updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
@@ -182,4 +184,5 @@ class Notification(Base):
     )
 
     mission = relationship("Mission", back_populates="notifications")
+    pilot = relationship("Pilot", back_populates="notifications")
     recipient_user = relationship("User", foreign_keys=[recipient_user_id])

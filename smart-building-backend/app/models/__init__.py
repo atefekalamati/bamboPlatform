@@ -14,6 +14,12 @@ from app.models.product import (
     Project,
 )
 from app.models.operations import FormF03, Mission, MissionFloor, Notification
+from app.models.experience import (
+    ExternalEvidenceCheck,
+    ExternalPlatformReference,
+    FormF04,
+    Incident,
+)
 from app.models.security import (
     AuditLog,
     AuthSession,
@@ -41,11 +47,15 @@ __all__ = [
     "DwgFile",
     "DwgVersion",
     "Equipment",
+    "ExternalEvidenceCheck",
+    "ExternalPlatformReference",
     "Floor",
     "FormF01",
     "FormF02",
     "FormF03",
+    "FormF04",
     "ImmutableSnapshot",
+    "Incident",
     "Pilot",
     "PilotGate",
     "PilotStage",

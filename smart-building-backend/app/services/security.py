@@ -82,6 +82,7 @@ def add_audit_log(
 
 def seed_security_data(db: Session) -> None:
     permissions_by_code = {item.code: item for item in db.query(Permission).all()}
+    new_permission_codes: set[str] = set()
     for code, group, description, sensitive in PERMISSIONS:
         if code not in permissions_by_code:
             permission = Permission(
@@ -92,6 +93,7 @@ def seed_security_data(db: Session) -> None:
             )
             db.add(permission)
             permissions_by_code[code] = permission
+            new_permission_codes.add(code)
     db.flush()
 
     roles_by_name = {item.name: item for item in db.query(Role).all()}
@@ -110,6 +112,12 @@ def seed_security_data(db: Session) -> None:
             existing = {permission.code for permission in role.permissions}
             role.permissions.extend(
                 permissions_by_code[code] for code in permission_codes - existing
+            )
+        elif new_permission_codes:
+            existing = {permission.code for permission in role.permissions}
+            role.permissions.extend(
+                permissions_by_code[code]
+                for code in (permission_codes & new_permission_codes) - existing
             )
     db.commit()
 
