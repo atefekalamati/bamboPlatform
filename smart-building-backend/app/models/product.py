@@ -103,6 +103,7 @@ class Floor(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    mission_states = relationship("MissionFloor", back_populates="floor")
 
 
 class DwgFile(Base):
