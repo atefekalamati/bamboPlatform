@@ -141,6 +141,11 @@ def test_experience_openapi_contract():
         "/incidents/{incident_id}/close",
         "/missions/{mission_id}/continuation-review",
         "/pilots/{pilot_id}/evaluation",
+        "/pilots/{pilot_id}/commercial-proposal",
+        "/pilots/{pilot_id}/commercial-follow-ups",
+        "/pilots/{pilot_id}/commercial-follow-ups/{schedule_slot}",
+        "/pilots/{pilot_id}/final-outcome",
+        "/pilots/{pilot_id}/final-outcome/approve",
     ):
         assert path in schema["paths"]
     for name in (
@@ -151,6 +156,10 @@ def test_experience_openapi_contract():
         "IncidentClose",
         "ContinuationReviewUpdate",
         "PilotEvaluationUpdate",
+        "CommercialProposalUpdate",
+        "CustomerFollowUpUpdate",
+        "FinalOutcomeUpdate",
+        "FinalOutcomeApprove",
     ):
         assert name in schema["components"]["schemas"]
 
@@ -581,6 +590,417 @@ def test_stages_14_to_16_and_g5(
         headers=super_admin_headers,
     ).json()
     assert len(stage_16_snapshots) == 1
+
+
+def _prepare_pilot_through_g5(
+    client,
+    headers,
+    *,
+    expert_mobile: str = "09157775555",
+) -> dict:
+    pilot, initial_mission = _prepare_pilot_through_g4(
+        client,
+        headers,
+        expert_mobile=expert_mobile,
+    )
+    pilot_id = pilot["id"]
+    floor_id = initial_mission["floor_states"][0]["floor_id"]
+    continuation = client.post(
+        f"/pilots/{pilot_id}/missions",
+        json={
+            "expert_user_id": initial_mission["expert_user_id"],
+            "scheduled_start": "2027-02-10T08:00:00+00:00",
+            "scheduled_end": "2027-02-10T10:00:00+00:00",
+            "floor_ids": [floor_id],
+            "location": "Pilot site - continuation",
+            "site_contact_name": "Site contact",
+            "site_contact_mobile": "09152222222",
+        },
+        headers=headers,
+    )
+    assert continuation.status_code == 201, continuation.json()
+    mission = continuation.json()
+    form_f03 = client.put(
+        f"/missions/{mission['id']}/forms/f03",
+        json={
+            "assignment_accepted": True,
+            "site_entry_confirmed": True,
+            "permission_confirmed": True,
+            "ppe_ready": True,
+            "camera_ready": True,
+            "main_app_connected": True,
+            "battery_ready": True,
+            "storage_ready": True,
+            "project_floor_plan_confirmed": True,
+            "test_image_completed": True,
+            "mission_completed": True,
+            "operations_confirmed": True,
+            "started_at": "2027-02-10T08:10:00+00:00",
+            "finished_at": "2027-02-10T09:40:00+00:00",
+        },
+        headers=headers,
+    )
+    assert form_f03.status_code == 200, form_f03.json()
+    floor = client.put(
+        f"/missions/{mission['id']}/floors/{floor_id}",
+        json={
+            "capture_state": "completed",
+            "correct_floor": True,
+            "start_point_confirmed": True,
+            "main_capture_started": True,
+            "continuous_route": True,
+            "coverage_completed": True,
+            "capture_finished": True,
+            "saved_in_main_app": True,
+            "capture_started_at": "2027-02-10T08:15:00+00:00",
+            "capture_finished_at": "2027-02-10T09:30:00+00:00",
+            "main_upload_started": True,
+            "main_upload_completed": True,
+            "correct_floor_link": True,
+            "operations_notified": True,
+        },
+        headers=headers,
+    )
+    assert floor.status_code == 200, floor.json()
+    review = client.put(
+        f"/missions/{mission['id']}/continuation-review",
+        json={
+            **{
+                f"stage_{number}_confirmed": True
+                for number in range(5, 14)
+            },
+            "independent_result": (
+                "Continuation completed independently with all checks repeated."
+            ),
+        },
+        headers=headers,
+    )
+    assert review.status_code == 200, review.json()
+    submit_and_approve_stage(client, pilot_id, 14, headers)
+    evaluation = client.put(
+        f"/pilots/{pilot_id}/evaluation",
+        json={
+            "operations_status": "approved",
+            "operations_result": "Operations completed.",
+            "quality_status": "approved",
+            "quality_result": "Quality met the pilot target.",
+            "technical_status": "approved",
+            "technical_result": "Technical checks completed.",
+            "customer_status": "approved",
+            "customer_result": "Customer value was confirmed.",
+            "commercial_status": "approved",
+            "commercial_result": "Commercial proposal is appropriate.",
+            "one_page_summary": "The pilot is ready for commercial closing.",
+        },
+        headers=headers,
+    )
+    assert evaluation.status_code == 200, evaluation.json()
+    submit_and_approve_stage(client, pilot_id, 15, headers)
+    closing = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={
+            "main_platform_login_count": 4,
+            "viewed_sections": ["project", "floor", "plan", "tour"],
+            "visit_reduction_result": "confirmed",
+            "customer_need_summary": "Remote progress visibility is required.",
+            "closing_decision": "proposal",
+            "realized_value": "Fewer site visits.",
+            "purchase_blocker": "No active blocker.",
+            "project_count": 3,
+            "usage_frequency": "weekly",
+            "user_count": 5,
+            "decision_maker": "Owner CEO",
+        },
+        headers=headers,
+    )
+    assert closing.status_code == 200, closing.json()
+    submit_and_approve_stage(client, pilot_id, 16, headers)
+    return pilot
+
+
+def test_stages_17_to_19_full_commercial_workflow(
+    client,
+    super_admin_headers,
+):
+    pilot = _prepare_pilot_through_g5(client, super_admin_headers)
+    pilot_id = pilot["id"]
+    proposal_payload = {
+        "project_count": 3,
+        "floor_count": 12,
+        "area_sqm": 14500.5,
+        "frequency": "weekly",
+        "period": "12 months",
+        "user_count": 8,
+        "support_scope": "Business-hours support and onboarding.",
+        "features": ["capture", "tour", "progress reporting"],
+        "proposal_file_name": "BAMBO-proposal-v1.pdf",
+        "proposal_file_size": 245760,
+        "proposal_file_sha256": "a" * 64,
+        "decision_maker": "Owner CEO",
+        "follow_up_at": "2027-03-01T09:00:00+00:00",
+    }
+
+    missing_proposal = client.get(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        headers=super_admin_headers,
+    )
+    assert missing_proposal.status_code == 404
+    unsafe_file = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_payload
+        | {"proposal_file_name": "https://example.invalid/proposal.pdf"},
+        headers=super_admin_headers,
+    )
+    assert unsafe_file.status_code == 422
+    external_file_field = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_payload | {"proposal_url": "https://example.invalid/proposal"},
+        headers=super_admin_headers,
+    )
+    assert external_file_field.status_code == 422
+    proposal = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_payload,
+        headers=super_admin_headers,
+    )
+    assert proposal.status_code == 200, proposal.json()
+    assert proposal.json()["proposal_file_sha256"] == "a" * 64
+    stage_17 = submit_and_approve_stage(
+        client,
+        pilot_id,
+        17,
+        super_admin_headers,
+    )
+    proposal_snapshot = stage_17["snapshot"]["content"]["submission"]["form_data"]
+    assert proposal_snapshot["proposal_file"] == {
+        "name": "BAMBO-proposal-v1.pdf",
+        "size": 245760,
+        "sha256": "a" * 64,
+    }
+    assert "proposal_url" not in proposal_snapshot
+
+    invalid_schedule = client.put(
+        f"/pilots/{pilot_id}/commercial-follow-ups/day_2",
+        json={
+            "obstacle": "Budget review.",
+            "action": "Review the business case.",
+            "owner_user_id": proposal.json()["responsible_user_id"],
+            "due_at": "2027-03-04T09:00:00+00:00",
+            "result": "Review meeting completed.",
+            "completed_at": "2027-03-04T10:00:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert invalid_schedule.status_code == 422
+    assert invalid_schedule.json()["code"] == "FOLLOW_UP_SCHEDULE_INVALID"
+
+    follow_up_dates = {
+        "day_0": "2027-03-01T09:00:00+00:00",
+        "day_2": "2027-03-03T09:00:00+00:00",
+        "day_5": "2027-03-06T09:00:00+00:00",
+        "day_7_10": "2027-03-09T09:00:00+00:00",
+    }
+    for slot in ("day_0", "day_2", "day_5"):
+        response = client.put(
+            f"/pilots/{pilot_id}/commercial-follow-ups/{slot}",
+            json={
+                "obstacle": f"Commercial obstacle for {slot}.",
+                "action": f"Commercial action for {slot}.",
+                "owner_user_id": proposal.json()["responsible_user_id"],
+                "due_at": follow_up_dates[slot],
+                "result": f"Commercial result for {slot}.",
+                "completed_at": follow_up_dates[slot],
+            },
+            headers=super_admin_headers,
+        )
+        assert response.status_code == 200, response.json()
+
+    incomplete_stage_18 = client.post(
+        f"/pilots/{pilot_id}/stages/18/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert incomplete_stage_18.status_code == 422
+    final_follow_up = client.put(
+        f"/pilots/{pilot_id}/commercial-follow-ups/day_7_10",
+        json={
+            "obstacle": "Final legal review.",
+            "action": "Resolve contract wording.",
+            "owner_user_id": proposal.json()["responsible_user_id"],
+            "due_at": follow_up_dates["day_7_10"],
+            "result": "Contract wording accepted.",
+            "completed_at": "2027-03-09T10:00:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert final_follow_up.status_code == 200, final_follow_up.json()
+    listed_follow_ups = client.get(
+        f"/pilots/{pilot_id}/commercial-follow-ups",
+        headers=super_admin_headers,
+    )
+    assert listed_follow_ups.status_code == 200
+    assert [item["schedule_slot"] for item in listed_follow_ups.json()] == [
+        "day_0",
+        "day_2",
+        "day_5",
+        "day_7_10",
+    ]
+    stage_18 = submit_and_approve_stage(
+        client,
+        pilot_id,
+        18,
+        super_admin_headers,
+    )
+    assert len(
+        stage_18["snapshot"]["content"]["submission"]["form_data"]["follow_ups"]
+    ) == 4
+
+    missing_outcome = client.post(
+        f"/pilots/{pilot_id}/stages/19/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert missing_outcome.status_code == 422
+    incomplete_contract = client.put(
+        f"/pilots/{pilot_id}/final-outcome",
+        json={"outcome": "contract"},
+        headers=super_admin_headers,
+    )
+    assert incomplete_contract.status_code == 422
+    users = client.get("/users", headers=super_admin_headers)
+    assert users.status_code == 200
+    success_owner_id = users.json()[0]["id"]
+    final_outcome = client.put(
+        f"/pilots/{pilot_id}/final-outcome",
+        json={
+            "outcome": "contract",
+            "reason": "Pilot value was verified.",
+            "success_owner_user_id": success_owner_id,
+            "periodic_capture": True,
+            "contracted_user_count": 8,
+            "first_capture_at": "2027-04-01T08:00:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert final_outcome.status_code == 200, final_outcome.json()
+    unapproved_outcome = client.post(
+        f"/pilots/{pilot_id}/stages/19/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert unapproved_outcome.status_code == 422
+
+    roles = client.get("/roles", headers=super_admin_headers).json()
+    customer_success_role = next(
+        role for role in roles if role["name"] == "customer_success"
+    )
+    customer_success_user = client.post(
+        "/users",
+        json={
+            "mobile": "09154443333",
+            "display_name": "Customer success reviewer",
+            "role_ids": [customer_success_role["id"]],
+        },
+        headers=super_admin_headers,
+    )
+    assert customer_success_user.status_code == 201, customer_success_user.json()
+    customer_success_headers = login_with_otp(client, "09154443333")
+    invalid_approver = client.post(
+        f"/pilots/{pilot_id}/final-outcome/approve",
+        json={"confirmed": True},
+        headers=customer_success_headers,
+    )
+    assert invalid_approver.status_code == 403
+    assert invalid_approver.json()["code"] == "FINAL_OUTCOME_APPROVER_INVALID"
+    missing_confirmation = client.post(
+        f"/pilots/{pilot_id}/final-outcome/approve",
+        json={"confirmed": False},
+        headers=super_admin_headers,
+    )
+    assert missing_confirmation.status_code == 422
+    approved_outcome = client.post(
+        f"/pilots/{pilot_id}/final-outcome/approve",
+        json={"confirmed": True},
+        headers=super_admin_headers,
+    )
+    assert approved_outcome.status_code == 200, approved_outcome.json()
+    assert approved_outcome.json()["pilot_manager_approved"] is True
+
+    stage_19 = submit_and_approve_stage(
+        client,
+        pilot_id,
+        19,
+        super_admin_headers,
+    )
+    final_snapshot = stage_19["snapshot"]["content"]["submission"]["form_data"]
+    assert final_snapshot["outcome"] == "contract"
+    assert final_snapshot["contracted_user_count"] == 8
+    completed_pilot = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert completed_pilot["status"] == "converted"
+    assert completed_pilot["current_stage"] == 19
+    assert all(stage["status"] == "approved" for stage in completed_pilot["stages"])
+    closing_form = client.get(
+        f"/pilots/{pilot_id}/forms/f04",
+        headers=super_admin_headers,
+    )
+    assert closing_form.status_code == 200
+    assert closing_form.json()["final_result"] == "contract"
+    assert closing_form.json()["customer_success_user_id"] == success_owner_id
+    assert closing_form.json()["pilot_manager_user_id"] is not None
+
+    changed_outcome = client.put(
+        f"/pilots/{pilot_id}/final-outcome",
+        json={"outcome": "negotiation"},
+        headers=super_admin_headers,
+    )
+    assert changed_outcome.status_code == 200, changed_outcome.json()
+    assert changed_outcome.json()["pilot_manager_approved"] is False
+    invalidated_pilot = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert invalidated_pilot["status"] == "proposal_sent"
+    assert invalidated_pilot["current_stage"] == 19
+    assert invalidated_pilot["stages"][18]["status"] == "needs_revision"
+    preserved_snapshots = client.get(
+        f"/pilots/{pilot_id}/stages/19/snapshots",
+        headers=super_admin_headers,
+    )
+    assert preserved_snapshots.status_code == 200
+    assert len(preserved_snapshots.json()) == 1
+    assert preserved_snapshots.json()[0]["content"]["submission"]["form_data"][
+        "outcome"
+    ] == "contract"
+
+    blocked_resubmission = client.post(
+        f"/pilots/{pilot_id}/stages/19/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert blocked_resubmission.status_code == 422
+    reapproved_outcome = client.post(
+        f"/pilots/{pilot_id}/final-outcome/approve",
+        json={"confirmed": True},
+        headers=super_admin_headers,
+    )
+    assert reapproved_outcome.status_code == 200, reapproved_outcome.json()
+    submit_and_approve_stage(client, pilot_id, 19, super_admin_headers)
+    closed_pilot = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert closed_pilot["status"] == "closed"
+    final_snapshots = client.get(
+        f"/pilots/{pilot_id}/stages/19/snapshots",
+        headers=super_admin_headers,
+    ).json()
+    assert len(final_snapshots) == 2
+    assert final_snapshots[1]["content"]["submission"]["form_data"][
+        "outcome"
+    ] == "negotiation"
 
 
 def test_customer_success_incident_blocker_and_g4(

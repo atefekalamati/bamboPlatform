@@ -21,6 +21,7 @@ from app.models.experience import (
     Incident,
 )
 from app.models.evaluation import ContinuationReview, PilotEvaluation
+from app.models.commercial import CommercialProposal, CustomerFollowUp, FinalOutcome
 from app.models.security import (
     AuditLog,
     AuthSession,
@@ -45,7 +46,9 @@ __all__ = [
     "AuditLog",
     "AuthSession",
     "Contact",
+    "CommercialProposal",
     "ContinuationReview",
+    "CustomerFollowUp",
     "DwgFile",
     "DwgVersion",
     "Equipment",
@@ -56,6 +59,7 @@ __all__ = [
     "FormF02",
     "FormF03",
     "FormF04",
+    "FinalOutcome",
     "ImmutableSnapshot",
     "Incident",
     "Pilot",
