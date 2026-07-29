@@ -21,6 +21,7 @@ from app.models import (
     StageApproval,
     StageSubmission,
 )
+from app.schemas.experience import CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES
 from app.schemas.workflow import PilotCreate, StageReject, StageSubmit
 from app.services.security import add_audit_log
 from app.workflow import (
@@ -149,6 +150,17 @@ def _validation_errors(stage_number: int, submission: StageSubmission) -> list[d
                         "reason": "required_valid_dwg",
                     }
                 )
+    if stage_number == 13:
+        for incident_code in submission.form_data.get(
+            "open_critical_incidents", []
+        ):
+            errors.append(
+                {
+                    "field": f"incidents.{incident_code}",
+                    "label": incident_code,
+                    "reason": "open_critical_incident",
+                }
+            )
     if stage_number == 19:
         outcome = submission.form_data.get("outcome")
         if outcome and outcome not in FINAL_OUTCOMES:
@@ -426,6 +438,131 @@ def _canonical_submission_data(
                 },
                 "mission_completed": form.mission_completed,
                 "operations_confirmed": form.operations_confirmed,
+            },
+        )
+    if stage.number == 10:
+        reference = pilot.external_platform_reference
+        if reference is None:
+            return {}, {}
+        open_critical_incidents = [
+            incident.code
+            for incident in pilot.incidents
+            if incident.severity == "critical" and incident.status != "closed"
+        ]
+        return (
+            {
+                "project_reference": reference.project_reference,
+                "platform_status": reference.platform_status,
+                "reason": reference.reason,
+                "checked_by_user_id": reference.checked_by_user_id,
+                "checked_at": reference.checked_at.isoformat(),
+                "open_critical_incidents": open_critical_incidents,
+            },
+            {
+                "processing_started": reference.processing_started,
+                "route_detected": reference.route_detected,
+                "plan_connected": reference.plan_connected,
+                "tour_ready": reference.tour_ready,
+                "no_critical_error": not open_critical_incidents,
+                "captures_menu_checked": reference.captures_menu_checked,
+                "latest_capture_checked": reference.latest_capture_checked,
+                "last_visit_checked": reference.last_visit_checked,
+            },
+        )
+    if stage.number == 11:
+        reference = pilot.external_platform_reference
+        notifications = [
+            item
+            for item in pilot.notifications
+            if item.template == "main_output_ready"
+        ]
+        notification = notifications[-1] if notifications else None
+        if notification is None:
+            return {}, {}
+        delivery_registered = (
+            notification.status == "delivered"
+            or bool(notification.alternate_contact_method)
+        )
+        return (
+            {
+                "delivery_status": notification.status,
+                "provider_status": notification.provider_status,
+                "attempts": notification.attempts,
+                "alternate_contact_method": notification.alternate_contact_method,
+                "sent_at": (
+                    notification.sent_at.isoformat()
+                    if notification.sent_at
+                    else None
+                ),
+            },
+            {
+                "main_output_ready": bool(reference and reference.tour_ready),
+                "notification_sent": notification.attempts > 0,
+                "delivery_registered": delivery_registered,
+            },
+        )
+    if stage.number == 12:
+        form = pilot.form_f04
+        if form is None:
+            return {}, {}
+        return (
+            {
+                "responsible_user_id": form.responsible_user_id,
+                "training_completed": form.training_completed,
+                "more_training_needed": form.more_training_needed,
+            },
+            {
+                "login": form.login_trained,
+                "project": form.project_trained,
+                "floor": form.floor_trained,
+                "plan": form.plan_trained,
+                "tour": form.tour_trained,
+                "navigation": form.navigation_trained,
+                "support": form.support_trained,
+                "independent_use": form.independent_use_confirmed,
+            },
+        )
+    if stage.number == 13:
+        form = pilot.form_f04
+        if form is None:
+            return {}, {}
+        open_critical_incidents = [
+            incident.code
+            for incident in pilot.incidents
+            if incident.severity == "critical" and incident.status != "closed"
+        ]
+        evidence = [
+            {
+                "capability": item.capability,
+                "status": item.status,
+                "checked_by_user_id": item.checked_by_user_id,
+                "checked_at": item.checked_at.isoformat(),
+                "result": item.result,
+            }
+            for item in pilot.external_evidence_checks
+            if item.capability in CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES
+        ]
+        return (
+            {
+                "follow_up_result": form.viewing_result,
+                "issue": form.issue_description,
+                "issue_category": form.issue_category,
+                "issue_route": form.issue_route,
+                "issue_owner_user_id": form.issue_owner_user_id,
+                "issue_due_at": (
+                    form.issue_due_at.isoformat() if form.issue_due_at else None
+                ),
+                "satisfaction_score": form.satisfaction_score,
+                "external_evidence": evidence,
+                "open_critical_incidents": open_critical_incidents,
+            },
+            {
+                "first_follow_up": bool(form.first_follow_up_at),
+                "second_follow_up": bool(form.second_follow_up_at),
+                "owner_viewed": form.owner_logged_in
+                and form.project_opened
+                and form.main_tour_viewed,
+                "no_open_critical_incident": not open_critical_incidents,
             },
         )
     return payload.form_data, payload.checklist

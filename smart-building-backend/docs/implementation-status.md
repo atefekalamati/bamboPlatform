@@ -3,7 +3,7 @@
 Authoritative source:
 `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
 
-## Current stage: Mission, F03, operations stages 5-9, and G3
+## Current stage: Customer experience, F04/F05, stages 10-13, and G4
 
 | PRD requirement | Status | Evidence |
 |---|---|---|
@@ -27,10 +27,18 @@ Authoritative source:
 | G3 operations gate | Implemented | Stages 5-9 use canonical Mission/F03/Floor data and require every Floor to complete Upload/link/notification checks |
 | Mission notifications | Implemented foundation | Creation/reschedule templates, provider status, attempts, console delivery, and production failure persistence |
 | Mission SLA | Implemented deadline foundation | One-day Mission SLA deadline is persisted; global breach calculation/reporting remains |
+| External platform reference | Implemented | Read-only project identifier/status/check timestamps are stored without Viewer, tour URL, external report payload, or platform integration |
+| Stage 10 processing | Implemented | Canonical external-status checks cover processing, route, Plan, tour, capture menu, latest capture, last visit, and critical errors |
+| Stage 11 output notification | Implemented foundation | Main-output notification persists attempts and provider result; failed SMS requires a registered alternate contact method |
+| F04 customer success | Implemented for stages 12/13 | Owner login/viewing, training, two follow-ups, feedback, issue routing, value, decision-maker, next action, and commercial-readiness data |
+| External evidence checks | Implemented | Only capability/report name, status, checker, check time, and short result are accepted and persisted |
+| F05 Incident lifecycle | Implemented | Numbering, mission/stage link, severity/type, containment, ownership, correction, result, evidence note, lessons, and confirmed closure |
+| Incident response SLA | Implemented deadline foundation | Critical 30-minute, important four-hour, and normal same-day deadlines are persisted; business-calendar breach reporting remains |
+| G4 experience gate | Implemented | Stages 10-13 use canonical data; open critical Incidents block G4 and new critical Incidents reopen stage 13 without mutating snapshots |
 | Approved-source invalidation | Implemented | F01/F02/Floor/DWG/Mission/F03 changes reopen the affected stage and lock downstream work without changing old snapshots |
-| Stage-specific validation for all domains | Partial | Stages 1-9 and G1-G3 use canonical data; incident, customer-experience, evidence, and commercial validators remain |
+| Stage-specific validation for all domains | Partial | Stages 1-13 and G1-G4 use canonical data; repeat-capture, evaluation, and commercial validators remain |
 | PostgreSQL configuration | Implemented | psycopg URL, local Compose service, PostgreSQL SQL compilation test |
-| Alembic migrations | Implemented foundation | Revisions 0001-0004, upgrade/downgrade, PostgreSQL compilation, and metadata drift tests |
+| Alembic migrations | Implemented foundation | Revisions 0001-0005, upgrade/downgrade, PostgreSQL compilation, and metadata drift tests |
 | OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, login/logout tests |
 | Production SMS provider | Blocked by PRD question | Provider company and API limits are not specified |
 | User/Role/Permission | Implemented | Grouped permissions, system roles, assignment and toggle APIs |
@@ -42,14 +50,13 @@ Authoritative source:
 
 - Live PostgreSQL integration test in CI or a Docker-enabled environment
 - Approved production OTP/SMS provider adapter and notification templates
-- F04-F05 data contracts
 - Product decision and production adapter for DWG storage backend
 - Product-confirmed DWG maximum size and optional malware/deeper file validation
-- Incident lifecycle and critical-incident gates
 - Production notification provider, controlled retry, and delivery callbacks
 - Global SLA status calculation, escalation, and reporting
 - Audit pagination/filtering and retention policy
-- External evidence checks
+- Stages 14-19: repeat capture, evaluation, closing meeting, proposal, follow-up,
+  and final contract/closure
 - Commercial proposal and final outcome details
 - Broader PostgreSQL integration, security, OpenAPI contract, and end-to-end tests
 
