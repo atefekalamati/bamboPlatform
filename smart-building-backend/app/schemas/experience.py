@@ -37,6 +37,14 @@ IssueCategory = Literal[
     "capability",
     "continuation",
 ]
+VisitReductionResult = Literal["confirmed", "not_confirmed", "unknown"]
+ClosingDecision = Literal[
+    "proposal",
+    "follow_up",
+    "continue_pilot",
+    "stop",
+    "undecided",
+]
 
 EVIDENCE_CAPABILITIES = {
     "actual_progress",
@@ -158,6 +166,11 @@ class FormF04Patch(BaseModel):
     navigation_trained: bool | None = None
     support_trained: bool | None = None
     independent_use_confirmed: bool | None = None
+    main_platform_login_count: int | None = Field(default=None, ge=0)
+    viewed_sections: list[str] | None = Field(default=None, max_length=50)
+    visit_reduction_result: VisitReductionResult | None = None
+    customer_need_summary: str | None = Field(default=None, max_length=4000)
+    closing_decision: ClosingDecision | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -165,6 +178,21 @@ class FormF04Patch(BaseModel):
     @classmethod
     def normalize_optional_datetime(cls, value: datetime | None) -> datetime | None:
         return normalize_utc_datetime(value) if value else None
+
+    @field_validator("viewed_sections")
+    @classmethod
+    def normalize_viewed_sections(
+        cls,
+        values: list[str] | None,
+    ) -> list[str] | None:
+        if values is None:
+            return None
+        normalized = [value.strip() for value in values]
+        if not normalized or any(not value or len(value) > 160 for value in normalized):
+            raise ValueError("viewed_sections must contain non-empty short names")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("viewed_sections must be unique")
+        return normalized
 
     @model_validator(mode="after")
     def require_changes(self) -> "FormF04Patch":
@@ -219,6 +247,11 @@ class FormF04Read(BaseModel):
     navigation_trained: bool
     support_trained: bool
     independent_use_confirmed: bool
+    main_platform_login_count: int | None
+    viewed_sections: list[str]
+    visit_reduction_result: VisitReductionResult | None
+    customer_need_summary: str | None
+    closing_decision: ClosingDecision | None
     created_at: datetime
     updated_at: datetime
 

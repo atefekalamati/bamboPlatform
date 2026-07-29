@@ -54,6 +54,12 @@ from app.schemas.experience import (
     IncidentRead,
     OutputNotificationCreate,
 )
+from app.schemas.evaluation import (
+    ContinuationReviewRead,
+    ContinuationReviewUpdate,
+    PilotEvaluationRead,
+    PilotEvaluationUpdate,
+)
 from app.schemas.workflow import (
     GateRead,
     PilotCreate,
@@ -72,6 +78,8 @@ __all__ = [
     "BuildingCreate",
     "BuildingRead",
     "BuildingUpdate",
+    "ContinuationReviewRead",
+    "ContinuationReviewUpdate",
     "EquipmentCreate",
     "EquipmentRead",
     "EquipmentUpdate",
@@ -124,6 +132,8 @@ __all__ = [
     "GateRead",
     "PilotCreate",
     "PilotDetail",
+    "PilotEvaluationRead",
+    "PilotEvaluationUpdate",
     "PilotRead",
     "SnapshotRead",
     "StageActionResult",

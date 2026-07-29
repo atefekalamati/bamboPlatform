@@ -77,6 +77,12 @@ class Mission(Base):
         cascade="all, delete-orphan",
         order_by="Notification.created_at",
     )
+    continuation_review = relationship(
+        "ContinuationReview",
+        back_populates="mission",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class MissionFloor(Base):

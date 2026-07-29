@@ -20,6 +20,7 @@ from app.models.experience import (
     FormF04,
     Incident,
 )
+from app.models.evaluation import ContinuationReview, PilotEvaluation
 from app.models.security import (
     AuditLog,
     AuthSession,
@@ -44,6 +45,7 @@ __all__ = [
     "AuditLog",
     "AuthSession",
     "Contact",
+    "ContinuationReview",
     "DwgFile",
     "DwgVersion",
     "Equipment",
@@ -57,6 +59,7 @@ __all__ = [
     "ImmutableSnapshot",
     "Incident",
     "Pilot",
+    "PilotEvaluation",
     "PilotGate",
     "PilotStage",
     "OtpRequest",

@@ -96,6 +96,12 @@ class Pilot(Base):
         cascade="all, delete-orphan",
         order_by="Notification.created_at",
     )
+    evaluation = relationship(
+        "PilotEvaluation",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class PilotStage(Base):

@@ -2,7 +2,11 @@
 
 from datetime import datetime
 
-from conftest import prepare_pilot_through_g2, submit_and_approve_stage
+from conftest import (
+    login_with_otp,
+    prepare_pilot_through_g2,
+    submit_and_approve_stage,
+)
 from app.main import app
 
 
@@ -135,6 +139,8 @@ def test_experience_openapi_contract():
         "/pilots/{pilot_id}/notifications/main-output",
         "/pilots/{pilot_id}/incidents",
         "/incidents/{incident_id}/close",
+        "/missions/{mission_id}/continuation-review",
+        "/pilots/{pilot_id}/evaluation",
     ):
         assert path in schema["paths"]
     for name in (
@@ -143,11 +149,13 @@ def test_experience_openapi_contract():
         "ExternalEvidenceUpdate",
         "IncidentCreate",
         "IncidentClose",
+        "ContinuationReviewUpdate",
+        "PilotEvaluationUpdate",
     ):
         assert name in schema["components"]["schemas"]
 
 
-def test_stages_10_to_13_incident_blocker_and_g4(
+def test_stage_10_platform_status_and_incident_sla(
     client,
     super_admin_headers,
 ):
@@ -269,6 +277,334 @@ def test_stages_10_to_13_incident_blocker_and_g4(
     )
     assert notification.status_code == 201, notification.json()
     assert notification.json()["status"] == "delivered"
+    submit_and_approve_stage(client, pilot_id, 11, super_admin_headers)
+
+
+def _prepare_pilot_through_g4(
+    client,
+    headers,
+    *,
+    expert_mobile: str = "09158886666",
+) -> tuple[dict, dict]:
+    pilot, mission = _prepare_pilot_through_g3(
+        client,
+        headers,
+        expert_mobile=expert_mobile,
+    )
+    pilot_id = pilot["id"]
+    platform_response = client.put(
+        f"/pilots/{pilot_id}/external-platform",
+        json=_external_platform_payload(),
+        headers=headers,
+    )
+    assert platform_response.status_code == 200, platform_response.json()
+    submit_and_approve_stage(client, pilot_id, 10, headers)
+    notification = client.post(
+        f"/pilots/{pilot_id}/notifications/main-output",
+        json={},
+        headers=headers,
+    )
+    assert notification.status_code == 201, notification.json()
+    submit_and_approve_stage(client, pilot_id, 11, headers)
+    training = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json=_training_payload(),
+        headers=headers,
+    )
+    assert training.status_code == 200, training.json()
+    submit_and_approve_stage(client, pilot_id, 12, headers)
+    follow_up = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={
+            "owner_logged_in": True,
+            "project_opened": True,
+            "main_tour_viewed": True,
+            "viewing_result": "Owner reviewed the main output.",
+            "first_follow_up_at": "2027-01-11T09:00:00+00:00",
+            "second_follow_up_at": "2027-01-14T09:00:00+00:00",
+        },
+        headers=headers,
+    )
+    assert follow_up.status_code == 200, follow_up.json()
+    submit_and_approve_stage(client, pilot_id, 13, headers)
+    return pilot, mission
+
+
+def test_stages_14_to_16_and_g5(
+    client,
+    super_admin_headers,
+):
+    pilot, initial_mission = _prepare_pilot_through_g4(
+        client,
+        super_admin_headers,
+    )
+    pilot_id = pilot["id"]
+    floor_id = initial_mission["floor_states"][0]["floor_id"]
+
+    continuation_response = client.post(
+        f"/pilots/{pilot_id}/missions",
+        json={
+            "expert_user_id": initial_mission["expert_user_id"],
+            "scheduled_start": "2027-02-10T08:00:00+00:00",
+            "scheduled_end": "2027-02-10T10:00:00+00:00",
+            "floor_ids": [floor_id],
+            "location": "Pilot site - continuation",
+            "site_contact_name": "Site contact",
+            "site_contact_mobile": "09152222222",
+        },
+        headers=super_admin_headers,
+    )
+    assert continuation_response.status_code == 201, continuation_response.json()
+    continuation = continuation_response.json()
+    assert continuation["sequence"] == 2
+    assert continuation["code"] == f"MIS-{pilot['code']}-02"
+
+    f03_response = client.put(
+        f"/missions/{continuation['id']}/forms/f03",
+        json={
+            "assignment_accepted": True,
+            "site_entry_confirmed": True,
+            "permission_confirmed": True,
+            "ppe_ready": True,
+            "camera_ready": True,
+            "main_app_connected": True,
+            "battery_ready": True,
+            "storage_ready": True,
+            "project_floor_plan_confirmed": True,
+            "test_image_completed": True,
+            "mission_completed": True,
+            "operations_confirmed": True,
+            "started_at": "2027-02-10T08:10:00+00:00",
+            "finished_at": "2027-02-10T09:40:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert f03_response.status_code == 200, f03_response.json()
+    floor_response = client.put(
+        f"/missions/{continuation['id']}/floors/{floor_id}",
+        json={
+            "capture_state": "completed",
+            "correct_floor": True,
+            "start_point_confirmed": True,
+            "main_capture_started": True,
+            "continuous_route": True,
+            "coverage_completed": True,
+            "capture_finished": True,
+            "saved_in_main_app": True,
+            "capture_started_at": "2027-02-10T08:15:00+00:00",
+            "capture_finished_at": "2027-02-10T09:30:00+00:00",
+            "main_upload_started": True,
+            "main_upload_completed": True,
+            "correct_floor_link": True,
+            "operations_notified": True,
+        },
+        headers=super_admin_headers,
+    )
+    assert floor_response.status_code == 200, floor_response.json()
+
+    missing_review = client.post(
+        f"/pilots/{pilot_id}/stages/14/submit",
+        json={"checklist": {"new_mission": True}},
+        headers=super_admin_headers,
+    )
+    assert missing_review.status_code == 422
+    review_payload = {
+        **{
+            f"stage_{number}_confirmed": True
+            for number in range(5, 14)
+        },
+        "independent_result": (
+            "The continuation capture completed independently and all "
+            "stage checks were repeated."
+        ),
+    }
+    review_media_rejected = client.put(
+        f"/missions/{continuation['id']}/continuation-review",
+        json=review_payload | {"report_url": "https://example.invalid/report"},
+        headers=super_admin_headers,
+    )
+    assert review_media_rejected.status_code == 422
+    review = client.put(
+        f"/missions/{continuation['id']}/continuation-review",
+        json=review_payload,
+        headers=super_admin_headers,
+    )
+    assert review.status_code == 200, review.json()
+    _create_expert(client, super_admin_headers, "09159998888")
+    other_expert_headers = login_with_otp(client, "09159998888")
+    restricted_review = client.get(
+        f"/missions/{continuation['id']}/continuation-review",
+        headers=other_expert_headers,
+    )
+    assert restricted_review.status_code == 403
+    stage_14 = submit_and_approve_stage(
+        client,
+        pilot_id,
+        14,
+        super_admin_headers,
+    )
+    assert stage_14["snapshot"]["content"]["submission"]["form_data"][
+        "mission_code"
+    ] == continuation["code"]
+
+    evidence = client.put(
+        f"/pilots/{pilot_id}/external-evidence/actual_progress",
+        json={
+            "status": "checked",
+            "checked_at": "2027-02-11T08:00:00+00:00",
+            "result": "The existing main-platform report was reviewed.",
+        },
+        headers=super_admin_headers,
+    )
+    assert evidence.status_code == 200, evidence.json()
+    audio_media_rejected = client.put(
+        f"/pilots/{pilot_id}/external-evidence/manager_audio_report",
+        json={
+            "status": "checked",
+            "checked_at": "2027-02-11T08:10:00+00:00",
+            "audio_url": "https://example.invalid/audio.mp3",
+        },
+        headers=super_admin_headers,
+    )
+    assert audio_media_rejected.status_code == 422
+    audio_status = client.put(
+        f"/pilots/{pilot_id}/external-evidence/manager_audio_report",
+        json={
+            "status": "checked",
+            "checked_at": "2027-02-11T08:10:00+00:00",
+            "result": "Availability was checked; no audio was copied.",
+        },
+        headers=super_admin_headers,
+    )
+    assert audio_status.status_code == 200, audio_status.json()
+
+    evaluation_payload = {
+        "operations_status": "approved",
+        "operations_result": "Operations completed as planned.",
+        "quality_status": "approved",
+        "quality_result": "Capture quality met the pilot requirement.",
+        "technical_status": "needs_action",
+        "technical_result": "One non-critical optimization was assigned.",
+        "customer_status": "approved",
+        "customer_result": "The owner confirmed useful remote access.",
+        "commercial_status": "approved",
+        "commercial_result": "The opportunity is ready for a proposal.",
+        "one_page_summary": (
+            "The pilot demonstrated operational, customer, and commercial "
+            "value. One non-critical technical action remains tracked."
+        ),
+    }
+    evaluation_file_rejected = client.put(
+        f"/pilots/{pilot_id}/evaluation",
+        json=evaluation_payload
+        | {"report_file": "data:application/pdf;base64,invalid"},
+        headers=super_admin_headers,
+    )
+    assert evaluation_file_rejected.status_code == 422
+    evaluation = client.put(
+        f"/pilots/{pilot_id}/evaluation",
+        json=evaluation_payload,
+        headers=super_admin_headers,
+    )
+    assert evaluation.status_code == 200, evaluation.json()
+    stage_15 = submit_and_approve_stage(
+        client,
+        pilot_id,
+        15,
+        super_admin_headers,
+    )
+    evidence_names = {
+        item["capability"]
+        for item in stage_15["snapshot"]["content"]["submission"]["form_data"][
+            "external_evidence"
+        ]
+    }
+    assert {"actual_progress", "manager_audio_report"} <= evidence_names
+
+    closing = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={
+            "main_platform_login_count": 4,
+            "viewed_sections": ["project", "floor", "plan", "tour"],
+            "visit_reduction_result": "confirmed",
+            "customer_need_summary": "Remote progress visibility remains clear.",
+            "closing_decision": "proposal",
+            "realized_value": "Fewer site visits and faster owner visibility.",
+            "purchase_blocker": "No active blocker.",
+            "project_count": 3,
+            "usage_frequency": "weekly",
+            "user_count": 5,
+            "decision_maker": "Owner CEO",
+        },
+        headers=super_admin_headers,
+    )
+    assert closing.status_code == 200, closing.json()
+    stage_16 = submit_and_approve_stage(
+        client,
+        pilot_id,
+        16,
+        super_admin_headers,
+    )
+    assert stage_16["snapshot"]["content"]["submission"]["form_data"][
+        "decision"
+    ] == "proposal"
+    after_g5 = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert after_g5["current_stage"] == 17
+    assert next(gate for gate in after_g5["gates"] if gate["code"] == "G5")[
+        "status"
+    ] == "passed"
+
+    changed_evaluation = client.put(
+        f"/pilots/{pilot_id}/evaluation",
+        json=evaluation_payload
+        | {
+            "technical_status": "approved",
+            "technical_result": "The optimization was completed.",
+        },
+        headers=super_admin_headers,
+    )
+    assert changed_evaluation.status_code == 200, changed_evaluation.json()
+    after_change = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert after_change["current_stage"] == 15
+    assert after_change["stages"][14]["status"] == "needs_revision"
+    assert next(gate for gate in after_change["gates"] if gate["code"] == "G5")[
+        "status"
+    ] == "locked"
+    stage_16_snapshots = client.get(
+        f"/pilots/{pilot_id}/stages/16/snapshots",
+        headers=super_admin_headers,
+    ).json()
+    assert len(stage_16_snapshots) == 1
+
+
+def test_customer_success_incident_blocker_and_g4(
+    client,
+    super_admin_headers,
+):
+    pilot, mission = _prepare_pilot_through_g3(
+        client,
+        super_admin_headers,
+    )
+    pilot_id = pilot["id"]
+    platform_response = client.put(
+        f"/pilots/{pilot_id}/external-platform",
+        json=_external_platform_payload(),
+        headers=super_admin_headers,
+    )
+    assert platform_response.status_code == 200, platform_response.json()
+    submit_and_approve_stage(client, pilot_id, 10, super_admin_headers)
+    notification = client.post(
+        f"/pilots/{pilot_id}/notifications/main-output",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert notification.status_code == 201, notification.json()
     submit_and_approve_stage(client, pilot_id, 11, super_admin_headers)
 
     training = client.patch(

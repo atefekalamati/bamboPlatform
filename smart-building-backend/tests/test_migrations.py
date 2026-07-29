@@ -38,7 +38,7 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0005_customer_experience_incidents"
+            == "0006_continuation_evaluation_g5"
         )
     engine.dispose()
 
