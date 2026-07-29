@@ -102,6 +102,11 @@ class FormF04(Base):
     navigation_trained = Column(Boolean, nullable=False, default=False)
     support_trained = Column(Boolean, nullable=False, default=False)
     independent_use_confirmed = Column(Boolean, nullable=False, default=False)
+    main_platform_login_count = Column(Integer, nullable=True)
+    viewed_sections = Column(JSON_TYPE, nullable=False, default=list)
+    visit_reduction_result = Column(String(24), nullable=True)
+    customer_need_summary = Column(Text, nullable=True)
+    closing_decision = Column(String(24), nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now)
     updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
 
@@ -136,6 +141,20 @@ class FormF04(Base):
         CheckConstraint(
             "user_count IS NULL OR user_count >= 0",
             name="ck_form_f04_user_count",
+        ),
+        CheckConstraint(
+            "main_platform_login_count IS NULL OR main_platform_login_count >= 0",
+            name="ck_form_f04_main_platform_login_count",
+        ),
+        CheckConstraint(
+            "visit_reduction_result IS NULL OR visit_reduction_result IN "
+            "('confirmed', 'not_confirmed', 'unknown')",
+            name="ck_form_f04_visit_reduction_result",
+        ),
+        CheckConstraint(
+            "closing_decision IS NULL OR closing_decision IN "
+            "('proposal', 'follow_up', 'continue_pilot', 'stop', 'undecided')",
+            name="ck_form_f04_closing_decision",
         ),
     )
 

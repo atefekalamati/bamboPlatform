@@ -3,7 +3,7 @@
 Authoritative source:
 `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
 
-## Current stage: Customer experience, F04/F05, stages 10-13, and G4
+## Current stage: Continuation, evaluation, closing session, stages 14-16, and G5
 
 | PRD requirement | Status | Evidence |
 |---|---|---|
@@ -35,10 +35,15 @@ Authoritative source:
 | F05 Incident lifecycle | Implemented | Numbering, mission/stage link, severity/type, containment, ownership, correction, result, evidence note, lessons, and confirmed closure |
 | Incident response SLA | Implemented deadline foundation | Critical 30-minute, important four-hour, and normal same-day deadlines are persisted; business-calendar breach reporting remains |
 | G4 experience gate | Implemented | Stages 10-13 use canonical data; open critical Incidents block G4 and new critical Incidents reopen stage 13 without mutating snapshots |
+| Continuation capture | Implemented for stage 14 | Mission sequence 2+, complete per-Floor capture/Upload, explicit stages 5-13 recheck, independent result, and all-cycle validation |
+| Five-dimension evaluation | Implemented for stage 15 | Operations, quality, technical, customer, and commercial status/result plus a text-only one-page summary |
+| Stage 15 evidence | Implemented | Existing main-platform capabilities are stored only as status, checker, time, and short result; file/audio/URL fields are rejected |
+| F04 closing session | Implemented for stage 16 | Login count, viewed sections, visit reduction, need, value, users/projects/frequency, decision maker, blocker, and decision |
+| G5 commercial gate | Implemented | Stages 14-16 use canonical Mission/review/evaluation/F04 data and source changes reopen the affected stage without mutating snapshots |
 | Approved-source invalidation | Implemented | F01/F02/Floor/DWG/Mission/F03 changes reopen the affected stage and lock downstream work without changing old snapshots |
-| Stage-specific validation for all domains | Partial | Stages 1-13 and G1-G4 use canonical data; repeat-capture, evaluation, and commercial validators remain |
+| Stage-specific validation for all domains | Partial | Stages 1-16 and G1-G5 use canonical data; proposal, sales follow-up, and final outcome validators remain |
 | PostgreSQL configuration | Implemented | psycopg URL, local Compose service, PostgreSQL SQL compilation test |
-| Alembic migrations | Implemented foundation | Revisions 0001-0005, upgrade/downgrade, PostgreSQL compilation, and metadata drift tests |
+| Alembic migrations | Implemented foundation | Revisions 0001-0006, upgrade/downgrade, PostgreSQL compilation, and metadata drift tests |
 | OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, login/logout tests |
 | Production SMS provider | Blocked by PRD question | Provider company and API limits are not specified |
 | User/Role/Permission | Implemented | Grouped permissions, system roles, assignment and toggle APIs |
@@ -55,8 +60,7 @@ Authoritative source:
 - Production notification provider, controlled retry, and delivery callbacks
 - Global SLA status calculation, escalation, and reporting
 - Audit pagination/filtering and retention policy
-- Stages 14-19: repeat capture, evaluation, closing meeting, proposal, follow-up,
-  and final contract/closure
+- Stages 17-19: proposal, sales follow-up, and final contract/closure
 - Commercial proposal and final outcome details
 - Broader PostgreSQL integration, security, OpenAPI contract, and end-to-end tests
 

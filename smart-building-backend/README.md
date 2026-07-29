@@ -45,6 +45,12 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
   and a short result
 - Main-output notification records with delivered/failed status and alternate
   delivery registration when SMS fails
+- Continuation-capture Missions with per-cycle revalidation of stages 5-13 and
+  an independent result; updates reopen stage 14 without rewriting earlier gates
+- Five-dimension operations/quality/technical/customer/commercial evaluation
+  with a text-only one-page summary
+- Canonical stages 14-16 and G5 validation using all continuation cycles,
+  minimal external-evidence status, evaluation, and F04 closing-session data
 - Automatic creation of all 19 PRD stages and gates G1 through G5
 - Sequential stage locking and transition validation
 - Stage submission, approval, rejection, and revision versions
@@ -89,6 +95,11 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 - `GET|POST /pilots/{id}/incidents`
 - `GET|PATCH /incidents/{id}`
 - `POST /incidents/{id}/close`
+
+## Continuation and evaluation API
+
+- `GET|PUT /missions/{id}/continuation-review`
+- `GET|PUT /pilots/{id}/evaluation`
 
 ## Authentication and RBAC API
 

@@ -565,6 +565,174 @@ def _canonical_submission_data(
                 "no_open_critical_incident": not open_critical_incidents,
             },
         )
+    if stage.number == 14:
+        continuation_missions = [
+            mission for mission in pilot.missions if mission.sequence >= 2
+        ]
+        if not continuation_missions:
+            return {}, {}
+        cycles = []
+        for mission in continuation_missions:
+            form = mission.form_f03
+            floor_states = mission.floor_states
+            review = mission.continuation_review
+            mission_complete = bool(
+                form
+                and form.mission_completed
+                and form.operations_confirmed
+                and floor_states
+                and all(
+                    item.capture_state == "completed"
+                    and item.main_upload_started
+                    and item.main_upload_completed
+                    and item.correct_floor_link
+                    and item.operations_notified
+                    for item in floor_states
+                )
+            )
+            cycles.append(
+                {
+                    "mission_code": mission.code,
+                    "mission_sequence": mission.sequence,
+                    "mission_complete": mission_complete,
+                    "floors": [
+                        {
+                            "floor_id": item.floor_id,
+                            "floor_code": item.floor.code,
+                            "capture_state": item.capture_state,
+                            "main_upload_completed": item.main_upload_completed,
+                            "correct_floor_link": item.correct_floor_link,
+                        }
+                        for item in floor_states
+                    ],
+                    "stage_rechecks": (
+                        {
+                            f"stage_{number}_confirmed": getattr(
+                                review,
+                                f"stage_{number}_confirmed",
+                            )
+                            for number in range(5, 14)
+                        }
+                        if review
+                        else {}
+                    ),
+                    "independent_result": (
+                        review.independent_result if review else None
+                    ),
+                    "responsible_user_id": (
+                        review.responsible_user_id if review else None
+                    ),
+                }
+            )
+        return (
+            {
+                "mission_code": continuation_missions[-1].code,
+                "continuation_cycles": cycles,
+            },
+            {
+                "new_mission": all(
+                    cycle["mission_complete"] for cycle in cycles
+                ),
+                **{
+                    f"stage_{number}_rechecked": all(
+                        cycle["stage_rechecks"].get(
+                            f"stage_{number}_confirmed",
+                            False,
+                        )
+                        is True
+                        for cycle in cycles
+                    )
+                    for number in range(5, 14)
+                },
+                "independent_result": all(
+                    bool(
+                        cycle["independent_result"]
+                        and cycle["independent_result"].strip()
+                    )
+                    for cycle in cycles
+                ),
+            },
+        )
+    if stage.number == 15:
+        evaluation = pilot.evaluation
+        if evaluation is None:
+            return {}, {}
+        dimensions = (
+            "operations",
+            "quality",
+            "technical",
+            "customer",
+            "commercial",
+        )
+        evidence = [
+            {
+                "capability": item.capability,
+                "status": item.status,
+                "checked_by_user_id": item.checked_by_user_id,
+                "checked_at": item.checked_at.isoformat(),
+                "result": item.result,
+            }
+            for item in pilot.external_evidence_checks
+        ]
+        return (
+            {
+                "responsible_user_id": evaluation.responsible_user_id,
+                "dimensions": {
+                    dimension: {
+                        "status": getattr(evaluation, f"{dimension}_status"),
+                        "result": getattr(evaluation, f"{dimension}_result"),
+                    }
+                    for dimension in dimensions
+                },
+                "one_page_summary": evaluation.one_page_summary,
+                "external_evidence": evidence,
+            },
+            {
+                **{
+                    dimension: bool(
+                        getattr(evaluation, f"{dimension}_status")
+                        and getattr(evaluation, f"{dimension}_result").strip()
+                    )
+                    for dimension in dimensions
+                },
+                "one_page_report": bool(evaluation.one_page_summary.strip()),
+            },
+        )
+    if stage.number == 16:
+        form = pilot.form_f04
+        if form is None:
+            return {}, {}
+        return (
+            {
+                "decision": form.closing_decision,
+                "decision_maker": form.decision_maker,
+                "blocker": form.purchase_blocker,
+                "main_platform_login_count": form.main_platform_login_count,
+                "viewed_sections": form.viewed_sections,
+                "visit_reduction_result": form.visit_reduction_result,
+                "customer_need": form.customer_need_summary,
+                "realized_value": form.realized_value,
+                "user_count": form.user_count,
+                "project_count": form.project_count,
+                "usage_frequency": form.usage_frequency,
+            },
+            {
+                "value_clear": bool(
+                    form.realized_value and form.realized_value.strip()
+                ),
+                "need_clear": bool(
+                    form.customer_need_summary
+                    and form.customer_need_summary.strip()
+                ),
+                "decision_maker_clear": bool(
+                    form.decision_maker and form.decision_maker.strip()
+                ),
+                "blocker_clear": bool(
+                    form.purchase_blocker
+                    and form.purchase_blocker.strip()
+                ),
+            },
+        )
     return payload.form_data, payload.checklist
 
 

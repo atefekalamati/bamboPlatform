@@ -40,6 +40,10 @@ def get_mission(db: Session, mission_id: int) -> Mission:
     return mission
 
 
+def _mission_invalidation_stage(mission: Mission, initial_stage: int) -> int:
+    return 14 if mission.sequence > 1 else initial_stage
+
+
 def _capture_expert(db: Session, user_id: int) -> User:
     user = (
         db.query(User)
@@ -170,12 +174,19 @@ def create_mission(
     )
     if not pilot:
         raise SecurityError("PILOT_NOT_FOUND", "پرونده پایلوت پیدا نشد.", 404, [])
-    if pilot.current_stage != 5 or pilot.missions:
+    is_initial_mission = pilot.current_stage == 5 and not pilot.missions
+    is_continuation_mission = pilot.current_stage == 14 and bool(pilot.missions)
+    if not (is_initial_mission or is_continuation_mission):
         raise SecurityError(
             "MISSION_STAGE_LOCKED",
-            "ثبت مأموریت اولیه فقط در مرحله ۵ و پیش از ایجاد مأموریت مجاز است.",
+            "مأموریت اولیه در مرحله ۵ و مأموریت ادامه برداشت در مرحله ۱۴ ثبت می‌شود.",
             409,
-            [{"field": "pilot.current_stage", "reason": "stage_5_required"}],
+            [
+                {
+                    "field": "pilot.current_stage",
+                    "reason": "stage_5_or_14_required",
+                }
+            ],
         )
     expert = _capture_expert(db, payload.expert_user_id)
     floors = _mission_floors(db, pilot, payload.floor_ids)
@@ -226,7 +237,7 @@ def create_mission(
     invalidate_from_stage(
         db,
         pilot,
-        5,
+        14 if is_continuation_mission else 5,
         actor_user_id=actor_user_id,
         reason="Mission created",
     )
@@ -321,7 +332,7 @@ def reschedule_mission(
     invalidate_from_stage(
         db,
         mission.pilot,
-        5,
+        _mission_invalidation_stage(mission, 5),
         actor_user_id=actor_user_id,
         reason=payload.reason,
     )
@@ -395,7 +406,7 @@ def update_f03(
     invalidate_from_stage(
         db,
         mission.pilot,
-        invalidation_stage,
+        _mission_invalidation_stage(mission, invalidation_stage),
         actor_user_id=actor_user_id,
         reason="F03 updated",
     )
@@ -479,7 +490,7 @@ def update_mission_floor(
     invalidate_from_stage(
         db,
         mission.pilot,
-        invalidation_stage,
+        _mission_invalidation_stage(mission, invalidation_stage),
         actor_user_id=actor_user_id,
         reason=f"Mission Floor {state.floor.code} updated",
     )
