@@ -49,3 +49,20 @@ export const request = async (path, options = {}) => {
     window.clearTimeout(timeoutId);
   }
 };
+
+export const requestBlob = async (path) => {
+  const token = sessionStore.getToken();
+  const response = await fetch(requestUrl(path), {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!response.ok) return parseResponse(response);
+  return {
+    blob: await response.blob(),
+    filename:
+      response.headers
+        .get("content-disposition")
+        ?.match(/filename="?([^"]+)"?/)?.[1] ?? "drawing.dwg",
+  };
+};
