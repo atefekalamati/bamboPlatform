@@ -1,44 +1,34 @@
-import { maskPhoneNumber } from "../utils/phoneNumber.js";
-
-const STATUS_LABELS = Object.freeze({
-  active: "فعال",
-  inactive: "غیرفعال",
-  locked: "قفل‌شده",
-});
-
-const createElement = (tagName, className, textContent = "") => {
-  const element = document.createElement(tagName);
-
-  element.className = className;
-  element.textContent = textContent;
-
-  return element;
+const element = (tag, className, text = "") => {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
 };
 
-export const UserCard = ({ user, onEdit }) => {
-  const item = document.createElement("li");
-  const identity = createElement("div", "user-card__identity");
-  const name = createElement("h2", "user-card__name", user.fullName);
-  const phone = createElement(
+export const UserCard = ({ user, canManage, onEdit }) => {
+  const item = element("li", "user-card");
+  const identity = element("div", "user-card__identity");
+  const name = element("h2", "user-card__name", user.displayName);
+  const mobile = element("span", "user-card__phone", user.mobile);
+  const roleNames = user.roles.map(({ displayName }) => displayName).join("، ");
+  const roles = element(
     "span",
-    "user-card__phone",
-    maskPhoneNumber(user.phoneNumber),
+    "user-card__role",
+    roleNames || "بدون نقش",
   );
-  const role = createElement("span", "user-card__role", user.roleName);
-  const status = createElement(
+  const status = element(
     "span",
-    `status-badge status-badge--${user.status}`,
-    STATUS_LABELS[user.status] ?? "نامشخص",
+    `status-badge status-badge--${user.isActive ? "active" : "inactive"}`,
+    user.isActive ? "فعال" : "غیرفعال",
   );
-  const editButton = createElement("button", "button button--ghost", "ویرایش");
 
-  item.className = "user-card";
-  editButton.type = "button";
-  editButton.addEventListener("click", () => onEdit(user, editButton));
-
-  identity.append(name, phone);
-  item.append(identity, role, status, editButton);
-
+  identity.append(name, mobile);
+  item.append(identity, roles, status);
+  if (canManage) {
+    const edit = element("button", "button button--ghost", "مدیریت");
+    edit.type = "button";
+    edit.addEventListener("click", () => onEdit(user, edit));
+    item.append(edit);
+  }
   return item;
 };
-
