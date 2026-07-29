@@ -59,6 +59,12 @@
   background: var(--color-surface);
 }
 
+.app-header__account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .app-header__title {
   font-weight: 700;
 }

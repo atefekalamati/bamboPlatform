@@ -97,7 +97,7 @@ export const UsersPage = () => {
       let modal;
       const form = UserForm({
         user,
-        roles: roleResponse.data.items,
+        roles: roleResponse,
         onSubmit: async (values) => {
           if (user) await userService.updateUser(user.id, values);
           else await userService.createUser(values);

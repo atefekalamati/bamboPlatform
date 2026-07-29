@@ -1,98 +1,89 @@
 import { authService } from "../services/authService.js";
 import {
   isValidIranianMobile,
-  maskPhoneNumber,
   normalizeDigits,
   normalizePhoneNumber,
 } from "../utils/phoneNumber.js";
 
-const createElement = (tagName, className, textContent = "") => {
-  const element = document.createElement(tagName);
-
-  element.className = className;
-  element.textContent = textContent;
-
-  return element;
+const element = (tag, className, text = "") => {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
 };
 
-const createField = ({ id, label, inputMode, autocomplete }) => {
-  const field = createElement("div", "form-field");
-  const fieldLabel = createElement("label", "form-field__label", label);
+const field = ({ id, label, inputMode, autocomplete }) => {
+  const wrapper = element("div", "form-field");
+  const labelNode = element("label", "form-field__label", label);
   const input = document.createElement("input");
-  const error = createElement("p", "form-field__error");
+  const error = element("p", "form-field__error");
 
-  fieldLabel.htmlFor = id;
+  labelNode.htmlFor = id;
   input.id = id;
   input.className = "form-field__input";
-  input.name = id;
   input.type = "text";
   input.inputMode = inputMode;
   input.autocomplete = autocomplete;
-  input.required = true;
   input.setAttribute("aria-describedby", `${id}-error`);
   error.id = `${id}-error`;
-
-  field.append(fieldLabel, input, error);
-
-  return { field, input, error };
+  wrapper.append(labelNode, input, error);
+  return { wrapper, input, error };
 };
 
-const setFieldError = ({ input, error }, message = "") => {
-  error.textContent = message;
-  input.setAttribute("aria-invalid", String(Boolean(message)));
+const setFieldError = (target, message = "") => {
+  target.error.textContent = message;
+  target.input.setAttribute("aria-invalid", String(Boolean(message)));
 };
 
-const setSubmitState = (button, isSubmitting, loadingText) => {
-  button.disabled = isSubmitting;
-  button.textContent = isSubmitting ? loadingText : button.dataset.label;
+const setBusy = (button, busy, loadingText = "") => {
+  button.disabled = busy;
+  button.textContent = busy ? loadingText : button.dataset.label;
 };
 
-export const LoginPage = () => {
-  const page = createElement("div", "auth-card");
-  const heading = createElement("h2", "auth-card__title", "ورود به BAMBO Pilot");
-  const description = createElement(
+export const LoginPage = ({ onAuthenticated } = {}) => {
+  const page = element("div", "auth-card");
+  const heading = element("h2", "auth-card__title", "ورود به BAMBO Pilot");
+  const description = element(
     "p",
     "auth-card__description",
     "شماره موبایل خود را وارد کنید تا کد ورود برای شما ارسال شود.",
   );
-  const feedback = createElement("div", "form-feedback");
+  const feedback = element("div", "form-feedback");
   const form = document.createElement("form");
-  const phoneField = createField({
+  const phoneField = field({
     id: "phone-number",
     label: "شماره موبایل",
     inputMode: "tel",
     autocomplete: "tel",
   });
-  const otpField = createField({
+  const otpField = field({
     id: "otp-code",
     label: "کد ورود",
     inputMode: "numeric",
     autocomplete: "one-time-code",
   });
-  const submitButton = createElement("button", "button button--primary");
-  const secondaryButton = createElement("button", "button button--ghost");
-  const resendButton = createElement("button", "button button--ghost");
-  let currentStep = "phone";
+  const submitButton = element("button", "button button--primary");
+  const resendButton = element("button", "button button--ghost");
+  const backButton = element("button", "button button--ghost", "اصلاح شماره موبایل");
+  let step = "phone";
   let phoneNumber = "";
+  let requestId = "";
+  let destinationMask = "";
 
   form.className = "auth-form";
   form.noValidate = true;
   feedback.setAttribute("role", "status");
   feedback.setAttribute("aria-live", "polite");
-  otpField.field.hidden = true;
-
+  otpField.wrapper.hidden = true;
   submitButton.type = "submit";
   submitButton.dataset.label = "ارسال کد ورود";
   submitButton.textContent = submitButton.dataset.label;
-
-  secondaryButton.type = "button";
-  secondaryButton.textContent = "اصلاح شماره موبایل";
-  secondaryButton.hidden = true;
-
   resendButton.type = "button";
   resendButton.dataset.label = "ارسال مجدد کد";
   resendButton.textContent = resendButton.dataset.label;
   resendButton.hidden = true;
+  backButton.type = "button";
+  backButton.hidden = true;
 
   const showFeedback = (message = "", type = "info") => {
     feedback.textContent = message;
@@ -101,23 +92,25 @@ export const LoginPage = () => {
   };
 
   const showOtpStep = () => {
-    currentStep = "otp";
-    phoneField.field.hidden = true;
-    otpField.field.hidden = false;
-    secondaryButton.hidden = false;
+    step = "otp";
+    phoneField.wrapper.hidden = true;
+    otpField.wrapper.hidden = false;
     resendButton.hidden = false;
+    backButton.hidden = false;
     submitButton.dataset.label = "تأیید و ورود";
     submitButton.textContent = submitButton.dataset.label;
-    description.textContent = `کد ارسال‌شده به ${maskPhoneNumber(phoneNumber)} را وارد کنید.`;
+    description.textContent = `کد شش‌رقمی ارسال‌شده به ${destinationMask || phoneNumber} را وارد کنید.`;
     otpField.input.focus();
   };
 
   const showPhoneStep = () => {
-    currentStep = "phone";
-    otpField.field.hidden = true;
-    phoneField.field.hidden = false;
-    secondaryButton.hidden = true;
+    step = "phone";
+    requestId = "";
+    destinationMask = "";
+    otpField.wrapper.hidden = true;
+    phoneField.wrapper.hidden = false;
     resendButton.hidden = true;
+    backButton.hidden = true;
     submitButton.dataset.label = "ارسال کد ورود";
     submitButton.textContent = submitButton.dataset.label;
     description.textContent =
@@ -126,10 +119,20 @@ export const LoginPage = () => {
     phoneField.input.focus();
   };
 
+  const displayOtpResponse = (response, fallbackMessage) => {
+    requestId = response.request_id;
+    destinationMask = response.destination_mask;
+    showFeedback(
+      response.debug_code
+        ? `${fallbackMessage} کد محیط توسعه: ${response.debug_code}`
+        : fallbackMessage,
+      "success",
+    );
+  };
+
   const requestOtp = async () => {
     phoneNumber = normalizePhoneNumber(phoneField.input.value);
     phoneField.input.value = phoneNumber;
-
     if (!isValidIranianMobile(phoneNumber)) {
       setFieldError(phoneField, "شماره موبایل معتبر وارد کنید.");
       phoneField.input.focus();
@@ -137,78 +140,67 @@ export const LoginPage = () => {
     }
 
     setFieldError(phoneField);
-    setSubmitState(submitButton, true, "در حال ارسال...");
-
+    setBusy(submitButton, true, "در حال ارسال...");
     try {
       const response = await authService.requestOtp(phoneNumber);
-      showFeedback(response.message, "success");
+      displayOtpResponse(response, "کد ورود ارسال شد.");
       showOtpStep();
     } catch (error) {
       showFeedback(error.message ?? "ارسال کد انجام نشد. دوباره تلاش کنید.", "error");
     } finally {
-      setSubmitState(submitButton, false);
+      setBusy(submitButton, false);
     }
   };
 
   const verifyOtp = async () => {
-    const otpCode = normalizeDigits(otpField.input.value).trim();
-    otpField.input.value = otpCode;
-
-    if (!/^\d+$/.test(otpCode)) {
-      setFieldError(otpField, "کد ورود را فقط با رقم وارد کنید.");
+    const code = normalizeDigits(otpField.input.value).trim();
+    otpField.input.value = code;
+    if (!/^\d{6}$/.test(code)) {
+      setFieldError(otpField, "کد ورود باید شش رقم باشد.");
       otpField.input.focus();
       return;
     }
 
     setFieldError(otpField);
-    setSubmitState(submitButton, true, "در حال بررسی...");
-
+    setBusy(submitButton, true, "در حال بررسی...");
     try {
-      const response = await authService.verifyOtp({ phoneNumber, otpCode });
-      showFeedback(response.message, "success");
+      await authService.verifyOtp({ requestId, code });
+      showFeedback("ورود با موفقیت انجام شد.", "success");
+      await onAuthenticated?.();
     } catch (error) {
       showFeedback(error.message ?? "کد ورود تأیید نشد.", "error");
     } finally {
-      setSubmitState(submitButton, false);
+      setBusy(submitButton, false);
     }
   };
 
   const resendOtp = async () => {
-    setSubmitState(resendButton, true, "در حال ارسال...");
-
+    setBusy(resendButton, true, "در حال ارسال...");
     try {
       const response = await authService.requestOtp(phoneNumber);
-      showFeedback(response.message, "success");
+      displayOtpResponse(response, "کد جدید ارسال شد.");
       otpField.input.focus();
     } catch (error) {
       showFeedback(error.message ?? "ارسال مجدد کد انجام نشد.", "error");
     } finally {
-      setSubmitState(resendButton, false);
+      setBusy(resendButton, false);
     }
   };
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-
-    if (currentStep === "phone") {
-      await requestOtp();
-      return;
-    }
-
-    await verifyOtp();
+    await (step === "phone" ? requestOtp() : verifyOtp());
   });
-
-  secondaryButton.addEventListener("click", showPhoneStep);
   resendButton.addEventListener("click", resendOtp);
+  backButton.addEventListener("click", showPhoneStep);
 
   form.append(
-    phoneField.field,
-    otpField.field,
+    phoneField.wrapper,
+    otpField.wrapper,
     submitButton,
     resendButton,
-    secondaryButton,
+    backButton,
   );
   page.append(heading, description, feedback, form);
-
   return page;
 };

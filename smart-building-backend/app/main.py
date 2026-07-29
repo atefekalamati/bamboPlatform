@@ -3,8 +3,10 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.config import get_cors_origins
 from app.database import ensure_schema, get_session
 from app.exceptions import SecurityError, WorkflowError
 from app.routers.pilots import router as pilots_router
@@ -22,6 +24,13 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="BAMBO Pilot Backend", version="0.4.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(roles_router)

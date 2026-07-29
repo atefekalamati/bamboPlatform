@@ -77,7 +77,10 @@ export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
 
   appendOptions(
     roleField.control,
-    roles.map((role) => ({ value: role.id, label: role.name })),
+    roles.map((role) => ({
+      value: role.id,
+      label: role.displayName ?? role.name,
+    })),
   );
   appendOptions(statusField.control, STATUS_OPTIONS);
 
@@ -153,4 +156,3 @@ export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
 
   return form;
 };
-

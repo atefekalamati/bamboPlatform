@@ -1,21 +1,32 @@
-import { APP_CONFIG } from "../config/appConfig.js";
-import { authMockService } from "../mock/authMockService.js";
+import { sessionStore } from "../app/sessionStore.js";
 import { request } from "./httpClient.js";
 
-const authApiService = Object.freeze({
-  requestOtp: (phoneNumber) =>
+export const authService = Object.freeze({
+  requestOtp: (mobile) =>
     request("/auth/otp/request", {
       method: "POST",
-      body: JSON.stringify({ phoneNumber }),
+      body: JSON.stringify({ mobile }),
     }),
-  verifyOtp: ({ phoneNumber, otpCode }) =>
-    request("/auth/otp/verify", {
+  verifyOtp: async ({ requestId, code }) => {
+    const response = await request("/auth/otp/verify", {
       method: "POST",
-      body: JSON.stringify({ phoneNumber, otpCode }),
-    }),
-});
+      body: JSON.stringify({ request_id: requestId, code }),
+    });
 
-export const authService = APP_CONFIG.useMockApi
-  ? authMockService
-  : authApiService;
+    sessionStore.setSession({
+      accessToken: response.access_token,
+      user: response.user,
+    });
+
+    return response;
+  },
+  getCurrentUser: () => request("/auth/me"),
+  logout: async () => {
+    try {
+      await request("/auth/logout", { method: "POST" });
+    } finally {
+      sessionStore.clear();
+    }
+  },
+});
 

@@ -3,6 +3,7 @@ import { AppShell } from "../layouts/AppShell.js";
 import { DashboardPage } from "../pages/DashboardPage.js";
 import { PilotDetailsPage } from "../pages/PilotDetailsPage.js";
 import { PilotsPage } from "../pages/PilotsPage.js";
+import { RolesPage } from "../pages/RolesPage.js";
 import { StageOnePage } from "../pages/StageOnePage.js";
 import { UsersPage } from "../pages/UsersPage.js";
 import {
@@ -15,6 +16,7 @@ const ROUTE_FACTORIES = Object.freeze({
   [ROUTES.dashboard]: DashboardPage,
   [ROUTES.pilots]: PilotsPage,
   [ROUTES.users]: UsersPage,
+  [ROUTES.roles]: RolesPage,
 });
 
 const getCurrentRoute = () => window.location.hash || ROUTES.dashboard;
