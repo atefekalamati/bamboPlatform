@@ -60,6 +60,12 @@ class Pilot(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    missions = relationship(
+        "Mission",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        order_by="Mission.sequence",
+    )
 
 
 class PilotStage(Base):

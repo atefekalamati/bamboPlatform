@@ -9,6 +9,7 @@ from app.database import ensure_schema, get_session
 from app.exceptions import SecurityError, WorkflowError
 from app.routers.pilots import router as pilots_router
 from app.routers.product import router as product_router
+from app.routers.operations import router as operations_router
 from app.routers.security import audit_router, auth_router, roles_router, users_router
 from app.services.security import seed_security_data
 
@@ -21,13 +22,14 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="BAMBO Pilot Backend", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="BAMBO Pilot Backend", version="0.5.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(roles_router)
 app.include_router(audit_router)
 app.include_router(pilots_router)
 app.include_router(product_router)
+app.include_router(operations_router)
 
 
 @app.exception_handler(WorkflowError)
