@@ -38,7 +38,7 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0001_bambo_initial"
+            == "0003_project_forms_dwg"
         )
     engine.dispose()
 

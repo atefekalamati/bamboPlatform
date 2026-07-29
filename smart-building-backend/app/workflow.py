@@ -33,7 +33,9 @@ STAGE_DEFINITIONS = (
             "introduction_completed",
             "site_coordinator_registered",
             "imaging_consent",
+            "dwg_consent",
             "feedback_consent",
+            "f01_result_approved",
         ),
         ("site_coordinator_phone",),
     ),
@@ -49,6 +51,7 @@ STAGE_DEFINITIONS = (
             "start_point_registered",
             "expert_access_tested",
             "main_app_display_checked",
+            "ready_for_capture",
         ),
     ),
     StageDefinition(

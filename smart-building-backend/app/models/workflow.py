@@ -2,13 +2,11 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, event
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, event
 from sqlalchemy.orm import relationship
 
 from app.database import Base
-
-JSON_TYPE = JSON().with_variant(JSONB(), "postgresql")
+from app.models.types import JSON_TYPE
 
 
 def utc_now() -> datetime:
@@ -43,6 +41,24 @@ class Pilot(Base):
         back_populates="pilot",
         cascade="all, delete-orphan",
         order_by="PilotGate.after_stage",
+    )
+    project = relationship(
+        "Project",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    form_f01 = relationship(
+        "FormF01",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    form_f02 = relationship(
+        "FormF02",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
     )
 
 
