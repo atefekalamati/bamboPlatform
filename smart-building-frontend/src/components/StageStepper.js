@@ -51,15 +51,17 @@ const renderDetails = (container, stage) => {
     metadata,
   );
   if (
-    stage.number === 1 &&
+    [1, 2].includes(stage.number) &&
     ["open", "submitted", "needs_revision", "approved"].includes(stage.status)
   ) {
     const action = element(
       "a",
       "button button--primary stage-detail__action",
-      stage.status === "approved" ? "مشاهده مرحله ۱" : "ورود به مرحله ۱",
+      stage.status === "approved"
+        ? `مشاهده Stage ${stage.number}`
+        : `ورود به Stage ${stage.number}`,
     );
-    action.href = `#/pilots/${container.dataset.pilotId}/stages/1`;
+    action.href = `#/pilots/${container.dataset.pilotId}/stages/${stage.number}`;
     container.append(action);
   }
 };
