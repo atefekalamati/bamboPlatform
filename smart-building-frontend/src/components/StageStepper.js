@@ -1,113 +1,91 @@
 import { formatPersianDate } from "../utils/dateFormatter.js";
 
 const STATUS_LABELS = Object.freeze({
+  open: "باز",
+  submitted: "ارسال‌شده",
   approved: "تأییدشده",
-  in_progress: "در حال انجام",
   needs_revision: "نیازمند اصلاح",
   locked: "قفل‌شده",
 });
 
-const createElement = (tagName, className, textContent = "") => {
-  const element = document.createElement(tagName);
-
-  element.className = className;
-  element.textContent = textContent;
-
-  return element;
+const element = (tag, className, text = "") => {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
 };
 
-const createDetailRow = (label, value) => {
-  const row = createElement("div", "stage-detail__row");
-  const term = createElement("dt", "stage-detail__label", label);
-  const description = createElement("dd", "stage-detail__value", value);
-
-  row.append(term, description);
-
-  return row;
+const row = (label, value) => {
+  const item = element("div", "stage-detail__row");
+  item.append(
+    element("dt", "stage-detail__label", label),
+    element("dd", "stage-detail__value", value),
+  );
+  return item;
 };
 
-const renderStageDetails = (container, stage) => {
-  const heading = createElement(
-    "h3",
-    "stage-detail__title",
-    `مرحله ${stage.number}: ${stage.name}`,
-  );
-  const status = createElement(
-    "span",
-    `stage-status stage-status--${stage.status}`,
-    STATUS_LABELS[stage.status] ?? "نامشخص",
-  );
-  const metadata = createElement("dl", "stage-detail__metadata");
-
+const renderDetails = (container, stage) => {
+  const metadata = element("dl", "stage-detail__metadata");
   metadata.append(
-    createDetailRow("مسئول", stage.assigneeName),
-    createDetailRow("موعد", formatPersianDate(stage.dueAt)),
-    createDetailRow("Gate مرتبط", stage.gateName ?? "ندارد"),
-    createDetailRow(
-      "Snapshot",
-      stage.hasSnapshot ? "نسخه تأییدشده موجود است" : "موجود نیست",
+    row("آخرین نسخه", String(stage.latestVersion)),
+    row("زمان ارسال", formatPersianDate(stage.submittedAt)),
+    row("زمان تأیید", formatPersianDate(stage.approvedAt)),
+    row(
+      "Gate مرتبط",
+      stage.gate
+        ? `${stage.gate.code} — ${stage.gate.title} (${stage.gate.status})`
+        : "ندارد",
     ),
   );
-  container.replaceChildren(heading, status, metadata);
+  container.replaceChildren(
+    element(
+      "h3",
+      "stage-detail__title",
+      `مرحله ${stage.number}: ${stage.title}`,
+    ),
+    element(
+      "span",
+      `stage-status stage-status--${stage.status}`,
+      STATUS_LABELS[stage.status] ?? stage.status,
+    ),
+    metadata,
+  );
 };
 
-export const StageStepper = ({ stages, currentStage, pilotId }) => {
-  const wrapper = createElement("section", "stage-section");
-  const heading = createElement("h2", "stage-section__title", "مراحل پایلوت");
-  const description = createElement(
-    "p",
-    "stage-section__description",
-    "برای مشاهده اطلاعات هر مرحله، آن را انتخاب کنید.",
-  );
-  const layout = createElement("div", "stage-section__layout");
-  const list = createElement("ol", "stage-stepper");
-  const details = createElement("article", "stage-detail");
-  let selectedStageNumber = currentStage;
-
-  list.setAttribute("aria-label", "۱۹ مرحله فرایند پایلوت");
-  details.setAttribute("aria-live", "polite");
+export const StageStepper = ({ stages, currentStage }) => {
+  const wrapper = element("section", "stage-section");
+  const layout = element("div", "stage-section__layout");
+  const list = element("ol", "stage-stepper");
+  const details = element("article", "stage-detail");
+  let selected = currentStage;
 
   const renderList = () => {
     list.replaceChildren();
-
     stages.forEach((stage) => {
-      const item = createElement("li", "stage-stepper__item");
-      const button = document.createElement("button");
-      const number = createElement(
-        "span",
-        "stage-stepper__number",
-        String(stage.number),
+      const item = element("li", "stage-stepper__item");
+      const button = element(
+        "button",
+        `stage-stepper__button stage-stepper__button--${stage.status}`,
       );
-      const content = createElement("span", "stage-stepper__content");
-      const name = createElement("span", "stage-stepper__name", stage.name);
-      const status = createElement(
-        "span",
-        "stage-stepper__status",
-        STATUS_LABELS[stage.status] ?? "نامشخص",
-      );
-
-      button.className = `stage-stepper__button stage-stepper__button--${stage.status}`;
+      const content = element("span", "stage-stepper__content");
       button.type = "button";
-      button.setAttribute(
-        "aria-pressed",
-        String(stage.number === selectedStageNumber),
+      button.setAttribute("aria-pressed", String(stage.number === selected));
+      content.append(
+        element("span", "stage-stepper__name", stage.title),
+        element(
+          "span",
+          "stage-stepper__status",
+          STATUS_LABELS[stage.status] ?? stage.status,
+        ),
       );
-      content.append(name, status);
-      button.append(number, content);
+      button.append(
+        element("span", "stage-stepper__number", String(stage.number)),
+        content,
+      );
       button.addEventListener("click", () => {
-        selectedStageNumber = stage.number;
+        selected = stage.number;
         renderList();
-        renderStageDetails(details, stage);
-
-        if (stage.number === 1 && stage.status === "in_progress") {
-          const workspaceLink = createElement(
-            "a",
-            "button button--primary stage-detail__action",
-            "ورود به فضای کاری مرحله",
-          );
-          workspaceLink.href = `#/pilots/${pilotId}/stages/1`;
-          details.append(workspaceLink);
-        }
+        renderDetails(details, stage);
       });
       item.append(button);
       list.append(item);
@@ -115,22 +93,20 @@ export const StageStepper = ({ stages, currentStage, pilotId }) => {
   };
 
   const selectedStage =
-    stages.find((stage) => stage.number === currentStage) ?? stages[0];
-
+    stages.find(({ number }) => number === currentStage) ?? stages[0];
+  list.setAttribute("aria-label", "۱۹ مرحله فرایند پایلوت");
+  details.setAttribute("aria-live", "polite");
   renderList();
-  renderStageDetails(details, selectedStage);
-
-  if (selectedStage.number === 1 && selectedStage.status === "in_progress") {
-    const workspaceLink = createElement(
-      "a",
-      "button button--primary stage-detail__action",
-      "ورود به فضای کاری مرحله",
-    );
-    workspaceLink.href = `#/pilots/${pilotId}/stages/1`;
-    details.append(workspaceLink);
-  }
+  if (selectedStage) renderDetails(details, selectedStage);
   layout.append(list, details);
-  wrapper.append(heading, description, layout);
-
+  wrapper.append(
+    element("h2", "stage-section__title", "مراحل پایلوت"),
+    element(
+      "p",
+      "stage-section__description",
+      "وضعیت واقعی هر مرحله و Gate مرتبط را مشاهده کنید.",
+    ),
+    layout,
+  );
   return wrapper;
 };

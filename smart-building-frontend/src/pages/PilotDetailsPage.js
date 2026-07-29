@@ -4,122 +4,101 @@ import { formatPersianDate } from "../utils/dateFormatter.js";
 
 const STATUS_LABELS = Object.freeze({
   candidate: "نامزد پایلوت",
-  awaiting_documents: "در انتظار مدارک",
-  ready_for_capture: "آماده برداشت",
-  operations: "عملیات",
-  tour_building: "در حال ساخت تور",
-  ready_to_view: "آماده مشاهده",
-  evaluation: "در ارزیابی",
-  proposal_sent: "پیشنهاد ارسال‌شده",
+  active: "فعال",
   converted: "تبدیل‌شده",
   closed: "بسته‌شده",
 });
 
-const createElement = (tagName, className, textContent = "") => {
-  const element = document.createElement(tagName);
-
-  element.className = className;
-  element.textContent = textContent;
-
-  return element;
+const element = (tag, className, text = "") => {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
 };
 
-const createSummaryItem = (label, value) => {
-  const item = createElement("div", "pilot-summary__item");
-  const term = createElement("dt", "pilot-summary__label", label);
-  const description = createElement("dd", "pilot-summary__value", value);
-
-  item.append(term, description);
-
+const summaryItem = (label, value) => {
+  const item = element("div", "pilot-summary__item");
+  item.append(
+    element("dt", "pilot-summary__label", label),
+    element("dd", "pilot-summary__value", value),
+  );
   return item;
 };
 
 const renderDetails = (container, pilot) => {
-  const backLink = createElement(
-    "a",
-    "back-link",
-    "بازگشت به فهرست پرونده‌ها",
-  );
-  const heading = createElement("header", "pilot-details__heading");
-  const identity = createElement("div", "pilot-details__identity");
-  const code = createElement("span", "pilot-details__code", pilot.pilotCode);
-  const title = createElement("h1", "page-heading__title", pilot.displayName);
-  const status = createElement(
-    "span",
-    "status-badge",
-    STATUS_LABELS[pilot.status] ?? "نامشخص",
-  );
-  const summary = createElement("dl", "pilot-summary");
+  const back = element("a", "back-link", "بازگشت به فهرست پرونده‌ها");
+  const heading = element("header", "pilot-details__heading");
+  const identity = element("div", "pilot-details__identity");
+  const summary = element("dl", "pilot-summary");
+  const project = pilot.project;
+  const owner = project.owner;
 
-  backLink.href = "#/pilots";
-  identity.append(code, title);
-  heading.append(identity, status);
+  back.href = "#/pilots";
+  identity.append(
+    element("span", "pilot-details__code", pilot.code),
+    element("h1", "page-heading__title", pilot.displayName),
+  );
+  heading.append(
+    identity,
+    element(
+      "span",
+      "status-badge",
+      STATUS_LABELS[pilot.status] ?? pilot.status,
+    ),
+  );
   summary.append(
-    createSummaryItem("نام سیستمی پروژه", pilot.projectSystemName),
-    createSummaryItem("مالک", pilot.ownerName),
-    createSummaryItem("مسئول فعلی", pilot.assigneeName),
-    createSummaryItem("مرحله جاری", `${pilot.currentStage} از ۱۹`),
-    createSummaryItem("موعد مرحله", formatPersianDate(pilot.dueAt)),
+    summaryItem("نام سیستمی", pilot.projectSystemName),
+    summaryItem("نام پروژه", project.name),
+    summaryItem("مالک", owner.name),
+    summaryItem("تصمیم‌گیرنده", `${owner.decisionMakerName} — ${owner.decisionMakerPosition}`),
+    summaryItem("موبایل اصلی", owner.primaryMobile),
+    summaryItem("تعداد طبقات", String(project.totalFloors)),
+    summaryItem("مرحله پروژه", project.progressStage),
+    summaryItem("مرحله پایلوت", `${pilot.currentStage} از ۱۹`),
+    summaryItem("تاریخ ایجاد", formatPersianDate(pilot.createdAt)),
+    summaryItem("آدرس", project.address),
+    summaryItem("نیاز مشتری", project.customerNeed),
+    summaryItem("ارزش مورد انتظار", project.expectedValue),
   );
   container.replaceChildren(
-    backLink,
+    back,
     heading,
     summary,
     StageStepper({
       stages: pilot.stages,
       currentStage: pilot.currentStage,
-      pilotId: pilot.id,
     }),
   );
 };
 
 export const PilotDetailsPage = ({ pilotId }) => {
-  const page = createElement("div", "pilot-details");
-  const loading = createElement(
-    "p",
-    "loading-state",
-    "در حال دریافت جزئیات پرونده...",
-  );
-
-  const loadPilot = async () => {
-    page.setAttribute("aria-busy", "true");
-    page.replaceChildren(loading);
-
+  const page = element("div", "pilot-details");
+  const load = async () => {
+    page.replaceChildren(
+      element("p", "loading-state", "در حال دریافت جزئیات پرونده..."),
+    );
     try {
-      const response = await pilotService.getPilotById(pilotId);
-      renderDetails(page, response.data);
+      renderDetails(page, await pilotService.getPilotById(pilotId));
     } catch (error) {
-      const state = createElement("div", "error-state");
-      const message = createElement(
-        "p",
-        "error-state__message",
-        error.message ?? "دریافت جزئیات پرونده انجام نشد.",
+      const state = element("div", "error-state");
+      const retry = element("button", "button button--primary", "تلاش مجدد");
+      const back = element("a", "button button--ghost", "بازگشت به فهرست");
+      retry.type = "button";
+      retry.addEventListener("click", load);
+      back.href = "#/pilots";
+      state.append(
+        element(
+          "p",
+          "error-state__message",
+          error.message ?? "دریافت جزئیات پرونده انجام نشد.",
+        ),
+        retry,
+        back,
       );
-      const actions = createElement("div", "error-state__actions");
-      const retryButton = createElement(
-        "button",
-        "button button--primary",
-        "تلاش مجدد",
-      );
-      const backLink = createElement(
-        "a",
-        "button button--ghost",
-        "بازگشت به فهرست",
-      );
-
-      retryButton.type = "button";
-      retryButton.addEventListener("click", loadPilot);
-      backLink.href = "#/pilots";
-      actions.append(retryButton, backLink);
-      state.append(message, actions);
       page.replaceChildren(state);
-    } finally {
-      page.setAttribute("aria-busy", "false");
     }
   };
-
   page.setAttribute("aria-live", "polite");
-  loadPilot();
-
+  load();
   return page;
 };

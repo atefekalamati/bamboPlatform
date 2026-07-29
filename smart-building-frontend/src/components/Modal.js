@@ -1,6 +1,6 @@
 const getFocusableElements = (container) =>
   container.querySelectorAll(
-    'button:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
   );
 
 export const Modal = ({ title, content, triggerElement, onClose }) => {
@@ -67,4 +67,3 @@ export const Modal = ({ title, content, triggerElement, onClose }) => {
 
   return { close };
 };
-
