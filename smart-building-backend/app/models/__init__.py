@@ -13,6 +13,7 @@ from app.models.product import (
     Owner,
     Project,
 )
+from app.models.operations import FormF03, Mission, MissionFloor, Notification
 from app.models.security import (
     AuditLog,
     AuthSession,
@@ -43,6 +44,7 @@ __all__ = [
     "Floor",
     "FormF01",
     "FormF02",
+    "FormF03",
     "ImmutableSnapshot",
     "Pilot",
     "PilotGate",
@@ -52,6 +54,9 @@ __all__ = [
     "Permission",
     "Role",
     "Project",
+    "Mission",
+    "MissionFloor",
+    "Notification",
     "Sensor",
     "StageApproval",
     "StageSubmission",

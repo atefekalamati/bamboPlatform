@@ -15,7 +15,7 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
 - Backend permission enforcement for every Pilot workflow endpoint
 - Audit logging for authentication, users, roles, permissions, and stage transitions
 - Unique `PIL-{year}-{sequence}` and `project-{number}` identifiers
-- Canonical Owner, primary Contact, Project, F01, F02, Floor, and DWG entities
+- Canonical Owner, primary Contact, Project, F01-F03, Floor, DWG, and Mission entities
 - F01-driven stages 1/2 and F02-driven stage 4; client checklist payloads cannot
   override the canonical form data
 - Secure DWG-only streaming upload with extension, MIME, signature, and size checks
@@ -23,6 +23,12 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
   standardized Jalali-date filenames
 - Automatic reopening of affected workflow stages when approved source data or a
   DWG version changes
+- Mission scheduling with `MIS-{pilotCode}-{sequence}` codes, expert overlap
+  protection, per-Floor capture state, and a one-day SLA deadline
+- F03-driven stages 5-9 and G3 validation, including mobile readiness, Stop
+  Conditions, capture state, and main-platform Upload status
+- Mission-created/rescheduled notification records with console delivery in
+  development/test and explicit provider-failure recording in production
 - Automatic creation of all 19 PRD stages and gates G1 through G5
 - Sequential stage locking and transition validation
 - Stage submission, approval, rejection, and revision versions
@@ -49,6 +55,13 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 - `POST /floors/{id}/dwg`
 - `GET /floors/{id}/dwg/versions`
 - `GET /dwg/versions/{id}/download`
+
+## Mission and F03 API
+
+- `GET|POST /pilots/{id}/missions`
+- `GET|PATCH /missions/{id}`
+- `GET|PUT /missions/{id}/forms/f03`
+- `PUT /missions/{id}/floors/{floor_id}`
 
 ## Authentication and RBAC API
 
@@ -86,6 +99,11 @@ The mobile configured by `BOOTSTRAP_SUPER_ADMIN_MOBILE` receives the
 OTP provider and `debug_code` response are enabled only in development/test.
 Production intentionally rejects OTP requests until an approved SMS provider
 adapter is configured.
+
+Mission notifications are recorded independently from the mission transaction.
+Development/test marks the console adapter as delivered. Production records a
+failed/unconfigured delivery until the PRD's SMS provider decision is supplied;
+the mission itself remains safely persisted for operational follow-up.
 
 DWG files currently use the configurable local backend under
 `DWG_STORAGE_ROOT`. `DWG_MAX_BYTES` must be set explicitly in production.

@@ -271,6 +271,163 @@ def _canonical_submission_data(
                 "ready_for_capture": form.ready_for_capture,
             },
         )
+    if stage.number in {5, 6, 7, 8, 9}:
+        mission = pilot.missions[-1] if pilot.missions else None
+        if mission is None:
+            return {}, {}
+        form = mission.form_f03
+        floor_states = mission.floor_states
+        if stage.number == 5:
+            latest_notification = (
+                mission.notifications[-1] if mission.notifications else None
+            )
+            return (
+                {
+                    "mission_code": mission.code,
+                    "scheduled_at": mission.scheduled_start.isoformat(),
+                    "scheduled_end": mission.scheduled_end.isoformat(),
+                    "expert": {
+                        "id": mission.expert.id,
+                        "name": mission.expert.display_name,
+                    },
+                    "floors": [
+                        {
+                            "id": item.floor.id,
+                            "code": item.floor.code,
+                            "name": item.floor.name,
+                        }
+                        for item in floor_states
+                    ],
+                    "site_contact": {
+                        "name": mission.site_contact_name,
+                        "mobile": mission.site_contact_mobile,
+                    },
+                    "location": mission.location,
+                    "limitation": mission.limitation,
+                    "sla_due_at": mission.sla_due_at.isoformat(),
+                    "notification_status": (
+                        latest_notification.status if latest_notification else None
+                    ),
+                },
+                {"expert_assignment_confirmed": form.assignment_accepted},
+            )
+        if stage.number == 6:
+            return (
+                {
+                    "mission_code": mission.code,
+                    "stop_condition_reason": form.stop_condition_reason,
+                },
+                {
+                    "assignment_accepted": form.assignment_accepted,
+                    "site_entry": form.site_entry_confirmed,
+                    "permission": form.permission_confirmed,
+                    "ppe": form.ppe_ready,
+                    "camera": form.camera_ready,
+                    "connection": form.main_app_connected,
+                    "charge": form.battery_ready,
+                    "storage": form.storage_ready,
+                    "project_floor_plan": form.project_floor_plan_confirmed,
+                    "test_image": form.test_image_completed,
+                    "no_stop_condition": not bool(form.stop_condition_reason),
+                },
+            )
+        if stage.number == 7:
+            capture_fields = {
+                "correct_floor": "correct_floor",
+                "start_point": "start_point_confirmed",
+                "main_capture_started": "main_capture_started",
+                "continuous_route": "continuous_route",
+                "coverage_completed": "coverage_completed",
+                "capture_finished": "capture_finished",
+                "saved_in_main_app": "saved_in_main_app",
+            }
+            floor_data = [
+                {
+                    "floor_id": item.floor_id,
+                    "floor_code": item.floor.code,
+                    "capture_state": item.capture_state,
+                    "capture_started_at": (
+                        item.capture_started_at.isoformat()
+                        if item.capture_started_at
+                        else None
+                    ),
+                    "capture_finished_at": (
+                        item.capture_finished_at.isoformat()
+                        if item.capture_finished_at
+                        else None
+                    ),
+                }
+                for item in floor_states
+            ]
+            checklist = {
+                checklist_name: bool(floor_states)
+                and all(getattr(item, model_field) for item in floor_states)
+                for checklist_name, model_field in capture_fields.items()
+            }
+            checklist["capture_times_registered"] = bool(floor_states) and all(
+                item.capture_started_at and item.capture_finished_at
+                for item in floor_states
+            )
+            return (
+                {"mission_code": mission.code, "floors": floor_data},
+                checklist,
+            )
+        if stage.number == 8:
+            return (
+                {
+                    "mission_code": mission.code,
+                    "floors": [
+                        {
+                            "floor_id": item.floor_id,
+                            "floor_code": item.floor.code,
+                            "state": item.capture_state,
+                            "failure_reason": item.failure_reason,
+                        }
+                        for item in floor_states
+                    ],
+                },
+                {
+                    "all_floors_resolved": bool(floor_states)
+                    and all(
+                        item.capture_state != "not_started"
+                        for item in floor_states
+                    )
+                },
+            )
+        upload_fields = (
+            "main_upload_started",
+            "main_upload_completed",
+            "correct_floor_link",
+            "operations_notified",
+        )
+        return (
+            {
+                "mission_code": mission.code,
+                "floors": [
+                    {
+                        "floor_id": item.floor_id,
+                        "floor_code": item.floor.code,
+                        "capture_state": item.capture_state,
+                        **{
+                            field: getattr(item, field)
+                            for field in upload_fields
+                        },
+                    }
+                    for item in floor_states
+                ],
+            },
+            {
+                "all_floors_completed": bool(floor_states)
+                and all(item.capture_state == "completed" for item in floor_states),
+                **{
+                    field: bool(floor_states)
+                    and all(getattr(item, field) for item in floor_states)
+                    for field in upload_fields
+                },
+                "mission_completed": form.mission_completed,
+                "operations_confirmed": form.operations_confirmed,
+            },
+        )
     return payload.form_data, payload.checklist
 
 
