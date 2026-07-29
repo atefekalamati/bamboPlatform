@@ -50,9 +50,21 @@ const renderDetails = (container, stage) => {
     ),
     metadata,
   );
+  if (
+    stage.number === 1 &&
+    ["open", "submitted", "needs_revision", "approved"].includes(stage.status)
+  ) {
+    const action = element(
+      "a",
+      "button button--primary stage-detail__action",
+      stage.status === "approved" ? "مشاهده مرحله ۱" : "ورود به مرحله ۱",
+    );
+    action.href = `#/pilots/${container.dataset.pilotId}/stages/1`;
+    container.append(action);
+  }
 };
 
-export const StageStepper = ({ stages, currentStage }) => {
+export const StageStepper = ({ stages, currentStage, pilotId }) => {
   const wrapper = element("section", "stage-section");
   const layout = element("div", "stage-section__layout");
   const list = element("ol", "stage-stepper");
@@ -96,6 +108,7 @@ export const StageStepper = ({ stages, currentStage }) => {
     stages.find(({ number }) => number === currentStage) ?? stages[0];
   list.setAttribute("aria-label", "۱۹ مرحله فرایند پایلوت");
   details.setAttribute("aria-live", "polite");
+  details.dataset.pilotId = pilotId;
   renderList();
   if (selectedStage) renderDetails(details, selectedStage);
   layout.append(list, details);

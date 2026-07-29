@@ -1,177 +1,117 @@
-import { Checklist } from "./Checklist.js";
-import {
-  isValidIranianMobile,
-  normalizePhoneNumber,
-} from "../utils/phoneNumber.js";
-
-const FIELD_GROUPS = Object.freeze([
-  {
-    title: "اطلاعات مالک و پروژه",
-    fields: [
-      { id: "ownerName", label: "نام مالک یا شرکت", required: true },
-      { id: "decisionMakerName", label: "نام تصمیم‌گیرنده", required: true },
-      { id: "decisionMakerRole", label: "سمت تصمیم‌گیرنده", required: true },
-      {
-        id: "phoneNumber",
-        label: "شماره تماس",
-        required: true,
-        inputMode: "tel",
-      },
-      { id: "projectName", label: "نام پروژه", required: true },
-      {
-        id: "floorCount",
-        label: "تعداد طبقات",
-        required: true,
-        type: "number",
-        min: "1",
-      },
-      { id: "address", label: "نشانی", required: true, multiline: true },
-      { id: "projectPhase", label: "مرحله پیشرفت", required: true },
-    ],
-  },
-  {
-    title: "ارزش و مسئولیت",
-    fields: [
-      {
-        id: "customerNeed",
-        label: "نیاز یا مسئله مشتری",
-        multiline: true,
-      },
-      {
-        id: "expectedValue",
-        label: "ارزش مورد انتظار",
-        multiline: true,
-      },
-      { id: "caseOwner", label: "مسئول پرونده", required: true },
-      { id: "deadline", label: "مهلت", type: "date", required: true },
-    ],
-  },
+const CHECKS = Object.freeze([
+  { key: "projectActive", label: "پروژه فعال است." },
+  { key: "imagingValue", label: "تصویربرداری برای پروژه ارزش ایجاد می‌کند." },
+  { key: "remoteViewingNeed", label: "نیاز به مشاهده غیرحضوری وجود دارد.", required: false },
+  { key: "accessPossible", label: "دسترسی ایمن و هماهنگ به پروژه ممکن است." },
+  { key: "dwgAvailable", label: "فایل DWG قابل دریافت است." },
+  { key: "notDemoOnly", label: "پروژه صرفاً نمایش آزمایشی نیست." },
+  { key: "continuedCapacity", label: "ظرفیت ادامه همکاری وجود دارد." },
 ]);
 
-const CHECKLIST_ITEMS = Object.freeze([
-  { id: "isProjectActive", label: "پروژه فعال است." },
-  {
-    id: "hasCaptureValue",
-    label: "مرحله پروژه ارزش تصویربرداری دارد.",
-  },
-  {
-    id: "isDecisionMakerAvailable",
-    label: "مالک یا تصمیم‌گیرنده در دسترس است.",
-  },
-  { id: "hasSafeAccess", label: "ورود ایمن و هماهنگ ممکن است." },
-  { id: "canReceiveDwg", label: "DWG طبقات قابل دریافت است." },
-  { id: "isRealPilot", label: "پروژه صرفاً نمایش صوری نیست." },
-  { id: "hasContinuationCapacity", label: "ظرفیت ادامه همکاری دارد." },
-]);
+const EMPTY_F01 = Object.freeze({
+  projectActive: false,
+  imagingValue: false,
+  remoteViewingNeed: false,
+  accessPossible: false,
+  dwgAvailable: false,
+  continuedCapacity: false,
+  notDemoOnly: false,
+  introductionCompleted: false,
+  imagingAccepted: false,
+  dwgAccepted: false,
+  feedbackAccepted: false,
+  result: "complete_information",
+});
 
-const createField = (config, initialValue, onChange) => {
-  const wrapper = document.createElement("div");
-  const label = document.createElement("label");
-  const control = document.createElement(
-    config.multiline ? "textarea" : "input",
-  );
-  const error = document.createElement("p");
-
-  wrapper.className = "stage-form__field";
-  label.className = "stage-form__label";
-  label.htmlFor = config.id;
-  label.textContent = `${config.label}${config.required ? " *" : ""}`;
-  control.id = config.id;
-  control.name = config.id;
-  control.className = "stage-form__control";
-  control.value = initialValue ?? "";
-  control.required = Boolean(config.required);
-
-  if (!config.multiline) {
-    control.type = config.type ?? "text";
-    if (config.inputMode) control.inputMode = config.inputMode;
-    if (config.min) control.min = config.min;
-  }
-
-  error.id = `${config.id}-error`;
-  error.className = "stage-form__error";
-  control.setAttribute("aria-describedby", error.id);
-  control.addEventListener("input", onChange);
-  wrapper.append(label, control, error);
-
-  return { config, wrapper, control, error };
-};
-
-const validateField = ({ config, control }) => {
-  const value = control.value.trim();
-
-  if (config.required && !value) return `${config.label} الزامی است.`;
-  if (config.id === "phoneNumber" && !isValidIranianMobile(value)) {
-    return "شماره تماس معتبر وارد کنید.";
-  }
-  if (config.id === "floorCount" && Number(value) < 1) {
-    return "تعداد طبقات باید حداقل یک باشد.";
-  }
-
-  return "";
-};
-
-export const StageOneForm = ({ initialData = {}, onChange }) => {
+export const StageOneForm = ({ initialData, project, disabled, onChange }) => {
   const form = document.createElement("form");
-  const controls = new Map();
+  const projectSection = document.createElement("section");
+  const checklist = document.createElement("fieldset");
+  const legend = document.createElement("legend");
+  const resultLabel = document.createElement("label");
+  const result = document.createElement("select");
+  const resultError = document.createElement("p");
+  const values = { ...EMPTY_F01, ...initialData };
+  const checkboxes = new Map();
+  const summary = document.createElement("dl");
 
   form.className = "stage-form";
-  form.noValidate = true;
+  projectSection.className = "stage-form__section";
+  summary.className = "stage-project-summary";
+  [
+    ["مالک", project.owner.name],
+    ["تصمیم‌گیرنده", project.owner.decisionMakerName],
+    ["پروژه", project.name],
+    ["آدرس", project.address],
+  ].forEach(([label, value]) => {
+    const item = document.createElement("div");
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = value;
+    item.append(term, description);
+    summary.append(item);
+  });
+  const projectTitle = document.createElement("h2");
+  projectTitle.className = "stage-form__legend";
+  projectTitle.textContent = "اطلاعات ثبت‌شده پروژه";
+  projectSection.append(projectTitle, summary);
+  checklist.className = "checklist";
+  legend.className = "checklist__legend";
+  legend.textContent = "چک‌لیست تناسب پروژه";
+  checklist.append(legend);
 
-  FIELD_GROUPS.forEach(({ title, fields }) => {
-    const section = document.createElement("fieldset");
-    const legend = document.createElement("legend");
-    const grid = document.createElement("div");
-
-    section.className = "stage-form__section";
-    legend.className = "stage-form__legend";
-    legend.textContent = title;
-    grid.className = "stage-form__grid";
-
-    fields.forEach((config) => {
-      const field = createField(config, initialData.form?.[config.id], onChange);
-      controls.set(config.id, field);
-      grid.append(field.wrapper);
+  CHECKS.forEach(({ key, label, required = true }) => {
+    const item = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const text = document.createElement("span");
+    item.className = "checklist__item";
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(values[key]);
+    checkbox.disabled = disabled;
+    checkbox.addEventListener("change", () => {
+      item.classList.remove("checklist__item--invalid");
+      onChange();
     });
-
-    section.append(legend, grid);
-    form.append(section);
+    text.textContent = `${label}${required ? " *" : ""}`;
+    item.append(checkbox, text);
+    checklist.append(item);
+    checkboxes.set(key, { checkbox, item, required });
   });
 
-  const checklist = Checklist({
-    items: CHECKLIST_ITEMS,
-    initialValues: initialData.checklist,
-    onChange,
+  resultLabel.className = "stage-form__field";
+  resultLabel.append(document.createElement("span"), result, resultError);
+  resultLabel.firstElementChild.className = "stage-form__label";
+  resultLabel.firstElementChild.textContent = "نتیجه ارزیابی";
+  result.className = "stage-form__control";
+  result.disabled = disabled;
+  result.append(
+    new Option("نیازمند تکمیل اطلاعات", "complete_information"),
+    new Option("تأیید اولیه", "approved"),
+    new Option("ردشده", "rejected"),
+    new Option("ارجاع‌شده", "referred"),
+  );
+  result.value = values.result;
+  result.addEventListener("change", onChange);
+  resultError.className = "stage-form__error";
+  checklist.append(resultLabel);
+  form.append(projectSection, checklist);
+
+  const getData = () => ({
+    ...values,
+    ...Object.fromEntries(
+      [...checkboxes].map(([key, { checkbox }]) => [key, checkbox.checked]),
+    ),
+    result: result.value,
   });
-  form.append(checklist.element);
-
-  const getData = () => {
-    const values = Object.fromEntries(
-      [...controls.entries()].map(([id, field]) => {
-        const value =
-          id === "phoneNumber"
-            ? normalizePhoneNumber(field.control.value)
-            : field.control.value.trim();
-
-        return [id, value];
-      }),
-    );
-
-    return { form: values, checklist: checklist.getValues() };
-  };
 
   const validate = () => {
     const errors = [];
-
-    controls.forEach((field, id) => {
-      const message = validateField(field);
-      field.error.textContent = message;
-      field.control.setAttribute("aria-invalid", String(Boolean(message)));
-      if (message) errors.push({ fieldId: id, message });
+    checkboxes.forEach(({ checkbox, item, required }, key) => {
+      const invalid = required && !checkbox.checked;
+      item.classList.toggle("checklist__item--invalid", invalid);
+      if (invalid) errors.push({ field: `checklist.${key}` });
     });
-
-    errors.push(...checklist.getErrors());
-
     return errors;
   };
 

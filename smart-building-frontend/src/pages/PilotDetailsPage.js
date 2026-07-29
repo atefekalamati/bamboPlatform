@@ -67,6 +67,7 @@ const renderDetails = (container, pilot) => {
     StageStepper({
       stages: pilot.stages,
       currentStage: pilot.currentStage,
+      pilotId: pilot.id,
     }),
   );
 };
