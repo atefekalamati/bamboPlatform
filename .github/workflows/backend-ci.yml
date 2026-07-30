@@ -72,7 +72,6 @@ jobs:
       POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://bambo_ci:bambo_ci_password@localhost:5432/bambo_ci
       APP_ENV: test
       AUTH_SECRET: ci-only-secret-not-for-production
-      DWG_STORAGE_ROOT: ${{ runner.temp }}/dwg-storage
       DWG_MAX_BYTES: "1048576"
 
     defaults:
@@ -105,6 +104,8 @@ jobs:
 
       - name: Run PostgreSQL integration test
         run: python -m pytest tests/test_postgres_integration.py -q
+        env:
+          DWG_STORAGE_ROOT: ${{ runner.temp }}/dwg-storage
 
       - name: Verify reversible migration chain
         run: |
