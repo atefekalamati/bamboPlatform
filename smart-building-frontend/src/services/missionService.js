@@ -72,4 +72,9 @@ export const missionService = Object.freeze({
           f03Payload({ ...mission.formF03, assignment_accepted: true }),
         ),
       }),
+  saveF03: (missionId, values) =>
+    request(`/missions/${missionId}/forms/f03`, {
+      method: "PUT",
+      body: JSON.stringify(f03Payload(values)),
+    }),
 });
