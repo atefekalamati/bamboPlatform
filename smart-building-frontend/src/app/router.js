@@ -7,6 +7,7 @@ import { RolesPage } from "../pages/RolesPage.js";
 import { StageOnePage } from "../pages/StageOnePage.js";
 import { StageTwoPage } from "../pages/StageTwoPage.js";
 import { StageThreePage } from "../pages/StageThreePage.js";
+import { StageFourPage } from "../pages/StageFourPage.js";
 import { UsersPage } from "../pages/UsersPage.js";
 import {
   canLeaveCurrentPage,
@@ -43,6 +44,16 @@ const resolveRoute = (currentRoute) => {
   const stageThreeMatch = currentRoute.match(
     /^#\/pilots\/([^/]+)\/stages\/3$/,
   );
+  const stageFourMatch = currentRoute.match(
+    /^#\/pilots\/([^/]+)\/stages\/4$/,
+  );
+
+  if (stageFourMatch) {
+    return {
+      page: StageFourPage({ pilotId: stageFourMatch[1] }),
+      navigationRoute: ROUTES.pilots,
+    };
+  }
 
   if (stageThreeMatch) {
     return {

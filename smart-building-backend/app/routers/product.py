@@ -180,7 +180,7 @@ def upsert_f02(
         invalidate_from_stage(
             db,
             pilot,
-            3,
+            4,
             actor_user_id=context.user.id,
             reason="F02 updated",
         )

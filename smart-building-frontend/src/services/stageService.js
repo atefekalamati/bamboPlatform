@@ -46,6 +46,49 @@ const f01Payload = (values) => ({
   referred_at: values.referredAt || null,
 });
 
+const mapF02 = (form) => ({
+  id: form.id,
+  informationPackage: form.information_package,
+  contactsSummary: form.contacts_summary,
+  progressStatus: form.progress_status,
+  limitation: form.limitation,
+  mainProjectRegistered: form.main_project_registered,
+  floorOrderConfirmed: form.floor_order_confirmed,
+  typicalFloorsIdentified: form.typical_floors_identified,
+  planConnectionsRegistered: form.plan_connections_registered,
+  startPointRegistered: form.start_point_registered,
+  expertAccessTested: form.expert_access_tested,
+  mainAppDisplayTested: form.main_app_display_tested,
+  readyForCapture: form.ready_for_capture,
+  ambiguity: form.ambiguity,
+  referredAt: form.referred_at,
+  configuredByUserId: form.configured_by_user_id,
+  controlledByUserId: form.controlled_by_user_id,
+  configuredAt: form.configured_at,
+  responsibleUserId: form.responsible_user_id,
+  updatedAt: form.updated_at,
+});
+
+const f02Payload = (values) => ({
+  information_package: values.informationPackage || null,
+  contacts_summary: values.contactsSummary || null,
+  progress_status: values.progressStatus || null,
+  limitation: values.limitation || null,
+  main_project_registered: values.mainProjectRegistered ?? false,
+  floor_order_confirmed: values.floorOrderConfirmed ?? false,
+  typical_floors_identified: values.typicalFloorsIdentified ?? false,
+  plan_connections_registered: values.planConnectionsRegistered ?? false,
+  start_point_registered: values.startPointRegistered ?? false,
+  expert_access_tested: values.expertAccessTested ?? false,
+  main_app_display_tested: values.mainAppDisplayTested ?? false,
+  ready_for_capture: values.readyForCapture ?? false,
+  ambiguity: values.ambiguity || null,
+  referred_at: values.referredAt || null,
+  configured_by_user_id: values.configuredByUserId || null,
+  controlled_by_user_id: values.controlledByUserId || null,
+  configured_at: values.configuredAt || null,
+});
+
 export const stageService = Object.freeze({
   getF01: async (pilotId) => {
     try {
@@ -60,6 +103,21 @@ export const stageService = Object.freeze({
       await request(`/pilots/${pilotId}/forms/f01`, {
         method: "PUT",
         body: JSON.stringify(f01Payload(values)),
+      }),
+    ),
+  getF02: async (pilotId) => {
+    try {
+      return mapF02(await request(`/pilots/${pilotId}/forms/f02`));
+    } catch (error) {
+      if (error.status === 404) return null;
+      throw error;
+    }
+  },
+  saveF02: async (pilotId, values) =>
+    mapF02(
+      await request(`/pilots/${pilotId}/forms/f02`, {
+        method: "PUT",
+        body: JSON.stringify(f02Payload(values)),
       }),
     ),
   submit: (pilotId, stageNumber) =>

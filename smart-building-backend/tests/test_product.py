@@ -286,6 +286,33 @@ def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admi
         "status"
     ] == "passed"
 
+    revised_f02 = client.put(
+        f"/pilots/{pilot_id}/forms/f02",
+        json={
+            "information_package": "بسته اطلاعاتی کامل",
+            "contacts_summary": "مالک و هماهنگ‌کننده",
+            "progress_status": "آماده برداشت",
+            "main_project_registered": True,
+            "floor_order_confirmed": True,
+            "typical_floors_identified": True,
+            "plan_connections_registered": True,
+            "start_point_registered": True,
+            "expert_access_tested": True,
+            "main_app_display_tested": True,
+            "ready_for_capture": True,
+            "ambiguity": "بازبینی مجدد F02",
+        },
+        headers=super_admin_headers,
+    )
+    assert revised_f02.status_code == 200
+    reopened_stage_4 = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert reopened_stage_4["current_stage"] == 4
+    assert reopened_stage_4["stages"][2]["status"] == "approved"
+    assert reopened_stage_4["stages"][3]["status"] == "needs_revision"
+
     revised_dwg = client.post(
         f"/floors/{floors[0]['id']}/dwg",
         files={
