@@ -201,6 +201,23 @@ textarea.stage-form__control {
   font-size: var(--font-size-xs);
 }
 
+.mission-summary {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.mission-notice {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.mission-notice--delivered {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary-strong);
+}
+
 .floor-workspace {
   display: grid;
   gap: var(--space-4);
