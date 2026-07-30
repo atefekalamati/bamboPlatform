@@ -401,6 +401,101 @@ export const StageThreePage = ({ pilotId }) => {
       );
       const content = element("section", "floor-workspace");
       content.append(element("h2", "stage-form__legend", "طبقات پروژه"));
+      const requirements = element("fieldset", "checklist stage3-requirements");
+      const requirementsLegend = element(
+        "legend",
+        "checklist__legend",
+        "شرایط عبور از Stage 3",
+      );
+      const floorRequirement = element(
+        "label",
+        `checklist__item${
+          floors.length === pilot.project.totalFloors
+            ? ""
+            : " checklist__item--invalid"
+        }`,
+      );
+      const floorRequirementInput = document.createElement("input");
+      const floorRequirementText = element(
+        "span",
+        "",
+        floors.length === pilot.project.totalFloors
+          ? `تمام ${pilot.project.totalFloors} طبقه پروژه ثبت شده‌اند.`
+          : `${pilot.project.totalFloors - floors.length} طبقه دیگر باید ثبت شود (${floors.length} از ${pilot.project.totalFloors}).`,
+      );
+      floorRequirementInput.type = "checkbox";
+      floorRequirementInput.checked =
+        floors.length === pilot.project.totalFloors;
+      floorRequirementInput.disabled = true;
+      floorRequirement.append(floorRequirementInput, floorRequirementText);
+
+      const referenceRequirement = element(
+        "label",
+        `checklist__item${
+          floors.length && floors.every((floor) => floor.hasValidDwg)
+            ? ""
+            : " checklist__item--invalid"
+        }`,
+      );
+      const referenceRequirementInput = document.createElement("input");
+      const invalidReferenceFloors = floors.filter(
+        (floor) => !floor.hasValidDwg,
+      );
+      const referenceRequirementText = element(
+        "span",
+        "",
+        invalidReferenceFloors.length
+          ? `وجود DWG برای ${invalidReferenceFloors.length} طبقه بدون فایل را در مرجع اصلی تأیید می‌کنم.`
+          : "برای تمام طبقات، فایل آپلود یا وجود DWG در مرجع اصلی تأیید شده است.",
+      );
+      referenceRequirementInput.type = "checkbox";
+      referenceRequirementInput.checked =
+        floors.length > 0 && invalidReferenceFloors.length === 0;
+      referenceRequirementInput.disabled = !manageable || !floors.length;
+      referenceRequirementInput.addEventListener("change", async () => {
+        const confirmed = referenceRequirementInput.checked;
+        if (
+          confirmed &&
+          !window.confirm(
+            "تأیید می‌کنید فایل DWG تمام طبقات ثبت‌شده‌ای که فایل ندارند در مرجع اصلی وجود دارد یا در اختیار شما نیست؟",
+          )
+        ) {
+          referenceRequirementInput.checked = false;
+          return;
+        }
+        referenceRequirementInput.disabled = true;
+        try {
+          const targets = floors.filter(
+            (floor) =>
+              !floor.hasDwg &&
+              floor.dwgReferenceConfirmed !== confirmed,
+          );
+          await Promise.all(
+            targets.map((floor) =>
+              dwgService.setReferenceConfirmation(floor.id, confirmed),
+            ),
+          );
+          await load(
+            confirmed
+              ? "وجود DWG برای همه طبقات ثبت‌شده تأیید شد."
+              : "تأیید مرجع DWG از طبقات بدون فایل برداشته شد.",
+          );
+        } catch (error) {
+          referenceRequirementInput.checked = !confirmed;
+          referenceRequirementInput.disabled = false;
+          feedback.textContent = error.message;
+        }
+      });
+      referenceRequirement.append(
+        referenceRequirementInput,
+        referenceRequirementText,
+      );
+      requirements.append(
+        requirementsLegend,
+        floorRequirement,
+        referenceRequirement,
+      );
+      content.append(requirements);
       if (editable && floors.length < pilot.project.totalFloors) {
         content.append(
           createFloorForm({
@@ -436,8 +531,10 @@ export const StageThreePage = ({ pilotId }) => {
         submit.hidden = !canSubmit;
         submit.addEventListener("click", async () => {
           if (!complete) {
-            feedback.textContent =
-              "برای تمام طبقات باید فایل DWG آپلود یا وجود آن در مرجع اصلی تأیید شود.";
+            const missingFloors = pilot.project.totalFloors - floors.length;
+            feedback.textContent = missingFloors > 0
+              ? `ابتدا ${missingFloors} طبقه باقی‌مانده را ثبت کنید. آپلود DWG اجباری نیست.`
+              : `برای این طبقات فایل آپلود نشده و تأیید مرجع هم ثبت نشده است: ${invalidReferenceFloors.map(({ code }) => code).join("، ")}`;
             content.classList.add("floor-workspace--invalid");
             return;
           }

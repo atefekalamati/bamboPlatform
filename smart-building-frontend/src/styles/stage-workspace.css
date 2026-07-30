@@ -214,6 +214,13 @@ textarea.stage-form__control {
   border-color: var(--color-danger);
 }
 
+.stage3-requirements {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-background);
+}
+
 .floor-create {
   display: grid;
   gap: var(--space-3);
