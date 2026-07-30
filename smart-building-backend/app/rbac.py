@@ -12,6 +12,13 @@ PERMISSIONS = (
     ("forms.manage", "Forms", "ثبت و ویرایش F01 تا F05", False),
     ("dwg.manage", "DWG", "ثبت و نسخه‌بندی DWG", True),
     ("missions.manage", "Missions", "مدیریت مأموریت‌ها", False),
+    (
+        "external_status.manage",
+        "External Platform",
+        "ثبت وضعیت Read-only پلتفرم اصلی",
+        False,
+    ),
+    ("notifications.manage", "Notifications", "ثبت و پیگیری اعلان‌های عملیاتی", False),
     ("checklists.manage", "Checklists", "ثبت چک‌لیست و ارسال مرحله", False),
     ("gate_approval.approve", "Gate Approval", "تأیید Gate و مرحله", True),
     ("gate_approval.reject", "Gate Approval", "رد Gate و مرحله", True),
@@ -72,7 +79,13 @@ SYSTEM_ROLES = {
     ),
     "support": (
         "پشتیبانی و آموزش",
-        {"pilots.read", "checklists.manage", "incidents.manage"},
+        {
+            "pilots.read",
+            "checklists.manage",
+            "incidents.manage",
+            "notifications.manage",
+            "customer_success.manage",
+        },
     ),
     "customer_success": (
         "موفقیت مشتری",
@@ -83,7 +96,10 @@ SYSTEM_ROLES = {
             "gate_approval.approve",
         },
     ),
-    "technical": ("تیم فنی", {"pilots.read", "incidents.manage"}),
+    "technical": (
+        "تیم فنی",
+        {"pilots.read", "incidents.manage", "external_status.manage"},
+    ),
     "product_manager": (
         "مدیر محصول",
         {"pilots.read", "incidents.manage", "reports.read"},

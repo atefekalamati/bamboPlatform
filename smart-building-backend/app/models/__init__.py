@@ -13,6 +13,15 @@ from app.models.product import (
     Owner,
     Project,
 )
+from app.models.operations import FormF03, Mission, MissionFloor, Notification
+from app.models.experience import (
+    ExternalEvidenceCheck,
+    ExternalPlatformReference,
+    FormF04,
+    Incident,
+)
+from app.models.evaluation import ContinuationReview, PilotEvaluation
+from app.models.commercial import CommercialProposal, CustomerFollowUp, FinalOutcome
 from app.models.security import (
     AuditLog,
     AuthSession,
@@ -37,14 +46,24 @@ __all__ = [
     "AuditLog",
     "AuthSession",
     "Contact",
+    "CommercialProposal",
+    "ContinuationReview",
+    "CustomerFollowUp",
     "DwgFile",
     "DwgVersion",
     "Equipment",
+    "ExternalEvidenceCheck",
+    "ExternalPlatformReference",
     "Floor",
     "FormF01",
     "FormF02",
+    "FormF03",
+    "FormF04",
+    "FinalOutcome",
     "ImmutableSnapshot",
+    "Incident",
     "Pilot",
+    "PilotEvaluation",
     "PilotGate",
     "PilotStage",
     "OtpRequest",
@@ -52,6 +71,9 @@ __all__ = [
     "Permission",
     "Role",
     "Project",
+    "Mission",
+    "MissionFloor",
+    "Notification",
     "Sensor",
     "StageApproval",
     "StageSubmission",

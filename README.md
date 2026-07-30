@@ -32,3 +32,8 @@ pytest -q
 
 ## Notes
 The project documentation file BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md remains the product/requirements reference for the platform.
+
+## Contributors
+
+- [Your Name](https://github.com/your-username) — Backend and project management
+- [Frontend Developer](https://github.com/frontend-username) — Frontend development

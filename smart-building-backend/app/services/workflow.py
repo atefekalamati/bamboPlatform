@@ -21,6 +21,7 @@ from app.models import (
     StageApproval,
     StageSubmission,
 )
+from app.schemas.experience import CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES
 from app.schemas.workflow import PilotCreate, StageReject, StageSubmit
 from app.services.security import add_audit_log
 from app.workflow import (
@@ -149,6 +150,17 @@ def _validation_errors(stage_number: int, submission: StageSubmission) -> list[d
                         "reason": "required_valid_dwg",
                     }
                 )
+    if stage_number == 13:
+        for incident_code in submission.form_data.get(
+            "open_critical_incidents", []
+        ):
+            errors.append(
+                {
+                    "field": f"incidents.{incident_code}",
+                    "label": incident_code,
+                    "reason": "open_critical_incident",
+                }
+            )
     if stage_number == 19:
         outcome = submission.form_data.get("outcome")
         if outcome and outcome not in FINAL_OUTCOMES:
@@ -271,6 +283,586 @@ def _canonical_submission_data(
                 "ready_for_capture": form.ready_for_capture,
             },
         )
+    if stage.number in {5, 6, 7, 8, 9}:
+        mission = pilot.missions[-1] if pilot.missions else None
+        if mission is None:
+            return {}, {}
+        form = mission.form_f03
+        floor_states = mission.floor_states
+        if stage.number == 5:
+            latest_notification = (
+                mission.notifications[-1] if mission.notifications else None
+            )
+            return (
+                {
+                    "mission_code": mission.code,
+                    "scheduled_at": mission.scheduled_start.isoformat(),
+                    "scheduled_end": mission.scheduled_end.isoformat(),
+                    "expert": {
+                        "id": mission.expert.id,
+                        "name": mission.expert.display_name,
+                    },
+                    "floors": [
+                        {
+                            "id": item.floor.id,
+                            "code": item.floor.code,
+                            "name": item.floor.name,
+                        }
+                        for item in floor_states
+                    ],
+                    "site_contact": {
+                        "name": mission.site_contact_name,
+                        "mobile": mission.site_contact_mobile,
+                    },
+                    "location": mission.location,
+                    "limitation": mission.limitation,
+                    "sla_due_at": mission.sla_due_at.isoformat(),
+                    "notification_status": (
+                        latest_notification.status if latest_notification else None
+                    ),
+                },
+                {"expert_assignment_confirmed": form.assignment_accepted},
+            )
+        if stage.number == 6:
+            return (
+                {
+                    "mission_code": mission.code,
+                    "stop_condition_reason": form.stop_condition_reason,
+                },
+                {
+                    "assignment_accepted": form.assignment_accepted,
+                    "site_entry": form.site_entry_confirmed,
+                    "permission": form.permission_confirmed,
+                    "ppe": form.ppe_ready,
+                    "camera": form.camera_ready,
+                    "connection": form.main_app_connected,
+                    "charge": form.battery_ready,
+                    "storage": form.storage_ready,
+                    "project_floor_plan": form.project_floor_plan_confirmed,
+                    "test_image": form.test_image_completed,
+                    "no_stop_condition": not bool(form.stop_condition_reason),
+                },
+            )
+        if stage.number == 7:
+            capture_fields = {
+                "correct_floor": "correct_floor",
+                "start_point": "start_point_confirmed",
+                "main_capture_started": "main_capture_started",
+                "continuous_route": "continuous_route",
+                "coverage_completed": "coverage_completed",
+                "capture_finished": "capture_finished",
+                "saved_in_main_app": "saved_in_main_app",
+            }
+            floor_data = [
+                {
+                    "floor_id": item.floor_id,
+                    "floor_code": item.floor.code,
+                    "capture_state": item.capture_state,
+                    "capture_started_at": (
+                        item.capture_started_at.isoformat()
+                        if item.capture_started_at
+                        else None
+                    ),
+                    "capture_finished_at": (
+                        item.capture_finished_at.isoformat()
+                        if item.capture_finished_at
+                        else None
+                    ),
+                }
+                for item in floor_states
+            ]
+            checklist = {
+                checklist_name: bool(floor_states)
+                and all(getattr(item, model_field) for item in floor_states)
+                for checklist_name, model_field in capture_fields.items()
+            }
+            checklist["capture_times_registered"] = bool(floor_states) and all(
+                item.capture_started_at and item.capture_finished_at
+                for item in floor_states
+            )
+            return (
+                {"mission_code": mission.code, "floors": floor_data},
+                checklist,
+            )
+        if stage.number == 8:
+            return (
+                {
+                    "mission_code": mission.code,
+                    "floors": [
+                        {
+                            "floor_id": item.floor_id,
+                            "floor_code": item.floor.code,
+                            "state": item.capture_state,
+                            "failure_reason": item.failure_reason,
+                        }
+                        for item in floor_states
+                    ],
+                },
+                {
+                    "all_floors_resolved": bool(floor_states)
+                    and all(
+                        item.capture_state != "not_started"
+                        for item in floor_states
+                    )
+                },
+            )
+        upload_fields = (
+            "main_upload_started",
+            "main_upload_completed",
+            "correct_floor_link",
+            "operations_notified",
+        )
+        return (
+            {
+                "mission_code": mission.code,
+                "floors": [
+                    {
+                        "floor_id": item.floor_id,
+                        "floor_code": item.floor.code,
+                        "capture_state": item.capture_state,
+                        **{
+                            field: getattr(item, field)
+                            for field in upload_fields
+                        },
+                    }
+                    for item in floor_states
+                ],
+            },
+            {
+                "all_floors_completed": bool(floor_states)
+                and all(item.capture_state == "completed" for item in floor_states),
+                **{
+                    field: bool(floor_states)
+                    and all(getattr(item, field) for item in floor_states)
+                    for field in upload_fields
+                },
+                "mission_completed": form.mission_completed,
+                "operations_confirmed": form.operations_confirmed,
+            },
+        )
+    if stage.number == 10:
+        reference = pilot.external_platform_reference
+        if reference is None:
+            return {}, {}
+        open_critical_incidents = [
+            incident.code
+            for incident in pilot.incidents
+            if incident.severity == "critical" and incident.status != "closed"
+        ]
+        return (
+            {
+                "project_reference": reference.project_reference,
+                "platform_status": reference.platform_status,
+                "reason": reference.reason,
+                "checked_by_user_id": reference.checked_by_user_id,
+                "checked_at": reference.checked_at.isoformat(),
+                "open_critical_incidents": open_critical_incidents,
+            },
+            {
+                "processing_started": reference.processing_started,
+                "route_detected": reference.route_detected,
+                "plan_connected": reference.plan_connected,
+                "tour_ready": reference.tour_ready,
+                "no_critical_error": not open_critical_incidents,
+                "captures_menu_checked": reference.captures_menu_checked,
+                "latest_capture_checked": reference.latest_capture_checked,
+                "last_visit_checked": reference.last_visit_checked,
+            },
+        )
+    if stage.number == 11:
+        reference = pilot.external_platform_reference
+        notifications = [
+            item
+            for item in pilot.notifications
+            if item.template == "main_output_ready"
+        ]
+        notification = notifications[-1] if notifications else None
+        if notification is None:
+            return {}, {}
+        delivery_registered = (
+            notification.status == "delivered"
+            or bool(notification.alternate_contact_method)
+        )
+        return (
+            {
+                "delivery_status": notification.status,
+                "provider_status": notification.provider_status,
+                "attempts": notification.attempts,
+                "alternate_contact_method": notification.alternate_contact_method,
+                "sent_at": (
+                    notification.sent_at.isoformat()
+                    if notification.sent_at
+                    else None
+                ),
+            },
+            {
+                "main_output_ready": bool(reference and reference.tour_ready),
+                "notification_sent": notification.attempts > 0,
+                "delivery_registered": delivery_registered,
+            },
+        )
+    if stage.number == 12:
+        form = pilot.form_f04
+        if form is None:
+            return {}, {}
+        return (
+            {
+                "responsible_user_id": form.responsible_user_id,
+                "training_completed": form.training_completed,
+                "more_training_needed": form.more_training_needed,
+            },
+            {
+                "login": form.login_trained,
+                "project": form.project_trained,
+                "floor": form.floor_trained,
+                "plan": form.plan_trained,
+                "tour": form.tour_trained,
+                "navigation": form.navigation_trained,
+                "support": form.support_trained,
+                "independent_use": form.independent_use_confirmed,
+            },
+        )
+    if stage.number == 13:
+        form = pilot.form_f04
+        if form is None:
+            return {}, {}
+        open_critical_incidents = [
+            incident.code
+            for incident in pilot.incidents
+            if incident.severity == "critical" and incident.status != "closed"
+        ]
+        evidence = [
+            {
+                "capability": item.capability,
+                "status": item.status,
+                "checked_by_user_id": item.checked_by_user_id,
+                "checked_at": item.checked_at.isoformat(),
+                "result": item.result,
+            }
+            for item in pilot.external_evidence_checks
+            if item.capability in CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES
+        ]
+        return (
+            {
+                "follow_up_result": form.viewing_result,
+                "issue": form.issue_description,
+                "issue_category": form.issue_category,
+                "issue_route": form.issue_route,
+                "issue_owner_user_id": form.issue_owner_user_id,
+                "issue_due_at": (
+                    form.issue_due_at.isoformat() if form.issue_due_at else None
+                ),
+                "satisfaction_score": form.satisfaction_score,
+                "external_evidence": evidence,
+                "open_critical_incidents": open_critical_incidents,
+            },
+            {
+                "first_follow_up": bool(form.first_follow_up_at),
+                "second_follow_up": bool(form.second_follow_up_at),
+                "owner_viewed": form.owner_logged_in
+                and form.project_opened
+                and form.main_tour_viewed,
+                "no_open_critical_incident": not open_critical_incidents,
+            },
+        )
+    if stage.number == 14:
+        continuation_missions = [
+            mission for mission in pilot.missions if mission.sequence >= 2
+        ]
+        if not continuation_missions:
+            return {}, {}
+        cycles = []
+        for mission in continuation_missions:
+            form = mission.form_f03
+            floor_states = mission.floor_states
+            review = mission.continuation_review
+            mission_complete = bool(
+                form
+                and form.mission_completed
+                and form.operations_confirmed
+                and floor_states
+                and all(
+                    item.capture_state == "completed"
+                    and item.main_upload_started
+                    and item.main_upload_completed
+                    and item.correct_floor_link
+                    and item.operations_notified
+                    for item in floor_states
+                )
+            )
+            cycles.append(
+                {
+                    "mission_code": mission.code,
+                    "mission_sequence": mission.sequence,
+                    "mission_complete": mission_complete,
+                    "floors": [
+                        {
+                            "floor_id": item.floor_id,
+                            "floor_code": item.floor.code,
+                            "capture_state": item.capture_state,
+                            "main_upload_completed": item.main_upload_completed,
+                            "correct_floor_link": item.correct_floor_link,
+                        }
+                        for item in floor_states
+                    ],
+                    "stage_rechecks": (
+                        {
+                            f"stage_{number}_confirmed": getattr(
+                                review,
+                                f"stage_{number}_confirmed",
+                            )
+                            for number in range(5, 14)
+                        }
+                        if review
+                        else {}
+                    ),
+                    "independent_result": (
+                        review.independent_result if review else None
+                    ),
+                    "responsible_user_id": (
+                        review.responsible_user_id if review else None
+                    ),
+                }
+            )
+        return (
+            {
+                "mission_code": continuation_missions[-1].code,
+                "continuation_cycles": cycles,
+            },
+            {
+                "new_mission": all(
+                    cycle["mission_complete"] for cycle in cycles
+                ),
+                **{
+                    f"stage_{number}_rechecked": all(
+                        cycle["stage_rechecks"].get(
+                            f"stage_{number}_confirmed",
+                            False,
+                        )
+                        is True
+                        for cycle in cycles
+                    )
+                    for number in range(5, 14)
+                },
+                "independent_result": all(
+                    bool(
+                        cycle["independent_result"]
+                        and cycle["independent_result"].strip()
+                    )
+                    for cycle in cycles
+                ),
+            },
+        )
+    if stage.number == 15:
+        evaluation = pilot.evaluation
+        if evaluation is None:
+            return {}, {}
+        dimensions = (
+            "operations",
+            "quality",
+            "technical",
+            "customer",
+            "commercial",
+        )
+        evidence = [
+            {
+                "capability": item.capability,
+                "status": item.status,
+                "checked_by_user_id": item.checked_by_user_id,
+                "checked_at": item.checked_at.isoformat(),
+                "result": item.result,
+            }
+            for item in pilot.external_evidence_checks
+        ]
+        return (
+            {
+                "responsible_user_id": evaluation.responsible_user_id,
+                "dimensions": {
+                    dimension: {
+                        "status": getattr(evaluation, f"{dimension}_status"),
+                        "result": getattr(evaluation, f"{dimension}_result"),
+                    }
+                    for dimension in dimensions
+                },
+                "one_page_summary": evaluation.one_page_summary,
+                "external_evidence": evidence,
+            },
+            {
+                **{
+                    dimension: bool(
+                        getattr(evaluation, f"{dimension}_status")
+                        and getattr(evaluation, f"{dimension}_result").strip()
+                    )
+                    for dimension in dimensions
+                },
+                "one_page_report": bool(evaluation.one_page_summary.strip()),
+            },
+        )
+    if stage.number == 16:
+        form = pilot.form_f04
+        if form is None:
+            return {}, {}
+        return (
+            {
+                "decision": form.closing_decision,
+                "decision_maker": form.decision_maker,
+                "blocker": form.purchase_blocker,
+                "main_platform_login_count": form.main_platform_login_count,
+                "viewed_sections": form.viewed_sections,
+                "visit_reduction_result": form.visit_reduction_result,
+                "customer_need": form.customer_need_summary,
+                "realized_value": form.realized_value,
+                "user_count": form.user_count,
+                "project_count": form.project_count,
+                "usage_frequency": form.usage_frequency,
+            },
+            {
+                "value_clear": bool(
+                    form.realized_value and form.realized_value.strip()
+                ),
+                "need_clear": bool(
+                    form.customer_need_summary
+                    and form.customer_need_summary.strip()
+                ),
+                "decision_maker_clear": bool(
+                    form.decision_maker and form.decision_maker.strip()
+                ),
+                "blocker_clear": bool(
+                    form.purchase_blocker
+                    and form.purchase_blocker.strip()
+                ),
+            },
+        )
+    if stage.number == 17:
+        proposal = pilot.commercial_proposal
+        if proposal is None:
+            return {}, {}
+        return (
+            {
+                "project_count": proposal.project_count,
+                "floor_count": proposal.floor_count,
+                "area_sqm": proposal.area_sqm,
+                "frequency": proposal.frequency,
+                "period": proposal.period,
+                "user_count": proposal.user_count,
+                "support_scope": proposal.support_scope,
+                "features": proposal.features,
+                "proposal_file": {
+                    "name": proposal.proposal_file_name,
+                    "size": proposal.proposal_file_size,
+                    "sha256": proposal.proposal_file_sha256,
+                },
+                "decision_maker": proposal.decision_maker,
+                "follow_up_date": proposal.follow_up_at.isoformat(),
+                "responsible_user_id": proposal.responsible_user_id,
+            },
+            {
+                "proposal_file_registered": bool(
+                    proposal.proposal_file_name
+                    and proposal.proposal_file_size > 0
+                    and len(proposal.proposal_file_sha256) == 64
+                ),
+            },
+        )
+    if stage.number == 18:
+        required_slots = ("day_0", "day_2", "day_5", "day_7_10")
+        follow_ups_by_slot = {
+            item.schedule_slot: item for item in pilot.customer_follow_ups
+        }
+        follow_ups = [
+            {
+                "schedule_slot": slot,
+                "obstacle": follow_ups_by_slot[slot].obstacle,
+                "action": follow_ups_by_slot[slot].action,
+                "owner_user_id": follow_ups_by_slot[slot].owner_user_id,
+                "due_at": follow_ups_by_slot[slot].due_at.isoformat(),
+                "result": follow_ups_by_slot[slot].result,
+                "completed_at": follow_ups_by_slot[slot].completed_at.isoformat(),
+            }
+            for slot in required_slots
+            if slot in follow_ups_by_slot
+        ]
+        complete = len(follow_ups) == len(required_slots) and all(
+            item["obstacle"].strip()
+            and item["action"].strip()
+            and item["owner_user_id"]
+            and item["due_at"]
+            and item["result"].strip()
+            for item in follow_ups
+        )
+        return (
+            {
+                "follow_ups": follow_ups,
+                "obstacle": {
+                    item["schedule_slot"]: item["obstacle"] for item in follow_ups
+                },
+                "action": {
+                    item["schedule_slot"]: item["action"] for item in follow_ups
+                },
+                "owner": {
+                    item["schedule_slot"]: item["owner_user_id"]
+                    for item in follow_ups
+                },
+                "due_at": {
+                    item["schedule_slot"]: item["due_at"] for item in follow_ups
+                },
+                "result": {
+                    item["schedule_slot"]: item["result"] for item in follow_ups
+                },
+            },
+            {"follow_up_registered": complete},
+        )
+    if stage.number == 19:
+        outcome = pilot.final_outcome
+        if outcome is None:
+            return {}, {}
+        contract_details_complete = (
+            outcome.outcome != "contract"
+            or (
+                outcome.success_owner_user_id is not None
+                and outcome.periodic_capture is not None
+                and outcome.contracted_user_count is not None
+                and outcome.first_capture_at is not None
+            )
+        )
+        ready_date_complete = (
+            outcome.outcome != "ready_on_date" or outcome.ready_at is not None
+        )
+        closing_reason_complete = (
+            outcome.outcome not in {"rejected", "closed"}
+            or bool(outcome.reason and outcome.reason.strip())
+        )
+        return (
+            {
+                "outcome": outcome.outcome,
+                "reason": outcome.reason,
+                "ready_at": (
+                    outcome.ready_at.isoformat() if outcome.ready_at else None
+                ),
+                "success_owner_user_id": outcome.success_owner_user_id,
+                "periodic_capture": outcome.periodic_capture,
+                "contracted_user_count": outcome.contracted_user_count,
+                "first_capture_at": (
+                    outcome.first_capture_at.isoformat()
+                    if outcome.first_capture_at
+                    else None
+                ),
+                "responsible_user_id": outcome.responsible_user_id,
+                "approved_by_user_id": outcome.approved_by_user_id,
+                "approved_at": (
+                    outcome.approved_at.isoformat() if outcome.approved_at else None
+                ),
+            },
+            {
+                "final_result_registered": bool(
+                    outcome.outcome
+                    and contract_details_complete
+                    and ready_date_complete
+                    and closing_reason_complete
+                ),
+                "pilot_manager_approved": outcome.pilot_manager_approved,
+            },
+        )
     return payload.form_data, payload.checklist
 
 
@@ -369,13 +961,18 @@ def invalidate_from_stage(
             gate.status = "locked"
             gate.passed_at = None
     pilot.current_stage = stage_number
-    pilot.status = (
-        "candidate"
-        if stage_number <= 2
-        else "waiting_documents"
-        if stage_number <= 4
-        else "operations"
-    )
+    if stage_number <= 2:
+        pilot.status = "candidate"
+    elif stage_number <= 4:
+        pilot.status = "waiting_documents"
+    elif stage_number <= 13:
+        pilot.status = "operations"
+    elif stage_number <= 16:
+        pilot.status = "evaluating"
+    elif stage_number == 17:
+        pilot.status = "evaluating"
+    else:
+        pilot.status = "proposal_sent"
     add_audit_log(
         db,
         action="stages.invalidated",

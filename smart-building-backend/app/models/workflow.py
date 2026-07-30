@@ -60,6 +60,66 @@ class Pilot(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    missions = relationship(
+        "Mission",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        order_by="Mission.sequence",
+    )
+    external_platform_reference = relationship(
+        "ExternalPlatformReference",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    form_f04 = relationship(
+        "FormF04",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    external_evidence_checks = relationship(
+        "ExternalEvidenceCheck",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        order_by="ExternalEvidenceCheck.capability",
+    )
+    incidents = relationship(
+        "Incident",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        order_by="Incident.sequence",
+    )
+    notifications = relationship(
+        "Notification",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        order_by="Notification.created_at",
+    )
+    evaluation = relationship(
+        "PilotEvaluation",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    commercial_proposal = relationship(
+        "CommercialProposal",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    customer_follow_ups = relationship(
+        "CustomerFollowUp",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        order_by="CustomerFollowUp.id",
+    )
+    final_outcome = relationship(
+        "FinalOutcome",
+        back_populates="pilot",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class PilotStage(Base):
