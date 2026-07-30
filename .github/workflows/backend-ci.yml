@@ -1,0 +1,114 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  sqlite-tests:
+    name: SQLite tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: smart-building-backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: smart-building-backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run test suite
+        run: python -m pytest -q
+
+  postgresql-integration:
+    name: PostgreSQL migration and integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: bambo_ci
+          POSTGRES_USER: bambo_ci
+          POSTGRES_PASSWORD: bambo_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bambo_ci -d bambo_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL: postgresql+psycopg://bambo_ci:bambo_ci_password@localhost:5432/bambo_ci
+      POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://bambo_ci:bambo_ci_password@localhost:5432/bambo_ci
+      APP_ENV: test
+      AUTH_SECRET: ci-only-secret-not-for-production
+      DWG_MAX_BYTES: "1048576"
+
+    defaults:
+      run:
+        working-directory: smart-building-backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: smart-building-backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Upgrade PostgreSQL schema
+        run: python -m alembic upgrade head
+
+      - name: Check PostgreSQL schema drift
+        run: python -m alembic check
+
+      - name: Run PostgreSQL integration test
+        run: python -m pytest tests/test_postgres_integration.py -q
+        env:
+          DWG_STORAGE_ROOT: ${{ runner.temp }}/dwg-storage
+
+      - name: Verify reversible migration chain
+        run: |
+          python -m alembic downgrade base
+          python -m alembic upgrade head
+          python -m alembic check
