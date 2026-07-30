@@ -108,6 +108,32 @@ export const StageEightPage = ({ pilotId }) => {
       const unresolved = mission.floorStates.filter(
         ({ capture_state: captureState }) => captureState === "not_started",
       );
+      const performedFloors = mission.floorStates.filter(
+        ({ capture_state: captureState }) => captureState !== "not_started",
+      );
+      const resolutionChecks = [
+        {
+          label:
+            "تعداد فایل‌های ذخیره‌شده با تعداد طبقات انجام‌شده برابر است.",
+          checked: performedFloors.every(
+            ({ saved_in_main_app: saved }) => saved,
+          ),
+        },
+        {
+          label: "هیچ فایل بدون نام یا طبقه مشخص باقی نمانده است.",
+          checked: mission.floorStates.every(({ floor_id: floorId }) =>
+            floors.some(({ id }) => id === floorId),
+          ),
+        },
+        {
+          label: "طبقات انجام‌نشده و علت آن‌ها ثبت شده‌اند.",
+          checked: mission.floorStates.every(
+            ({ capture_state: captureState, failure_reason: reason }) =>
+              captureState === "completed" ||
+              (captureState !== "not_started" && Boolean(reason)),
+          ),
+        },
+      ];
       const feedback = element("p", "stage-actions__feedback", notice);
       const back = element("a", "back-link", "بازگشت به جزئیات پرونده");
       const header = element("header", "stage-workspace__header");
@@ -140,7 +166,27 @@ export const StageEightPage = ({ pilotId }) => {
         const floor = floors.find(({ id }) => id === state.floor_id);
         return floor ? floorResult({ floor, state, pilotId: pilot.id }) : null;
       }).filter(Boolean);
-      page.replaceChildren(back, header, feedback, ...cards);
+      const checklist = document.createElement("fieldset");
+      checklist.className = "checklist";
+      checklist.append(
+        element("legend", "checklist__legend", "کنترل برداشت چندطبقه"),
+      );
+      resolutionChecks.forEach(({ label, checked }) => {
+        const item = element(
+          "label",
+          `checklist__item${checked ? "" : " checklist__item--invalid"}`,
+        );
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = checked;
+        checkbox.disabled = true;
+        item.append(checkbox, element("span", "", label));
+        checklist.append(item);
+      });
+      const allResolutionChecksPassed = resolutionChecks.every(
+        ({ checked }) => checked,
+      );
+      page.replaceChildren(back, header, feedback, checklist, ...cards);
 
       if (["open", "needs_revision"].includes(stage.status)) {
         const actions = element("div", "stage-actions");
@@ -151,7 +197,8 @@ export const StageEightPage = ({ pilotId }) => {
         );
         submit.type = "button";
         submit.hidden = !canSubmit;
-        submit.disabled = unresolved.length > 0;
+        submit.disabled =
+          unresolved.length > 0 || !allResolutionChecksPassed;
         submit.addEventListener("click", async () => {
           submit.disabled = true;
           try {

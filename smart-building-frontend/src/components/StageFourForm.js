@@ -1,35 +1,35 @@
 const CHECKLIST_ITEMS = Object.freeze([
   {
     key: "mainProjectRegistered",
-    label: "پروژه اصلی در پلتفرم مرجع ایجاد و ثبت شده است.",
+    label: "پروژه با نام استاندارد ایجاد شد.",
   },
   {
     key: "floorOrderConfirmed",
-    label: "تمام طبقات ایجاد شده و ترتیب آن‌ها کنترل شده است.",
+    label: "طبقات به ترتیب صحیح تعریف شدند.",
   },
   {
     key: "planConnectionsRegistered",
-    label: "DWG اصلی و اتصال Planها در پلتفرم تنظیم شده است.",
+    label: "پلان صحیح هر طبقه بارگذاری شد.",
   },
   {
     key: "typicalFloorsIdentified",
-    label: "طبقات تیپ و غیرتیپ مشخص شده‌اند.",
+    label: "طبقات تیپ و غیرتیپ مشخص شدند.",
   },
   {
     key: "startPointRegistered",
-    label: "نقطه شروع برداشت ثبت و کنترل شده است.",
+    label: "نقطه شروع پیشنهادی ثبت شد.",
   },
   {
     key: "expertAccessTested",
-    label: "دسترسی کارشناس برداشت آزمایش شده است.",
+    label: "دسترسی کارشناس فعال شد.",
   },
   {
     key: "mainAppDisplayTested",
-    label: "نمایش پروژه در اپلیکیشن اصلی کنترل شده است.",
+    label: "نمایش پروژه در اپلیکیشن آزمایش شد.",
   },
   {
     key: "readyForCapture",
-    label: "پروژه برای شروع برداشت آماده است.",
+    label: "پروژه آماده برداشت است.",
   },
 ]);
 

@@ -30,13 +30,12 @@ const CAPTURE_STATES = Object.freeze([
 ]);
 
 const CAPTURE_ITEMS = Object.freeze([
-  ["correctFloor", "طبقه صحیح با مأموریت تطبیق داده شد."],
-  ["startPointConfirmed", "نقطه شروع برداشت تأیید شد."],
-  ["mainCaptureStarted", "برداشت اصلی آغاز شد."],
-  ["continuousRoute", "مسیر برداشت پیوسته و بدون گسست بود."],
-  ["coverageCompleted", "پوشش کامل محدوده طبقه انجام شد."],
-  ["captureFinished", "برداشت طبقه به پایان رسید."],
-  ["savedInMainApp", "نتیجه در اپلیکیشن اصلی ذخیره شد."],
+  ["floorAndPlan", "طبقه و نقشه صحیح انتخاب شد."],
+  ["startPointConfirmed", "در نقطه شروع قرار گرفته و نقطه روی پلان تأیید شد."],
+  ["mainCaptureStarted", "ضبط آغاز و حرکت با سرعت معمول و یکنواخت انجام شد."],
+  ["coverageCompleted", "فضاهای قابل تردد و قسمت‌های اصلی پوشش داده شدند."],
+  ["continuousRoute", "از دویدن، چرخش شدید و توقف غیرضروری پرهیز شد."],
+  ["finishedAndSaved", "در نقطه پایان، ضبط متوقف و ذخیره فایل کنترل شد."],
 ]);
 
 const localDateTime = (value) => (value ? value.slice(0, 16) : "");
@@ -106,13 +105,12 @@ const floorCaptureForm = ({ floor, state, disabled, onChange }) => {
     element("legend", "checklist__legend", "کنترل‌های برداشت طبقه"),
   );
   const initialValues = {
-    correctFloor: state.correct_floor,
+    floorAndPlan: state.correct_floor,
     startPointConfirmed: state.start_point_confirmed,
     mainCaptureStarted: state.main_capture_started,
     continuousRoute: state.continuous_route,
     coverageCompleted: state.coverage_completed,
-    captureFinished: state.capture_finished,
-    savedInMainApp: state.saved_in_main_app,
+    finishedAndSaved: state.capture_finished && state.saved_in_main_app,
   };
   CAPTURE_ITEMS.forEach(([key, label]) => {
     const item = element("label", "checklist__item");
@@ -154,12 +152,23 @@ const floorCaptureForm = ({ floor, state, disabled, onChange }) => {
 
   const getData = () => ({
     captureState: captureState.value,
-    ...Object.fromEntries(
+    ...(() => {
+      const checklistValues = Object.fromEntries(
       [...checklistItems].map(([key, { checkbox }]) => [
         key,
         checkbox.checked,
       ]),
-    ),
+      );
+      return {
+        correctFloor: checklistValues.floorAndPlan,
+        startPointConfirmed: checklistValues.startPointConfirmed,
+        mainCaptureStarted: checklistValues.mainCaptureStarted,
+        continuousRoute: checklistValues.continuousRoute,
+        coverageCompleted: checklistValues.coverageCompleted,
+        captureFinished: checklistValues.finishedAndSaved,
+        savedInMainApp: checklistValues.finishedAndSaved,
+      };
+    })(),
     captureStartedAt: startedAt.value,
     captureFinishedAt: finishedAt.value,
     failureReason: failureReason.value.trim(),

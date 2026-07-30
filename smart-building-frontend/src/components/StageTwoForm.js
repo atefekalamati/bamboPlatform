@@ -4,10 +4,10 @@ import {
 } from "../utils/phoneNumber.js";
 
 const CONSENTS = Object.freeze([
-  { key: "introductionCompleted", label: "معرفی پروژه و فرایند انجام شده است." },
-  { key: "imagingAccepted", label: "رضایت تصویربرداری دریافت شده است." },
-  { key: "dwgAccepted", label: "رضایت دریافت و استفاده از DWG ثبت شده است." },
-  { key: "feedbackAccepted", label: "رضایت دریافت بازخورد ثبت شده است." },
+  { key: "introductionCompleted", label: "معرفی پایلوت انجام شد." },
+  { key: "imagingAccepted", label: "موافقت تصویربرداری اخذ شد." },
+  { key: "dwgAccepted", label: "ارائه نقشه پذیرفته شد." },
+  { key: "feedbackAccepted", label: "ارائه بازخورد پذیرفته شد." },
 ]);
 
 const field = ({ id, label, value = "", disabled, type = "text" }) => {

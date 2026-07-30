@@ -1,11 +1,9 @@
 const CHECKS = Object.freeze([
   { key: "projectActive", label: "پروژه فعال است." },
-  { key: "imagingValue", label: "تصویربرداری برای پروژه ارزش ایجاد می‌کند." },
   { key: "remoteViewingNeed", label: "نیاز به مشاهده غیرحضوری وجود دارد.", required: false },
-  { key: "accessPossible", label: "دسترسی ایمن و هماهنگ به پروژه ممکن است." },
-  { key: "dwgAvailable", label: "فایل DWG قابل دریافت است." },
-  { key: "notDemoOnly", label: "پروژه صرفاً نمایش آزمایشی نیست." },
-  { key: "continuedCapacity", label: "ظرفیت ادامه همکاری وجود دارد." },
+  { key: "accessPossible", label: "دسترسی ممکن است." },
+  { key: "dwgAvailable", label: "نقشه قابل دریافت است." },
+  { key: "continuedCapacity", label: "ظرفیت همکاری بعدی وجود دارد." },
 ]);
 
 const EMPTY_F01 = Object.freeze({
@@ -34,6 +32,27 @@ export const StageOneForm = ({ initialData, project, disabled, onChange }) => {
   const values = { ...EMPTY_F01, ...initialData };
   const checkboxes = new Map();
   const summary = document.createElement("dl");
+  const prdSection = document.createElement("fieldset");
+  const prdLegend = document.createElement("legend");
+  const imagingValue = document.createElement("select");
+  const notDemoOnly = document.createElement("select");
+
+  const prdField = (label, control) => {
+    const wrapper = document.createElement("label");
+    const text = document.createElement("span");
+    wrapper.className = "stage-form__field";
+    text.className = "stage-form__label";
+    text.textContent = label;
+    control.className = "stage-form__control";
+    control.disabled = disabled;
+    control.append(
+      new Option("انتخاب کنید", ""),
+      new Option("بله", "true"),
+      new Option("خیر", "false"),
+    );
+    wrapper.append(text, control);
+    return wrapper;
+  };
 
   form.className = "stage-form";
   projectSection.className = "stage-form__section";
@@ -95,13 +114,35 @@ export const StageOneForm = ({ initialData, project, disabled, onChange }) => {
   result.addEventListener("change", onChange);
   resultError.className = "stage-form__error";
   checklist.append(resultLabel);
-  form.append(projectSection, checklist);
+  prdSection.className = "stage-form__section";
+  prdLegend.className = "stage-form__legend";
+  prdLegend.textContent = "کنترل‌های تکمیلی PRD";
+  imagingValue.addEventListener("change", onChange);
+  notDemoOnly.addEventListener("change", onChange);
+  const imagingField = prdField(
+    "تصویربرداری در این مرحله برای پروژه ارزش ایجاد می‌کند.",
+    imagingValue,
+  );
+  const demoField = prdField(
+    "پروژه صرفاً برای نمایش صوری انتخاب نشده است.",
+    notDemoOnly,
+  );
+  imagingValue.value = String(Boolean(values.imagingValue));
+  notDemoOnly.value = String(Boolean(values.notDemoOnly));
+  prdSection.append(
+    prdLegend,
+    imagingField,
+    demoField,
+  );
+  form.append(projectSection, checklist, prdSection);
 
   const getData = () => ({
     ...values,
     ...Object.fromEntries(
       [...checkboxes].map(([key, { checkbox }]) => [key, checkbox.checked]),
     ),
+    imagingValue: imagingValue.value === "true",
+    notDemoOnly: notDemoOnly.value === "true",
     result: result.value,
   });
 
@@ -111,6 +152,11 @@ export const StageOneForm = ({ initialData, project, disabled, onChange }) => {
       const invalid = required && !checkbox.checked;
       item.classList.toggle("checklist__item--invalid", invalid);
       if (invalid) errors.push({ field: `checklist.${key}` });
+    });
+    [imagingValue, notDemoOnly].forEach((control) => {
+      const invalid = control.value !== "true";
+      control.setAttribute("aria-invalid", String(invalid));
+      if (invalid) errors.push({ field: control === imagingValue ? "imagingValue" : "notDemoOnly" });
     });
     return errors;
   };
