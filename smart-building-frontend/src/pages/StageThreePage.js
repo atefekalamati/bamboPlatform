@@ -123,6 +123,7 @@ const floorCard = ({
   card.append(header);
 
   if (editable) {
+    const controls = element("div", "floor-card__controls");
     const uploadRow = element("div", "dwg-upload");
     const input = document.createElement("input");
     const upload = element(
@@ -150,7 +151,30 @@ const floorCard = ({
       }
     });
     uploadRow.append(input, upload);
-    card.append(uploadRow);
+    const remove = element("button", "button button--danger", "حذف طبقه");
+    remove.type = "button";
+    remove.addEventListener("click", async () => {
+      const detail = versions.length
+        ? ` و ${versions.length} نسخه DWG آن`
+        : "";
+      if (
+        !window.confirm(
+          `طبقه ${floor.code}${detail} برای همیشه حذف شود؟ این عملیات قابل بازگشت نیست.`,
+        )
+      ) {
+        return;
+      }
+      remove.disabled = true;
+      try {
+        await dwgService.deleteFloor(floor.id);
+        await reload(`طبقه ${floor.code} حذف شد.`);
+      } catch (error) {
+        feedback.textContent = error.message;
+        remove.disabled = false;
+      }
+    });
+    controls.append(uploadRow, remove);
+    card.append(controls);
   }
   card.append(versionList({ versions, canDownload, feedback }));
   return card;
@@ -296,7 +320,11 @@ export const StageThreePage = ({ pilotId }) => {
       const versions = await Promise.all(
         floors.map((floor) => dwgService.getVersions(floor.id)),
       );
-      const editable = ["open", "needs_revision"].includes(stage.status) && canManageDwg;
+      const editable =
+        ["open", "needs_revision"].includes(stage.status) && canManageDwg;
+      const manageable =
+        ["open", "needs_revision", "approved"].includes(stage.status) &&
+        canManageDwg;
       const feedback = element("p", "stage-actions__feedback", notice);
       const back = element("a", "back-link", "بازگشت به جزئیات پرونده");
       const header = element("header", "stage-workspace__header");
@@ -337,7 +365,7 @@ export const StageThreePage = ({ pilotId }) => {
           floorCard({
             floor,
             versions: versions[index],
-            editable,
+            editable: manageable,
             canDownload: canManageDwg,
             feedback,
             reload: load,

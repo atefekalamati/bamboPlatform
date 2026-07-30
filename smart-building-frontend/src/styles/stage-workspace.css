@@ -240,6 +240,17 @@ textarea.stage-form__control {
   gap: var(--space-3);
 }
 
+.floor-card__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.floor-card__controls .dwg-upload {
+  flex: 1 1 24rem;
+}
+
 .floor-card__identity,
 .dwg-version__info {
   display: grid;

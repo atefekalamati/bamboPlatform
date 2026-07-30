@@ -210,6 +210,22 @@
   gap: var(--space-3);
 }
 
+.button--danger {
+  border-color: var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+}
+
+.button--danger:hover {
+  background: var(--color-danger-surface);
+}
+
+.user-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 @media (min-width: 48rem) {
   .user-card {
     grid-template-columns: minmax(12rem, 1fr) minmax(10rem, 1fr) auto auto;

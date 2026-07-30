@@ -20,6 +20,15 @@ json_type = sa.JSON().with_variant(postgresql.JSONB(), "postgresql")
 
 
 def upgrade() -> None:
+    if op.get_bind().dialect.name == "postgresql":
+        op.alter_column(
+            "alembic_version",
+            "version_num",
+            existing_type=sa.String(length=32),
+            type_=sa.String(length=128),
+            existing_nullable=False,
+        )
+
     with op.batch_alter_table("notifications") as batch_op:
         batch_op.add_column(sa.Column("pilot_id", sa.Integer(), nullable=True))
         batch_op.add_column(

@@ -272,6 +272,56 @@ def list_floors(
     return [floor_read(floor) for floor in pilot.project.floors]
 
 
+@router.delete("/floors/{floor_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_floor(
+    floor_id: int,
+    context: AuthContext = Depends(require_permission("dwg.manage")),
+    db: Session = Depends(get_db),
+) -> None:
+    floor = db.get(Floor, floor_id)
+    if not floor:
+        raise SecurityError("FLOOR_NOT_FOUND", "طبقه پیدا نشد.", 404, [])
+    if floor.mission_states:
+        raise SecurityError(
+            "FLOOR_HAS_MISSIONS",
+            "این طبقه در یک یا چند مأموریت استفاده شده و قابل حذف نیست.",
+            409,
+            [{"mission_id": item.mission_id} for item in floor.mission_states],
+        )
+
+    pilot = floor.project.pilot
+    storage_keys = [
+        version.storage_key
+        for version in (floor.dwg_file.versions if floor.dwg_file else [])
+    ]
+    floor_data = {
+        "code": floor.code,
+        "name": floor.name,
+        "level_order": floor.level_order,
+        "dwg_versions": len(storage_keys),
+    }
+    invalidate_from_stage(
+        db,
+        pilot,
+        3,
+        actor_user_id=context.user.id,
+        reason=f"Floor {floor.code} deleted",
+    )
+    add_audit_log(
+        db,
+        action="floors.deleted",
+        entity_type="Floor",
+        entity_id=floor.id,
+        actor_user_id=context.user.id,
+        old_data=floor_data,
+        session_id=context.session.id,
+    )
+    db.delete(floor)
+    db.commit()
+    for storage_key in storage_keys:
+        delete_storage_key(storage_key)
+
+
 @router.post(
     "/floors/{floor_id}/dwg",
     response_model=DwgVersionRead,

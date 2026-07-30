@@ -38,4 +38,6 @@ export const roleService = Object.freeze({
         }),
       }),
     ),
+  deleteRole: (roleId) =>
+    request(`/roles/${roleId}`, { method: "DELETE" }),
 });

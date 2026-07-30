@@ -40,6 +40,8 @@ export const dwgService = Object.freeze({
         }),
       }),
     ),
+  deleteFloor: (floorId) =>
+    request(`/floors/${floorId}`, { method: "DELETE" }),
   getVersions: async (floorId) =>
     (await request(`/floors/${floorId}/dwg/versions`)).map(mapVersion),
   upload: async (floorId, file) => {

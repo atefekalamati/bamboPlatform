@@ -195,6 +195,7 @@ export const RolesPage = () => {
     const feedback = node("p", "form-feedback");
     const actions = node("div", "role-workspace__actions");
     const save = node("button", "button button--primary", "ذخیره دسترسی‌ها");
+    const remove = node("button", "button button--danger", "حذف نقش");
     const initialCodes = new Set(activeRole.permissions.map(({ code }) => code));
     const selectedCodes = new Set(initialCodes);
 
@@ -212,7 +213,29 @@ export const RolesPage = () => {
     };
 
     save.type = "button";
+    remove.type = "button";
+    remove.hidden = activeRole.isSystem;
     save.disabled = true;
+    remove.addEventListener("click", async () => {
+      if (
+        !window.confirm(
+          `نقش «${activeRole.displayName}» برای همیشه حذف شود؟ نقش دارای کاربر قابل حذف نیست.`,
+        )
+      ) {
+        return;
+      }
+      remove.disabled = true;
+      try {
+        await roleService.deleteRole(activeRole.id);
+        roles = roles.filter(({ id }) => id !== activeRole.id);
+        activeRoleId = roles[0]?.id ?? null;
+        render();
+      } catch (error) {
+        feedback.textContent = error.message;
+        feedback.dataset.type = "error";
+        remove.disabled = false;
+      }
+    });
     save.addEventListener("click", async () => {
       const changedSensitive = permissions.some(
         ({ code, isSensitive }) =>
@@ -240,7 +263,7 @@ export const RolesPage = () => {
       }
     });
     workspaceHeader.append(roleTitle, roleMeta);
-    actions.append(save);
+    actions.append(save, remove);
     workspace.append(
       workspaceHeader,
       feedback,

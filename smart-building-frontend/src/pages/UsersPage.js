@@ -98,6 +98,27 @@ export const UsersPage = () => {
           user,
           canManage,
           onEdit: openForm,
+          onToggleStatus: async (targetUser, trigger) => {
+            const action = targetUser.isActive ? "غیرفعال" : "فعال";
+            if (
+              !window.confirm(
+                `کاربر «${targetUser.displayName}» ${action} شود؟`,
+              )
+            ) {
+              return;
+            }
+            trigger.disabled = true;
+            try {
+              await userService.updateStatus(targetUser.id, {
+                isActive: !targetUser.isActive,
+                reason: `${action}‌سازی از فهرست مدیریت کاربران`,
+              });
+              await loadUsers();
+            } catch (error) {
+              window.alert(error.message);
+              trigger.disabled = false;
+            }
+          },
         }),
       ),
     );

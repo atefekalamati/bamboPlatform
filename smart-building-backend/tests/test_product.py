@@ -35,6 +35,7 @@ def test_project_and_dwg_openapi_contract():
         "/pilots/{pilot_id}/forms/f01",
         "/pilots/{pilot_id}/forms/f02",
         "/pilots/{pilot_id}/floors",
+        "/floors/{floor_id}",
         "/floors/{floor_id}/dwg",
         "/floors/{floor_id}/dwg/versions",
         "/dwg/versions/{version_id}/download",
@@ -172,6 +173,7 @@ def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admi
         "PIL-1405-001_F01_V01_"
     )
 
+
     duplicate = client.post(
         f"/floors/{floors[0]['id']}/dwg",
         files={"file": ("duplicate.dwg", first_content, "application/octet-stream")},
@@ -264,6 +266,48 @@ def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admi
             headers=super_admin_headers,
         ).json()
     ) == 1
+
+
+def test_floor_delete_removes_dwg(client, super_admin_headers):
+    pilot = create_pilot(client, super_admin_headers, total_floors=2)
+    floor = client.post(
+        f"/pilots/{pilot['id']}/floors",
+        json={
+            "code": "F01",
+            "name": "طبقه قابل حذف",
+            "level_order": 0,
+            "floor_type": "non_typical",
+        },
+        headers=super_admin_headers,
+    ).json()
+    version = client.post(
+        f"/floors/{floor['id']}/dwg",
+        files={
+            "file": (
+                "delete-me.dwg",
+                b"AC1032-delete-me",
+                "application/octet-stream",
+            )
+        },
+        headers=super_admin_headers,
+    )
+    assert version.status_code == 201
+    deleted = client.delete(
+        f"/floors/{floor['id']}",
+        headers=super_admin_headers,
+    )
+    assert deleted.status_code == 204
+    assert client.get(
+        f"/floors/{floor['id']}/dwg/versions",
+        headers=super_admin_headers,
+    ).status_code == 404
+    assert list(get_dwg_storage_root().rglob("*.dwg")) == []
+    audit = client.get("/audit", headers=super_admin_headers).json()
+    assert any(
+        item["action"] == "floors.deleted"
+        and item["old_data"]["code"] == "F01"
+        for item in audit
+    )
 
 
 def test_dwg_size_limit_cleans_temporary_file(client, super_admin_headers, monkeypatch):

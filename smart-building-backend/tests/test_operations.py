@@ -97,6 +97,24 @@ def test_operations_openapi_contract():
     assert "FormF03Update" in schema["components"]["schemas"]
 
 
+def test_floor_linked_to_mission_cannot_be_deleted(client, super_admin_headers):
+    expert = create_capture_expert(client, super_admin_headers)
+    pilot, floors = prepare_pilot_through_g2(client, super_admin_headers)
+    mission = client.post(
+        f"/pilots/{pilot['id']}/missions",
+        json=mission_payload(expert["id"], [floors[0]["id"]]),
+        headers=super_admin_headers,
+    )
+    assert mission.status_code == 201
+
+    blocked = client.delete(
+        f"/floors/{floors[0]['id']}",
+        headers=super_admin_headers,
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["code"] == "FLOOR_HAS_MISSIONS"
+
+
 def test_mission_f03_stages_5_to_9_and_g3(client, super_admin_headers):
     expert = create_capture_expert(client, super_admin_headers)
     expert_headers = login_with_otp(client, "09157777777")

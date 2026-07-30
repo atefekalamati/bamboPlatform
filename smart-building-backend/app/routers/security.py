@@ -404,6 +404,49 @@ def update_role_permissions(
     return role_read(role)
 
 
+@roles_router.delete("/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_role(
+    role_id: int,
+    context: AuthContext = Depends(require_permission("roles.manage")),
+    db: Session = Depends(get_db),
+) -> None:
+    role = db.get(Role, role_id)
+    if not role:
+        raise SecurityError("ROLE_NOT_FOUND", "نقش پیدا نشد.", 404, [])
+    if role.is_system:
+        raise SecurityError(
+            "SYSTEM_ROLE_DELETE_DENIED",
+            "نقش سیستمی قابل حذف نیست.",
+            409,
+            [],
+        )
+    if role.users:
+        raise SecurityError(
+            "ROLE_IN_USE",
+            "این نقش به کاربر اختصاص داده شده و تا زمان حذف انتساب‌ها قابل حذف نیست.",
+            409,
+            [{"user_id": user.id} for user in role.users],
+        )
+
+    role_data = {
+        "name": role.name,
+        "display_name": role.display_name,
+        "permission_codes": sorted(permission.code for permission in role.permissions),
+    }
+    add_audit_log(
+        db,
+        action="roles.deleted",
+        entity_type="Role",
+        entity_id=role.id,
+        actor_user_id=context.user.id,
+        old_data=role_data,
+        session_id=context.session.id,
+    )
+    role.permissions.clear()
+    db.delete(role)
+    db.commit()
+
+
 @audit_router.get("", response_model=list[AuditLogRead])
 def list_audit_logs(
     _: AuthContext = Depends(require_permission("audit.read")),
