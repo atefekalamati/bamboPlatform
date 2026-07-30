@@ -55,7 +55,7 @@ def test_postgresql_schema_and_persistence(monkeypatch):
             connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            == "0007_commercial_final_outcome"
+            == "0008_incident_unique_cleanup"
         )
 
     with database.get_session() as db:
