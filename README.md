@@ -1,5 +1,7 @@
 # Smart Building Backend
 
+[![Backend CI](https://github.com/atefekalamati/bamboPlatform/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/atefekalamati/bamboPlatform/actions/workflows/backend-ci.yml)
+
 This backend provides the initial foundation for a smart building management platform built with Python, FastAPI, SQLAlchemy, and SQLite.
 
 ## Features

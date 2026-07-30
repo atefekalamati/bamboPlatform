@@ -47,8 +47,9 @@ Authoritative source:
 | Final closure invalidation | Implemented | Outcome changes reset manager confirmation and reopen stage 19 while preserving all approved snapshots |
 | Approved-source invalidation | Implemented | F01/F02/Floor/DWG/Mission/F03 changes reopen the affected stage and lock downstream work without changing old snapshots |
 | Stage-specific validation for all domains | Implemented | Stages 1-19 and G1-G5 use canonical persisted data rather than client-supplied checklist claims |
-| PostgreSQL configuration | Implemented | psycopg URL, local Compose service, PostgreSQL SQL compilation test |
-| Alembic migrations | Implemented foundation | Revisions 0001-0007, upgrade/downgrade, PostgreSQL compilation, and metadata drift tests |
+| PostgreSQL configuration | Implemented | psycopg URL, local Compose service, and live PostgreSQL 17 integration in GitHub Actions |
+| Alembic migrations | Implemented | Revisions 0001-0007, live PostgreSQL upgrade/check/downgrade/re-upgrade, JSONB verification, SQL compilation, and metadata drift tests |
+| Backend CI | Implemented | Pull requests and pushes to `master` run the complete SQLite suite plus an isolated PostgreSQL service-container job |
 | OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, login/logout tests |
 | Production SMS provider | Blocked by PRD question | Provider company and API limits are not specified |
 | User/Role/Permission | Implemented | Grouped permissions, system roles, assignment and toggle APIs |
@@ -58,7 +59,6 @@ Authoritative source:
 
 ## Remaining MVP backend areas
 
-- Live PostgreSQL integration test in CI or a Docker-enabled environment
 - Approved production OTP/SMS provider adapter and notification templates
 - Product decision and production adapter for DWG storage backend
 - Product-confirmed DWG maximum size and optional malware/deeper file validation
