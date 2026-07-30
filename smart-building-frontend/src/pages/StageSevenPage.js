@@ -176,13 +176,24 @@ const floorCaptureForm = ({ floor, state, disabled, onChange }) => {
     );
     const failureInvalid = unresolved && !values.failureReason;
     failureReason.setAttribute("aria-invalid", String(failureInvalid));
-    const dateInvalid =
+    const completed = values.captureState === "completed";
+    let checklistValid = true;
+    checklistItems.forEach(({ checkbox, item }) => {
+      const invalid = completed && !checkbox.checked;
+      item.classList.toggle("checklist__item--invalid", invalid);
+      checklistValid = checklistValid && !invalid;
+    });
+    const missingCompletedTime =
+      completed &&
+      (!values.captureStartedAt || !values.captureFinishedAt);
+    const invalidTimeOrder =
       values.captureStartedAt &&
       values.captureFinishedAt &&
       new Date(values.captureFinishedAt) < new Date(values.captureStartedAt);
+    const dateInvalid = missingCompletedTime || invalidTimeOrder;
     startedAt.setAttribute("aria-invalid", String(dateInvalid));
     finishedAt.setAttribute("aria-invalid", String(dateInvalid));
-    return !failureInvalid && !dateInvalid;
+    return !failureInvalid && !dateInvalid && checklistValid;
   };
 
   const validateForSubmit = () => {

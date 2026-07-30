@@ -51,7 +51,7 @@ const renderDetails = (container, stage) => {
     metadata,
   );
   if (
-    [1, 2, 3, 4, 5, 6, 7].includes(stage.number) &&
+    [1, 2, 3, 4, 5, 6, 7, 8].includes(stage.number) &&
     ["open", "submitted", "needs_revision", "approved"].includes(stage.status)
   ) {
     const action = element(
