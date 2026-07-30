@@ -77,4 +77,29 @@ export const missionService = Object.freeze({
       method: "PUT",
       body: JSON.stringify(f03Payload(values)),
     }),
+  saveFloorCapture: (missionId, floorId, values) =>
+    request(`/missions/${missionId}/floors/${floorId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        capture_state: values.captureState,
+        correct_floor: values.correctFloor,
+        start_point_confirmed: values.startPointConfirmed,
+        main_capture_started: values.mainCaptureStarted,
+        continuous_route: values.continuousRoute,
+        coverage_completed: values.coverageCompleted,
+        capture_finished: values.captureFinished,
+        saved_in_main_app: values.savedInMainApp,
+        capture_started_at: values.captureStartedAt
+          ? new Date(values.captureStartedAt).toISOString()
+          : null,
+        capture_finished_at: values.captureFinishedAt
+          ? new Date(values.captureFinishedAt).toISOString()
+          : null,
+        main_upload_started: values.mainUploadStarted,
+        main_upload_completed: values.mainUploadCompleted,
+        correct_floor_link: values.correctFloorLink,
+        operations_notified: values.operationsNotified,
+        failure_reason: values.failureReason || null,
+      }),
+    }),
 });
