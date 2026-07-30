@@ -1,5 +1,7 @@
 # Smart Building Backend
 
+[![Backend CI](https://github.com/atefekalamati/bamboPlatform/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/atefekalamati/bamboPlatform/actions/workflows/backend-ci.yml)
+
 This backend provides the initial foundation for a smart building management platform built with Python, FastAPI, SQLAlchemy, and SQLite.
 
 ## Features
@@ -32,8 +34,3 @@ pytest -q
 
 ## Notes
 The project documentation file BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md remains the product/requirements reference for the platform.
-
-## Contributors
-
-- [Your Name](https://github.com/your-username) — Backend and project management
-- [Frontend Developer](https://github.com/frontend-username) — Frontend development

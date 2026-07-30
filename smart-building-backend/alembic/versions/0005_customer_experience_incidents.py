@@ -20,6 +20,9 @@ json_type = sa.JSON().with_variant(postgresql.JSONB(), "postgresql")
 
 
 def upgrade() -> None:
+    # Alembic creates version_num as VARCHAR(32) by default. This revision ID is
+    # longer, so PostgreSQL needs the metadata column widened before Alembic
+    # records the completed revision.
     if op.get_bind().dialect.name == "postgresql":
         op.alter_column(
             "alembic_version",

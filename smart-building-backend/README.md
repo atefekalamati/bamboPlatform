@@ -6,6 +6,9 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
 ## Implemented
 
 - FastAPI application and OpenAPI documentation
+- GitHub Actions CI for every pull request and push to `master`
+- Live PostgreSQL migration, schema-drift, JSONB, persistence, and reversible
+  migration checks in CI
 - PostgreSQL production configuration with psycopg
 - Alembic schema migrations and PostgreSQL JSONB storage
 - SQLite-isolated unit and migration tests
@@ -178,6 +181,22 @@ maximum file size.
 ```powershell
 python -m pytest -q
 ```
+
+The regular suite uses isolated SQLite databases. The PostgreSQL integration
+test runs when `POSTGRES_TEST_DATABASE_URL` is set and otherwise reports a
+deliberate skip:
+
+```powershell
+$env:DATABASE_URL = "postgresql+psycopg://bambo:bambo@localhost:5432/bambo"
+$env:POSTGRES_TEST_DATABASE_URL = $env:DATABASE_URL
+python -m alembic upgrade head
+python -m alembic check
+python -m pytest tests/test_postgres_integration.py -q
+```
+
+The `Backend CI` workflow runs both suites and verifies that the complete
+Alembic chain can downgrade to `base`, upgrade back to `head`, and finish
+without schema drift on PostgreSQL 17.
 
 Production schema changes must be made through Alembic. The application does
 not call `create_all` for PostgreSQL. SQLite schema creation remains available
