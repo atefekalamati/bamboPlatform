@@ -38,7 +38,7 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0008_incident_unique_cleanup"
+            == "0009_incident_unique_cleanup"
         )
     engine.dispose()
 
@@ -63,5 +63,5 @@ def test_initial_migration_compiles_for_postgresql(monkeypatch):
     assert "CREATE TABLE pilots" in sql
     assert "CREATE TABLE pilot_stages" in sql
     assert "JSONB" in sql
-    assert "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64)" in sql
+    assert "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)" in sql
     assert "ALTER TABLE incidents DROP CONSTRAINT incidents_code_key" in sql

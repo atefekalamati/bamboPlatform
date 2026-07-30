@@ -36,6 +36,19 @@ def test_health_endpoint(client):
     assert response.json() == {"status": "ok"}
 
 
+def test_local_frontend_cors_preflight(client):
+    response = client.options(
+        "/roles",
+        headers={
+            "Origin": "http://localhost:8080",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8080"
+
+
 def test_pilot_api_requires_authentication(client):
     response = client.get("/pilots")
     assert response.status_code == 401

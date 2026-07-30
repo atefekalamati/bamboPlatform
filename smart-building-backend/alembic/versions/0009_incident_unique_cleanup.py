@@ -1,7 +1,7 @@
 """Remove the redundant incident-code unique constraint.
 
-Revision ID: 0008_incident_unique_cleanup
-Revises: 0007_commercial_final_outcome
+Revision ID: 0009_incident_unique_cleanup
+Revises: 0008_floor_dwg_reference
 Create Date: 2026-07-30
 """
 
@@ -9,8 +9,8 @@ from typing import Sequence
 
 from alembic import op
 
-revision: str = "0008_incident_unique_cleanup"
-down_revision: str | None = "0007_commercial_final_outcome"
+revision: str = "0009_incident_unique_cleanup"
+down_revision: str | None = "0008_floor_dwg_reference"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

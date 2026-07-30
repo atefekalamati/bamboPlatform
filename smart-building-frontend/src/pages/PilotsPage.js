@@ -1,0 +1,167 @@
+import { sessionStore } from "../app/sessionStore.js";
+import { EmptyState } from "../components/EmptyState.js";
+import { Modal } from "../components/Modal.js";
+import { Pagination } from "../components/Pagination.js";
+import { PilotCard } from "../components/PilotCard.js";
+import { PilotForm } from "../components/PilotForm.js";
+import { pilotService } from "../services/pilotService.js";
+import { debounce } from "../utils/debounce.js";
+import { normalizeDigits } from "../utils/phoneNumber.js";
+
+const PAGE_SIZE = 20;
+const STATUS_OPTIONS = Object.freeze([
+  { value: "", label: "همه وضعیت‌ها" },
+  { value: "candidate", label: "نامزد پایلوت" },
+  { value: "active", label: "فعال" },
+  { value: "converted", label: "تبدیل‌شده" },
+  { value: "closed", label: "بسته‌شده" },
+]);
+
+const element = (tag, className, text = "") => {
+  const node = document.createElement(tag);
+  node.className = className;
+  node.textContent = text;
+  return node;
+};
+
+const matches = (pilot, query, status) => {
+  const normalized = normalizeDigits(query).trim().toLocaleLowerCase("fa-IR");
+  const queryMatches =
+    !normalized ||
+    [pilot.code, pilot.displayName, pilot.projectSystemName].some((value) =>
+      value.toLocaleLowerCase("fa-IR").includes(normalized),
+    );
+  return queryMatches && (!status || pilot.status === status);
+};
+
+export const PilotsPage = () => {
+  const page = element("div", "page");
+  const heading = element("header", "page-heading");
+  const toolbar = element("div", "pilot-toolbar");
+  const searchGroup = element("div", "filter-field");
+  const statusGroup = element("div", "filter-field");
+  const searchLabel = element("label", "filter-field__label", "جست‌وجو");
+  const statusLabel = element("label", "filter-field__label", "وضعیت");
+  const search = document.createElement("input");
+  const status = document.createElement("select");
+  const create = element("button", "button button--primary", "ایجاد پرونده");
+  const region = element("section", "pilots-region");
+  const canCreate = sessionStore
+    .getCurrentUser()
+    ?.permissions.includes("pilots.create");
+  let pilots = [];
+  let currentPage = 1;
+
+  heading.append(
+    element("p", "page-heading__eyebrow", "مدیریت فرایند"),
+    element("h1", "page-heading__title", "پرونده‌های پایلوت"),
+    element(
+      "p",
+      "page-heading__description",
+      "پرونده‌های واقعی پروژه و مرحله جاری آن‌ها را مشاهده و مدیریت کنید.",
+    ),
+  );
+  searchLabel.htmlFor = "pilot-search";
+  search.id = "pilot-search";
+  search.className = "filter-field__control";
+  search.type = "search";
+  search.placeholder = "کد، نام پروژه یا نام سیستمی";
+  statusLabel.htmlFor = "pilot-status";
+  status.id = "pilot-status";
+  status.className = "filter-field__control";
+  STATUS_OPTIONS.forEach(({ value, label }) =>
+    status.append(new Option(label, value)),
+  );
+  create.type = "button";
+  create.hidden = !canCreate;
+  searchGroup.append(searchLabel, search);
+  statusGroup.append(statusLabel, status);
+  toolbar.append(searchGroup, statusGroup, create);
+  region.setAttribute("aria-live", "polite");
+
+  const renderError = (message, retry) => {
+    const state = element("div", "error-state");
+    const button = element("button", "button button--primary", "تلاش مجدد");
+    button.type = "button";
+    button.addEventListener("click", retry);
+    state.append(element("p", "error-state__message", message), button);
+    region.replaceChildren(state);
+  };
+
+  const render = () => {
+    const filtered = pilots.filter((pilot) =>
+      matches(pilot, search.value, status.value),
+    );
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    currentPage = Math.min(currentPage, totalPages);
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const visible = filtered.slice(start, start + PAGE_SIZE);
+    if (!visible.length) {
+      region.replaceChildren(
+        EmptyState({
+          title: "پرونده‌ای پیدا نشد",
+          description: "فیلترها را تغییر دهید یا یک پرونده جدید ایجاد کنید.",
+        }),
+      );
+      return;
+    }
+    const list = element("ul", "pilot-list");
+    visible.forEach((pilot) => list.append(PilotCard({ pilot })));
+    region.replaceChildren(
+      element("p", "results-count", `${filtered.length} پرونده`),
+      list,
+    );
+    if (totalPages > 1) {
+      region.append(
+        Pagination({
+          activePage: currentPage,
+          totalPages,
+          onPageChange: (pageNumber) => {
+            currentPage = pageNumber;
+            render();
+          },
+        }),
+      );
+    }
+  };
+
+  const load = async () => {
+    region.replaceChildren(
+      element("p", "loading-state", "در حال دریافت پرونده‌ها..."),
+    );
+    try {
+      pilots = await pilotService.getPilots();
+      render();
+    } catch (error) {
+      renderError(error.message ?? "دریافت پرونده‌ها انجام نشد.", load);
+    }
+  };
+
+  const openCreateForm = () => {
+    let modal;
+    const form = PilotForm({
+      onSubmit: async (values) => {
+        const created = await pilotService.createPilot(values);
+        modal.close();
+        window.location.hash = `#/pilots/${created.id}`;
+      },
+      onCancel: () => modal.close(),
+    });
+    modal = Modal({
+      title: "ایجاد پرونده پایلوت",
+      content: form,
+      triggerElement: create,
+    });
+  };
+
+  const refresh = debounce(() => {
+    currentPage = 1;
+    render();
+  }, 300);
+  search.addEventListener("input", refresh);
+  status.addEventListener("change", refresh);
+  create.addEventListener("click", openCreateForm);
+  page.append(heading, toolbar, region);
+  load();
+  return page;
+};

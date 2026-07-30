@@ -48,7 +48,7 @@ Authoritative source:
 | Approved-source invalidation | Implemented | F01/F02/Floor/DWG/Mission/F03 changes reopen the affected stage and lock downstream work without changing old snapshots |
 | Stage-specific validation for all domains | Implemented | Stages 1-19 and G1-G5 use canonical persisted data rather than client-supplied checklist claims |
 | PostgreSQL configuration | Implemented | psycopg URL, local Compose service, and live PostgreSQL 17 integration in GitHub Actions |
-| Alembic migrations | Implemented | Revisions 0001-0008, live PostgreSQL upgrade/check/downgrade/re-upgrade, JSONB verification, SQL compilation, and metadata drift tests |
+| Alembic migrations | Implemented | Revisions 0001-0009, live PostgreSQL upgrade/check/downgrade/re-upgrade, JSONB verification, SQL compilation, and metadata drift tests |
 | Backend CI | Implemented | Pull requests and pushes to `master` run the complete SQLite suite plus an isolated PostgreSQL service-container job |
 | OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, login/logout tests |
 | Production SMS provider | Blocked by PRD question | Provider company and API limits are not specified |

@@ -39,6 +39,14 @@ def get_bootstrap_super_admin_mobile() -> str | None:
     return os.getenv("BOOTSTRAP_SUPER_ADMIN_MOBILE")
 
 
+def get_cors_origins() -> list[str]:
+    configured = os.getenv(
+        "CORS_ORIGINS",
+        "http://127.0.0.1:8080,http://localhost:8080",
+    )
+    return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+
 def get_dwg_storage_root() -> Path:
     return Path(os.getenv("DWG_STORAGE_ROOT", "./storage/dwg")).resolve()
 

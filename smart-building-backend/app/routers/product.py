@@ -20,12 +20,14 @@ from app.models import (
 from app.schemas.product import (
     DwgVersionRead,
     FloorCreate,
+    FloorDwgReferenceUpdate,
     FloorRead,
     FormF01Read,
     FormF01Update,
     FormF02Read,
     FormF02Update,
 )
+from app.models.product import utc_now as product_utc_now
 from app.services.security import AuthContext, add_audit_log, require_permission
 from app.services.workflow import invalidate_from_stage
 from app.storage.dwg import (
@@ -178,7 +180,7 @@ def upsert_f02(
         invalidate_from_stage(
             db,
             pilot,
-            3,
+            4,
             actor_user_id=context.user.id,
             reason="F02 updated",
         )
@@ -198,6 +200,7 @@ def upsert_f02(
 
 def floor_read(floor: Floor) -> FloorRead:
     versions = floor.dwg_file.versions if floor.dwg_file else []
+    has_readable_dwg = bool(versions and versions[-1].is_readable)
     return FloorRead(
         id=floor.id,
         project_id=floor.project_id,
@@ -206,7 +209,13 @@ def floor_read(floor: Floor) -> FloorRead:
         level_order=floor.level_order,
         floor_type=floor.floor_type,
         has_dwg=bool(versions),
+        has_valid_dwg=has_readable_dwg or floor.dwg_reference_confirmed,
         latest_dwg_version=versions[-1].version if versions else None,
+        dwg_reference_confirmed=floor.dwg_reference_confirmed,
+        dwg_reference_confirmed_at=floor.dwg_reference_confirmed_at,
+        dwg_reference_confirmed_by_user_id=(
+            floor.dwg_reference_confirmed_by_user_id
+        ),
     )
 
 
@@ -270,6 +279,97 @@ def list_floors(
 ) -> list[FloorRead]:
     pilot = get_pilot(db, pilot_id)
     return [floor_read(floor) for floor in pilot.project.floors]
+
+
+@router.put("/floors/{floor_id}/dwg-reference", response_model=FloorRead)
+def update_floor_dwg_reference(
+    floor_id: int,
+    payload: FloorDwgReferenceUpdate,
+    context: AuthContext = Depends(require_permission("dwg.manage")),
+    db: Session = Depends(get_db),
+) -> FloorRead:
+    floor = db.get(Floor, floor_id)
+    if not floor:
+        raise SecurityError("FLOOR_NOT_FOUND", "طبقه پیدا نشد.", 404, [])
+
+    previous = floor.dwg_reference_confirmed
+    floor.dwg_reference_confirmed = payload.confirmed
+    floor.dwg_reference_confirmed_at = (
+        product_utc_now() if payload.confirmed else None
+    )
+    floor.dwg_reference_confirmed_by_user_id = (
+        context.user.id if payload.confirmed else None
+    )
+    invalidate_from_stage(
+        db,
+        floor.project.pilot,
+        3,
+        actor_user_id=context.user.id,
+        reason=f"DWG reference confirmation changed for {floor.code}",
+    )
+    add_audit_log(
+        db,
+        action="floors.dwg_reference_updated",
+        entity_type="Floor",
+        entity_id=floor.id,
+        actor_user_id=context.user.id,
+        old_data={"confirmed": previous},
+        new_data={"confirmed": payload.confirmed},
+        session_id=context.session.id,
+    )
+    db.commit()
+    db.refresh(floor)
+    return floor_read(floor)
+
+
+@router.delete("/floors/{floor_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_floor(
+    floor_id: int,
+    context: AuthContext = Depends(require_permission("dwg.manage")),
+    db: Session = Depends(get_db),
+) -> None:
+    floor = db.get(Floor, floor_id)
+    if not floor:
+        raise SecurityError("FLOOR_NOT_FOUND", "طبقه پیدا نشد.", 404, [])
+    if floor.mission_states:
+        raise SecurityError(
+            "FLOOR_HAS_MISSIONS",
+            "این طبقه در یک یا چند مأموریت استفاده شده و قابل حذف نیست.",
+            409,
+            [{"mission_id": item.mission_id} for item in floor.mission_states],
+        )
+
+    pilot = floor.project.pilot
+    storage_keys = [
+        version.storage_key
+        for version in (floor.dwg_file.versions if floor.dwg_file else [])
+    ]
+    floor_data = {
+        "code": floor.code,
+        "name": floor.name,
+        "level_order": floor.level_order,
+        "dwg_versions": len(storage_keys),
+    }
+    invalidate_from_stage(
+        db,
+        pilot,
+        3,
+        actor_user_id=context.user.id,
+        reason=f"Floor {floor.code} deleted",
+    )
+    add_audit_log(
+        db,
+        action="floors.deleted",
+        entity_type="Floor",
+        entity_id=floor.id,
+        actor_user_id=context.user.id,
+        old_data=floor_data,
+        session_id=context.session.id,
+    )
+    db.delete(floor)
+    db.commit()
+    for storage_key in storage_keys:
+        delete_storage_key(storage_key)
 
 
 @router.post(

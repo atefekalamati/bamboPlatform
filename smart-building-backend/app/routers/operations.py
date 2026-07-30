@@ -7,6 +7,7 @@ from app.database import get_db
 from app.exceptions import SecurityError
 from app.models import Mission, Pilot, User
 from app.schemas.operations import (
+    CaptureExpertRead,
     FormF03Read,
     FormF03Update,
     MissionCreate,
@@ -52,6 +53,24 @@ def _require_mission_access(user: User, mission: Mission) -> None:
             403,
             [],
         )
+
+
+@router.get(
+    "/missions/capture-experts",
+    response_model=list[CaptureExpertRead],
+)
+def list_capture_experts(
+    context: AuthContext = Depends(require_permission("missions.manage")),
+    db: Session = Depends(get_db),
+) -> list[User]:
+    _require_coordinator(context.user)
+    return (
+        db.query(User)
+        .filter(User.is_active.is_(True), User.locked_at.is_(None))
+        .filter(User.roles.any(name="capture_expert", is_active=True))
+        .order_by(User.display_name, User.id)
+        .all()
+    )
 
 
 @router.post(

@@ -35,6 +35,8 @@ def test_project_and_dwg_openapi_contract():
         "/pilots/{pilot_id}/forms/f01",
         "/pilots/{pilot_id}/forms/f02",
         "/pilots/{pilot_id}/floors",
+        "/floors/{floor_id}",
+        "/floors/{floor_id}/dwg-reference",
         "/floors/{floor_id}/dwg",
         "/floors/{floor_id}/dwg/versions",
         "/dwg/versions/{version_id}/download",
@@ -91,6 +93,57 @@ def test_project_and_f01_are_canonical_stage_data(client, super_admin_headers):
     assert any(
         error["field"] == "checklist.imaging_value" for error in rejected.json()["errors"]
     )
+
+
+def test_stage_three_accepts_audited_dwg_reference_without_upload(
+    client, super_admin_headers
+):
+    pilot = create_pilot(client, super_admin_headers, total_floors=2)
+    pilot_id = pilot["id"]
+    save_valid_f01(client, pilot_id, super_admin_headers)
+    submit_and_approve(client, pilot_id, 1, super_admin_headers)
+    submit_and_approve(client, pilot_id, 2, super_admin_headers)
+
+    floors = []
+    for index in range(2):
+        floor = client.post(
+            f"/pilots/{pilot_id}/floors",
+            json={
+                "code": f"F{index + 1:02d}",
+                "name": f"طبقه {index + 1}",
+                "level_order": index,
+                "floor_type": "non_typical",
+            },
+            headers=super_admin_headers,
+        ).json()
+        floors.append(floor)
+        confirmed = client.put(
+            f"/floors/{floor['id']}/dwg-reference",
+            json={"confirmed": True},
+            headers=super_admin_headers,
+        )
+        assert confirmed.status_code == 200
+        assert confirmed.json()["has_dwg"] is False
+        assert confirmed.json()["has_valid_dwg"] is True
+        assert confirmed.json()["dwg_reference_confirmed"] is True
+        assert confirmed.json()["dwg_reference_confirmed_at"]
+        assert confirmed.json()["dwg_reference_confirmed_by_user_id"]
+
+    stage_3 = submit_and_approve(client, pilot_id, 3, super_admin_headers)
+    snapshot_floors = stage_3["snapshot"]["content"]["submission"]["form_data"][
+        "floors"
+    ]
+    assert all(item["has_valid_dwg"] for item in snapshot_floors)
+    assert all(
+        item["dwg_source"] == "main_platform_or_unavailable"
+        for item in snapshot_floors
+    )
+
+    audit = client.get("/audit", headers=super_admin_headers).json()
+    assert sum(
+        item["action"] == "floors.dwg_reference_updated"
+        for item in audit
+    ) == 2
 
 
 def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admin_headers):
@@ -172,6 +225,7 @@ def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admi
         "PIL-1405-001_F01_V01_"
     )
 
+
     duplicate = client.post(
         f"/floors/{floors[0]['id']}/dwg",
         files={"file": ("duplicate.dwg", first_content, "application/octet-stream")},
@@ -232,6 +286,33 @@ def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admi
         "status"
     ] == "passed"
 
+    revised_f02 = client.put(
+        f"/pilots/{pilot_id}/forms/f02",
+        json={
+            "information_package": "بسته اطلاعاتی کامل",
+            "contacts_summary": "مالک و هماهنگ‌کننده",
+            "progress_status": "آماده برداشت",
+            "main_project_registered": True,
+            "floor_order_confirmed": True,
+            "typical_floors_identified": True,
+            "plan_connections_registered": True,
+            "start_point_registered": True,
+            "expert_access_tested": True,
+            "main_app_display_tested": True,
+            "ready_for_capture": True,
+            "ambiguity": "بازبینی مجدد F02",
+        },
+        headers=super_admin_headers,
+    )
+    assert revised_f02.status_code == 200
+    reopened_stage_4 = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert reopened_stage_4["current_stage"] == 4
+    assert reopened_stage_4["stages"][2]["status"] == "approved"
+    assert reopened_stage_4["stages"][3]["status"] == "needs_revision"
+
     revised_dwg = client.post(
         f"/floors/{floors[0]['id']}/dwg",
         files={
@@ -264,6 +345,48 @@ def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admi
             headers=super_admin_headers,
         ).json()
     ) == 1
+
+
+def test_floor_delete_removes_dwg(client, super_admin_headers):
+    pilot = create_pilot(client, super_admin_headers, total_floors=2)
+    floor = client.post(
+        f"/pilots/{pilot['id']}/floors",
+        json={
+            "code": "F01",
+            "name": "طبقه قابل حذف",
+            "level_order": 0,
+            "floor_type": "non_typical",
+        },
+        headers=super_admin_headers,
+    ).json()
+    version = client.post(
+        f"/floors/{floor['id']}/dwg",
+        files={
+            "file": (
+                "delete-me.dwg",
+                b"AC1032-delete-me",
+                "application/octet-stream",
+            )
+        },
+        headers=super_admin_headers,
+    )
+    assert version.status_code == 201
+    deleted = client.delete(
+        f"/floors/{floor['id']}",
+        headers=super_admin_headers,
+    )
+    assert deleted.status_code == 204
+    assert client.get(
+        f"/floors/{floor['id']}/dwg/versions",
+        headers=super_admin_headers,
+    ).status_code == 404
+    assert list(get_dwg_storage_root().rglob("*.dwg")) == []
+    audit = client.get("/audit", headers=super_admin_headers).json()
+    assert any(
+        item["action"] == "floors.deleted"
+        and item["old_data"]["code"] == "F01"
+        for item in audit
+    )
 
 
 def test_dwg_size_limit_cleans_temporary_file(client, super_admin_headers, monkeypatch):

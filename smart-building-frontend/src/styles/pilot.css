@@ -1,0 +1,218 @@
+.pilot-toolbar {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.pilot-form {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.pilot-form textarea {
+  min-height: 6rem;
+  padding-block: var(--space-3);
+  resize: vertical;
+}
+
+.filter-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.filter-field__label {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.filter-field__control {
+  min-height: 3rem;
+  padding-inline: var(--space-3);
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.pilots-region {
+  display: grid;
+  gap: var(--space-4);
+  min-height: 12rem;
+}
+
+.pilot-list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.pilot-card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.pilot-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pilot-card__identity {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pilot-card__code,
+.pilot-card__metadata-label,
+.pilot-card__progress-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.pilot-card__title {
+  font-size: var(--font-size-lg);
+}
+
+.pilot-card__progress {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.pilot-card__progress-bar {
+  width: 100%;
+  height: var(--space-2);
+  accent-color: var(--color-brand-primary);
+}
+
+.pilot-card__metadata {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.pilot-card__metadata-item {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pilot-card__metadata-value {
+  margin: 0;
+  font-weight: 700;
+}
+
+.sla-badge {
+  justify-self: start;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.sla-badge--on_track {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary-strong);
+}
+
+.sla-badge--at_risk {
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.sla-badge--overdue {
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.pilot-card__details-link,
+.back-link {
+  justify-self: start;
+  text-decoration: none;
+}
+
+.back-link {
+  color: var(--color-focus);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.pilot-details {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.pilot-details__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.pilot-details__identity {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.pilot-details__code {
+  color: var(--color-brand-primary-strong);
+  font-weight: 700;
+}
+
+.pilot-summary {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.pilot-summary__item {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.pilot-summary__label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.pilot-summary__value {
+  margin: 0;
+  font-weight: 700;
+}
+
+.error-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+@media (min-width: 48rem) {
+  .pilot-toolbar {
+    grid-template-columns: minmax(16rem, 2fr) minmax(12rem, 1fr) auto;
+    align-items: end;
+  }
+
+  .pilot-card__metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pilot-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .pilot-summary {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}

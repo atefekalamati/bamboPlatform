@@ -28,7 +28,7 @@ def upgrade() -> None:
             "alembic_version",
             "version_num",
             existing_type=sa.String(length=32),
-            type_=sa.String(length=64),
+            type_=sa.String(length=128),
             existing_nullable=False,
         )
 

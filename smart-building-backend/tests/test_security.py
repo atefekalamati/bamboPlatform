@@ -204,3 +204,59 @@ def test_production_rejects_unconfigured_otp_provider(client, monkeypatch):
     assert response.status_code == 503
     assert response.json()["code"] == "OTP_PROVIDER_UNAVAILABLE"
     assert "debug_code" not in response.json()
+
+
+def test_custom_role_can_be_deleted_only_when_unassigned(
+    client, super_admin_headers
+):
+    role = client.post(
+        "/roles",
+        json={"name": "temporary_role", "display_name": "نقش موقت"},
+        headers=super_admin_headers,
+    ).json()
+    user = client.post(
+        "/users",
+        json={
+            "mobile": "09159999999",
+            "display_name": "کاربر نقش موقت",
+            "role_ids": [role["id"]],
+        },
+        headers=super_admin_headers,
+    )
+    assert user.status_code == 201
+    in_use = client.delete(
+        f"/roles/{role['id']}",
+        headers=super_admin_headers,
+    )
+    assert in_use.status_code == 409
+    assert in_use.json()["code"] == "ROLE_IN_USE"
+
+    cleared = client.put(
+        f"/users/{user.json()['id']}/roles",
+        json={"role_ids": [], "confirmed": True},
+        headers=super_admin_headers,
+    )
+    assert cleared.status_code == 200
+    deleted = client.delete(
+        f"/roles/{role['id']}",
+        headers=super_admin_headers,
+    )
+    assert deleted.status_code == 204
+    audit = client.get("/audit", headers=super_admin_headers).json()
+    assert any(
+        item["action"] == "roles.deleted"
+        and item["old_data"]["name"] == "temporary_role"
+        for item in audit
+    )
+
+    system_role = next(
+        role
+        for role in client.get("/roles", headers=super_admin_headers).json()
+        if role["is_system"]
+    )
+    denied = client.delete(
+        f"/roles/{system_role['id']}",
+        headers=super_admin_headers,
+    )
+    assert denied.status_code == 409
+    assert denied.json()["code"] == "SYSTEM_ROLE_DELETE_DENIED"

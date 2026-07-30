@@ -47,6 +47,14 @@ class MissionCreate(BaseModel):
         return self
 
 
+class CaptureExpertRead(BaseModel):
+    id: int
+    display_name: str
+    mobile: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MissionReschedule(BaseModel):
     expert_user_id: int | None = None
     scheduled_start: datetime | None = None

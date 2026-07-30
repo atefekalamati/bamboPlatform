@@ -120,11 +120,19 @@ class FloorCreate(BaseModel):
         return value.upper()
 
 
+class FloorDwgReferenceUpdate(BaseModel):
+    confirmed: bool
+
+
 class FloorRead(FloorCreate):
     id: int
     project_id: int
     has_dwg: bool = False
+    has_valid_dwg: bool = False
     latest_dwg_version: int | None = None
+    dwg_reference_confirmed: bool = False
+    dwg_reference_confirmed_at: datetime | None = None
+    dwg_reference_confirmed_by_user_id: int | None = None
 
 
 class DwgVersionRead(BaseModel):
