@@ -21,6 +21,7 @@ from app.schemas.security import (
 from app.schemas.product import (
     DwgVersionRead,
     FloorCreate,
+    FloorDwgReferenceUpdate,
     FloorRead,
     FormF01Read,
     FormF01Update,
@@ -110,6 +111,7 @@ __all__ = [
     "PermissionRead",
     "DwgVersionRead",
     "FloorCreate",
+    "FloorDwgReferenceUpdate",
     "FloorRead",
     "FormF01Read",
     "FormF01Update",

@@ -108,8 +108,12 @@ const floorCard = ({
   const identity = element("div", "floor-card__identity");
   const status = element(
     "span",
-    `stage-status stage-status--${floor.hasDwg ? "approved" : "needs_revision"}`,
-    floor.hasDwg ? `DWG نسخه ${floor.latestDwgVersion}` : "بدون DWG",
+    `stage-status stage-status--${floor.hasValidDwg ? "approved" : "needs_revision"}`,
+    floor.hasDwg
+      ? `DWG نسخه ${floor.latestDwgVersion}`
+      : floor.dwgReferenceConfirmed
+        ? "تأییدشده در مرجع اصلی"
+        : "بدون مدرک DWG",
   );
   identity.append(
     element("h3", "floor-card__title", `${floor.code} — ${floor.name}`),
@@ -176,6 +180,55 @@ const floorCard = ({
     controls.append(uploadRow, remove);
     card.append(controls);
   }
+
+  const reference = element(
+    "label",
+    `dwg-reference${floor.dwgReferenceConfirmed ? " dwg-reference--confirmed" : ""}`,
+  );
+  const referenceCheckbox = document.createElement("input");
+  const referenceText = element("span", "dwg-reference__text");
+  referenceCheckbox.type = "checkbox";
+  referenceCheckbox.checked = floor.dwgReferenceConfirmed;
+  referenceCheckbox.disabled = !editable;
+  referenceText.append(
+    element(
+      "strong",
+      "",
+      "فایل DWG در مرجع اصلی موجود است یا فایل در اختیار من نیست.",
+    ),
+    element(
+      "small",
+      "",
+      "با این تأیید، این طبقه بدون آپلود فایل برای عبور Stage 3 معتبر محسوب می‌شود.",
+    ),
+  );
+  referenceCheckbox.addEventListener("change", async () => {
+    const confirmed = referenceCheckbox.checked;
+    if (
+      confirmed &&
+      !window.confirm(
+        `تأیید می‌کنید فایل DWG طبقه ${floor.code} در مرجع اصلی وجود دارد یا در اختیار شما نیست؟`,
+      )
+    ) {
+      referenceCheckbox.checked = false;
+      return;
+    }
+    referenceCheckbox.disabled = true;
+    try {
+      await dwgService.setReferenceConfirmation(floor.id, confirmed);
+      await reload(
+        confirmed
+          ? `وجود DWG مرجع برای ${floor.code} تأیید شد.`
+          : `تأیید DWG مرجع برای ${floor.code} برداشته شد.`,
+      );
+    } catch (error) {
+      referenceCheckbox.checked = !confirmed;
+      referenceCheckbox.disabled = false;
+      feedback.textContent = error.message;
+    }
+  });
+  reference.append(referenceCheckbox, referenceText);
+  card.append(reference);
   card.append(versionList({ versions, canDownload, feedback }));
   return card;
 };
@@ -329,7 +382,9 @@ export const StageThreePage = ({ pilotId }) => {
       const back = element("a", "back-link", "بازگشت به جزئیات پرونده");
       const header = element("header", "stage-workspace__header");
       const identity = element("div", "stage-workspace__identity");
-      const complete = floors.length === pilot.project.totalFloors && floors.every((floor) => floor.hasDwg);
+      const complete =
+        floors.length === pilot.project.totalFloors &&
+        floors.every((floor) => floor.hasValidDwg);
       back.href = `#/pilots/${pilot.id}`;
       identity.append(
         element("span", "page-heading__eyebrow", `${pilot.code} — Stage 3 از ۱۹`),
@@ -337,7 +392,7 @@ export const StageThreePage = ({ pilotId }) => {
         element(
           "p",
           "draft-info",
-          `${floors.length} از ${pilot.project.totalFloors} طبقه ثبت شده · ${floors.filter((floor) => floor.hasDwg).length} DWG معتبر`,
+          `${floors.length} از ${pilot.project.totalFloors} طبقه ثبت شده · ${floors.filter((floor) => floor.hasValidDwg).length} مدرک DWG معتبر`,
         ),
       );
       header.append(
@@ -381,7 +436,8 @@ export const StageThreePage = ({ pilotId }) => {
         submit.hidden = !canSubmit;
         submit.addEventListener("click", async () => {
           if (!complete) {
-            feedback.textContent = "باید تمام طبقات پروژه و برای هر طبقه یک DWG معتبر ثبت شود.";
+            feedback.textContent =
+              "برای تمام طبقات باید فایل DWG آپلود یا وجود آن در مرجع اصلی تأیید شود.";
             content.classList.add("floor-workspace--invalid");
             return;
           }

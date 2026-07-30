@@ -8,7 +8,12 @@ const mapFloor = (floor) => ({
   levelOrder: floor.level_order,
   floorType: floor.floor_type,
   hasDwg: floor.has_dwg,
+  hasValidDwg: floor.has_valid_dwg,
   latestDwgVersion: floor.latest_dwg_version,
+  dwgReferenceConfirmed: floor.dwg_reference_confirmed,
+  dwgReferenceConfirmedAt: floor.dwg_reference_confirmed_at,
+  dwgReferenceConfirmedByUserId:
+    floor.dwg_reference_confirmed_by_user_id,
 });
 
 const mapVersion = (version) => ({
@@ -42,6 +47,13 @@ export const dwgService = Object.freeze({
     ),
   deleteFloor: (floorId) =>
     request(`/floors/${floorId}`, { method: "DELETE" }),
+  setReferenceConfirmation: async (floorId, confirmed) =>
+    mapFloor(
+      await request(`/floors/${floorId}/dwg-reference`, {
+        method: "PUT",
+        body: JSON.stringify({ confirmed }),
+      }),
+    ),
   getVersions: async (floorId) =>
     (await request(`/floors/${floorId}/dwg/versions`)).map(mapVersion),
   upload: async (floorId, file) => {

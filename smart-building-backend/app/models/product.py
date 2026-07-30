@@ -88,6 +88,11 @@ class Floor(Base):
     name = Column(String(120), nullable=False)
     level_order = Column(Integer, nullable=False)
     floor_type = Column(String(24), nullable=False, default="non_typical")
+    dwg_reference_confirmed = Column(Boolean, nullable=False, default=False)
+    dwg_reference_confirmed_at = Column(DateTime, nullable=True)
+    dwg_reference_confirmed_by_user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=True
+    )
     created_at = Column(DateTime, nullable=False, default=utc_now)
     updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
 
@@ -104,6 +109,9 @@ class Floor(Base):
         uselist=False,
     )
     mission_states = relationship("MissionFloor", back_populates="floor")
+    dwg_reference_confirmed_by = relationship(
+        "User", foreign_keys=[dwg_reference_confirmed_by_user_id]
+    )
 
 
 class DwgFile(Base):

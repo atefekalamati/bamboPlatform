@@ -277,6 +277,38 @@ textarea.stage-form__control {
   color: var(--color-danger);
 }
 
+.dwg-reference {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4);
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.dwg-reference--confirmed {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 7%, transparent);
+}
+
+.dwg-reference input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-block-start: var(--space-1);
+  accent-color: var(--color-brand-primary);
+}
+
+.dwg-reference__text {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.dwg-reference__text small {
+  color: var(--color-text-secondary);
+}
+
 .dwg-versions {
   display: grid;
   gap: var(--space-2);

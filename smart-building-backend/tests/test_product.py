@@ -36,6 +36,7 @@ def test_project_and_dwg_openapi_contract():
         "/pilots/{pilot_id}/forms/f02",
         "/pilots/{pilot_id}/floors",
         "/floors/{floor_id}",
+        "/floors/{floor_id}/dwg-reference",
         "/floors/{floor_id}/dwg",
         "/floors/{floor_id}/dwg/versions",
         "/dwg/versions/{version_id}/download",
@@ -92,6 +93,57 @@ def test_project_and_f01_are_canonical_stage_data(client, super_admin_headers):
     assert any(
         error["field"] == "checklist.imaging_value" for error in rejected.json()["errors"]
     )
+
+
+def test_stage_three_accepts_audited_dwg_reference_without_upload(
+    client, super_admin_headers
+):
+    pilot = create_pilot(client, super_admin_headers, total_floors=2)
+    pilot_id = pilot["id"]
+    save_valid_f01(client, pilot_id, super_admin_headers)
+    submit_and_approve(client, pilot_id, 1, super_admin_headers)
+    submit_and_approve(client, pilot_id, 2, super_admin_headers)
+
+    floors = []
+    for index in range(2):
+        floor = client.post(
+            f"/pilots/{pilot_id}/floors",
+            json={
+                "code": f"F{index + 1:02d}",
+                "name": f"طبقه {index + 1}",
+                "level_order": index,
+                "floor_type": "non_typical",
+            },
+            headers=super_admin_headers,
+        ).json()
+        floors.append(floor)
+        confirmed = client.put(
+            f"/floors/{floor['id']}/dwg-reference",
+            json={"confirmed": True},
+            headers=super_admin_headers,
+        )
+        assert confirmed.status_code == 200
+        assert confirmed.json()["has_dwg"] is False
+        assert confirmed.json()["has_valid_dwg"] is True
+        assert confirmed.json()["dwg_reference_confirmed"] is True
+        assert confirmed.json()["dwg_reference_confirmed_at"]
+        assert confirmed.json()["dwg_reference_confirmed_by_user_id"]
+
+    stage_3 = submit_and_approve(client, pilot_id, 3, super_admin_headers)
+    snapshot_floors = stage_3["snapshot"]["content"]["submission"]["form_data"][
+        "floors"
+    ]
+    assert all(item["has_valid_dwg"] for item in snapshot_floors)
+    assert all(
+        item["dwg_source"] == "main_platform_or_unavailable"
+        for item in snapshot_floors
+    )
+
+    audit = client.get("/audit", headers=super_admin_headers).json()
+    assert sum(
+        item["action"] == "floors.dwg_reference_updated"
+        for item in audit
+    ) == 2
 
 
 def test_dwg_security_versioning_g2_and_snapshot_preservation(client, super_admin_headers):

@@ -239,9 +239,29 @@ def _canonical_submission_data(
                 "code": floor.code,
                 "name": floor.name,
                 "has_valid_dwg": bool(
-                    floor.dwg_file
+                    (
+                        floor.dwg_file
+                        and floor.dwg_file.versions
+                        and floor.dwg_file.versions[-1].is_readable
+                    )
+                    or floor.dwg_reference_confirmed
+                ),
+                "dwg_source": (
+                    "uploaded"
+                    if floor.dwg_file
                     and floor.dwg_file.versions
                     and floor.dwg_file.versions[-1].is_readable
+                    else "main_platform_or_unavailable"
+                    if floor.dwg_reference_confirmed
+                    else None
+                ),
+                "dwg_reference_confirmed_at": (
+                    floor.dwg_reference_confirmed_at.isoformat()
+                    if floor.dwg_reference_confirmed_at
+                    else None
+                ),
+                "dwg_reference_confirmed_by_user_id": (
+                    floor.dwg_reference_confirmed_by_user_id
                 ),
                 "latest_version": (
                     floor.dwg_file.versions[-1].version
