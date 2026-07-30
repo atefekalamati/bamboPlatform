@@ -2,9 +2,15 @@ name: Backend CI
 
 on:
   pull_request:
+    paths:
+      - "smart-building-backend/**"
+      - ".github/workflows/backend-ci.yml"
   push:
     branches:
       - master
+    paths:
+      - "smart-building-backend/**"
+      - ".github/workflows/backend-ci.yml"
   workflow_dispatch:
 
 permissions:
