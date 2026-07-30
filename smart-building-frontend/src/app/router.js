@@ -12,6 +12,7 @@ import { StageFivePage } from "../pages/StageFivePage.js";
 import { StageSixPage } from "../pages/StageSixPage.js";
 import { StageSevenPage } from "../pages/StageSevenPage.js";
 import { StageEightPage } from "../pages/StageEightPage.js";
+import { StageNinePage } from "../pages/StageNinePage.js";
 import { UsersPage } from "../pages/UsersPage.js";
 import {
   canLeaveCurrentPage,
@@ -63,6 +64,16 @@ const resolveRoute = (currentRoute) => {
   const stageEightMatch = currentRoute.match(
     /^#\/pilots\/([^/]+)\/stages\/8$/,
   );
+  const stageNineMatch = currentRoute.match(
+    /^#\/pilots\/([^/]+)\/stages\/9$/,
+  );
+
+  if (stageNineMatch) {
+    return {
+      page: StageNinePage({ pilotId: stageNineMatch[1] }),
+      navigationRoute: ROUTES.pilots,
+    };
+  }
 
   if (stageEightMatch) {
     return {
