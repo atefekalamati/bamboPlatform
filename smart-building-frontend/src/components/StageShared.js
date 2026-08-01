@@ -42,6 +42,7 @@ export const StageReviewPanel = ({
   canApprove,
   canReject,
   reload,
+  onApproved,
 }) => {
   const panel = stageElement("section", "stage-review");
   const comment = document.createElement("textarea");
@@ -68,8 +69,16 @@ export const StageReviewPanel = ({
   approve.addEventListener("click", async () => {
     approve.disabled = true;
     try {
-      await stageService.approve(pilotId, stageNumber, comment.value.trim());
-      await reload(approvedNotice);
+      const result = await stageService.approve(
+        pilotId,
+        stageNumber,
+        comment.value.trim(),
+      );
+      if (onApproved) {
+        await onApproved(result);
+      } else {
+        await reload(approvedNotice);
+      }
     } catch (error) {
       feedback.textContent = error.message;
       approve.disabled = false;

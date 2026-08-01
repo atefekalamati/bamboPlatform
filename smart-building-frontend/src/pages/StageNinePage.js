@@ -410,6 +410,16 @@ export const StageNinePage = ({ pilotId }) => {
             canApprove,
             canReject,
             reload: load,
+            onApproved: async () => {
+              const refreshedPilot = await pilotService.getPilotById(pilot.id);
+              if (refreshedPilot.currentStage === 10) {
+                window.location.hash = `#/pilots/${pilot.id}/stages/10`;
+                return;
+              }
+              await load(
+                "Stage 9 تأیید شد، اما Stage 10 هنوز از سمت سرور فعال نشده است.",
+              );
+            },
           }),
         );
       }

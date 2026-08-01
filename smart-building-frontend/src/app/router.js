@@ -13,6 +13,9 @@ import { StageSixPage } from "../pages/StageSixPage.js";
 import { StageSevenPage } from "../pages/StageSevenPage.js";
 import { StageEightPage } from "../pages/StageEightPage.js";
 import { StageNinePage } from "../pages/StageNinePage.js";
+import { StageTenPage } from "../pages/StageTenPage.js";
+import { StageElevenPage } from "../pages/StageElevenPage.js";
+import { StageTwelvePage } from "../pages/StageTwelvePage.js";
 import { UsersPage } from "../pages/UsersPage.js";
 import {
   canLeaveCurrentPage,
@@ -67,6 +70,36 @@ const resolveRoute = (currentRoute) => {
   const stageNineMatch = currentRoute.match(
     /^#\/pilots\/([^/]+)\/stages\/9$/,
   );
+  const stageTenMatch = currentRoute.match(
+    /^#\/pilots\/([^/]+)\/stages\/10$/,
+  );
+  const stageElevenMatch = currentRoute.match(
+    /^#\/pilots\/([^/]+)\/stages\/11$/,
+  );
+  const stageTwelveMatch = currentRoute.match(
+    /^#\/pilots\/([^/]+)\/stages\/12$/,
+  );
+
+  if (stageTwelveMatch) {
+    return {
+      page: StageTwelvePage({ pilotId: stageTwelveMatch[1] }),
+      navigationRoute: ROUTES.pilots,
+    };
+  }
+
+  if (stageElevenMatch) {
+    return {
+      page: StageElevenPage({ pilotId: stageElevenMatch[1] }),
+      navigationRoute: ROUTES.pilots,
+    };
+  }
+
+  if (stageTenMatch) {
+    return {
+      page: StageTenPage({ pilotId: stageTenMatch[1] }),
+      navigationRoute: ROUTES.pilots,
+    };
+  }
 
   if (stageNineMatch) {
     return {
