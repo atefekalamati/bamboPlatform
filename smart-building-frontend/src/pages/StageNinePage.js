@@ -117,17 +117,17 @@ const uploadForm = ({ floor, state, disabled, onChange }) => {
 };
 
 const normalizedTime = (value) =>
-  value ? new Date(value).toISOString() : null;
+  value ? new Date(backendUtcTime(value)).toISOString() : null;
 
 const missionTimes = (mission) => {
   const starts = mission.floorStates
     .map(({ capture_started_at: value }) => value)
     .filter(Boolean)
-    .map((value) => new Date(value));
+    .map((value) => new Date(backendUtcTime(value)));
   const finishes = mission.floorStates
     .map(({ capture_finished_at: value }) => value)
     .filter(Boolean)
-    .map((value) => new Date(value));
+    .map((value) => new Date(backendUtcTime(value)));
   return {
     startedAt:
       normalizedTime(mission.formF03.started_at) ??
