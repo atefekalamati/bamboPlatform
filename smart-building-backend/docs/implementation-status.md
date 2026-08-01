@@ -56,6 +56,7 @@ Authoritative source:
 | Backend authorization | Implemented for current APIs | Pilot and workflow routes enforce live session permissions |
 | Privilege escalation protection | Implemented | Delegation and last-Super-Admin security tests |
 | Audit log | Implemented foundation | Auth, RBAC, user, pilot, and stage actions are recorded |
+| Audit pagination/filtering | Implemented | Backward-compatible limit/offset plus exact action, entity, actor, and timezone-aware UTC range filters |
 
 ## Remaining MVP backend areas
 
@@ -64,7 +65,7 @@ Authoritative source:
 - Product-confirmed DWG maximum size and optional malware/deeper file validation
 - Production notification provider, controlled retry, and delivery callbacks
 - Global SLA status calculation, escalation, and reporting
-- Audit pagination/filtering and retention policy
+- Audit retention policy
 
 An item is moved to implemented only when its relevant PRD acceptance criteria
 are covered by executable tests.

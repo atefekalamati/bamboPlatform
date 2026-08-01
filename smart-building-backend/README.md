@@ -134,7 +134,7 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 - `POST /roles`
 - `GET /roles/permissions`
 - `PUT /roles/{id}/permissions`
-- `GET /audit`
+- `GET /audit` (optional pagination and exact filters for action, entity, actor, and UTC range)
 
 ## Run locally
 

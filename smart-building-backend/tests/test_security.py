@@ -134,6 +134,86 @@ def test_sensitive_permission_confirmation_and_last_super_admin(client, super_ad
     assert any(item["action"] == "roles.permissions_updated" for item in audit.json())
 
 
+def test_audit_pagination_and_filters(client, super_admin_headers):
+    me = client.get("/auth/me", headers=super_admin_headers).json()
+    first_role = client.post(
+        "/roles",
+        json={"name": "audit_filter_one", "display_name": "ممیزی یک"},
+        headers=super_admin_headers,
+    )
+    second_role = client.post(
+        "/roles",
+        json={"name": "audit_filter_two", "display_name": "ممیزی دو"},
+        headers=super_admin_headers,
+    )
+    assert first_role.status_code == 201
+    assert second_role.status_code == 201
+
+    filtered = client.get(
+        "/audit",
+        params={
+            "action": "roles.created",
+            "entity_type": "Role",
+            "actor_user_id": me["id"],
+        },
+        headers=super_admin_headers,
+    )
+    assert filtered.status_code == 200
+    filtered_items = filtered.json()
+    created_role_ids = {str(first_role.json()["id"]), str(second_role.json()["id"])}
+    assert created_role_ids.issubset({item["entity_id"] for item in filtered_items})
+    assert all(item["action"] == "roles.created" for item in filtered_items)
+    assert all(item["entity_type"] == "Role" for item in filtered_items)
+    assert all(item["actor_user_id"] == me["id"] for item in filtered_items)
+
+    first_page = client.get(
+        "/audit",
+        params={"action": "roles.created", "limit": 1, "offset": 0},
+        headers=super_admin_headers,
+    )
+    second_page = client.get(
+        "/audit",
+        params={"action": "roles.created", "limit": 1, "offset": 1},
+        headers=super_admin_headers,
+    )
+    assert first_page.status_code == 200
+    assert second_page.status_code == 200
+    assert len(first_page.json()) == len(second_page.json()) == 1
+    assert first_page.json()[0]["id"] > second_page.json()[0]["id"]
+
+    exact_entity = client.get(
+        "/audit",
+        params={"entity_type": "Role", "entity_id": str(first_role.json()["id"])},
+        headers=super_admin_headers,
+    )
+    assert exact_entity.status_code == 200
+    assert exact_entity.json()
+    assert all(
+        item["entity_type"] == "Role"
+        and item["entity_id"] == str(first_role.json()["id"])
+        for item in exact_entity.json()
+    )
+
+    invalid_range = client.get(
+        "/audit",
+        params={
+            "created_from": "2027-01-02T00:00:00+00:00",
+            "created_to": "2027-01-01T00:00:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert invalid_range.status_code == 422
+    assert invalid_range.json()["code"] == "AUDIT_DATE_RANGE_INVALID"
+
+    missing_timezone = client.get(
+        "/audit",
+        params={"created_from": "2027-01-01T00:00:00"},
+        headers=super_admin_headers,
+    )
+    assert missing_timezone.status_code == 422
+    assert missing_timezone.json()["code"] == "AUDIT_TIMEZONE_REQUIRED"
+
+
 def test_delegated_admin_cannot_escalate_privileges(client, super_admin_headers):
     roles = client.get("/roles", headers=super_admin_headers).json()
     super_admin_role_id = next(role["id"] for role in roles if role["name"] == "super_admin")
