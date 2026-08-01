@@ -164,6 +164,14 @@ export const StageSixteenPage = ({ pilotId }) => {
           pilotId: pilot.id, stageNumber: 16, title: "بررسی جلسه جمع‌بندی با مالک",
           approveLabel: "تأیید و ورود به Stage 17", approvedNotice: "Stage 16 تأیید و Stage 17 باز شد.",
           rejectedNotice: "Stage 16 برای اصلاح بازگردانده شد.", canApprove, canReject, reload: load,
+          onApproved: async () => {
+            const refreshedPilot = await pilotService.getPilotById(pilot.id);
+            if (refreshedPilot.currentStage === 17) {
+              window.location.hash = `#/pilots/${pilot.id}/stages/17`;
+              return;
+            }
+            await load("Stage 16 تأیید شد، اما Stage 17 هنوز از سمت سرور فعال نشده است.");
+          },
         }));
       }
       page.append(StageSnapshots({ snapshots, title: "نسخه‌های تأییدشده Stage 16" }));
