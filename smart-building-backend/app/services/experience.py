@@ -43,8 +43,11 @@ ISSUE_ROUTES = {
 }
 
 
-def get_pilot(db: Session, pilot_id: int) -> Pilot:
-    pilot = db.get(Pilot, pilot_id)
+def get_pilot(db: Session, pilot_id: int, *, lock: bool = False) -> Pilot:
+    query = db.query(Pilot).filter(Pilot.id == pilot_id)
+    if lock:
+        query = query.with_for_update()
+    pilot = query.first()
     if not pilot:
         raise SecurityError("PILOT_NOT_FOUND", "پرونده پایلوت پیدا نشد.", 404, [])
     return pilot
@@ -151,7 +154,7 @@ def patch_f04(
     actor_user_id: int,
     session_id: int,
 ) -> FormF04:
-    pilot = get_pilot(db, pilot_id)
+    pilot = get_pilot(db, pilot_id, lock=True)
     if pilot.current_stage < 11:
         raise SecurityError(
             "F04_STAGE_LOCKED",
@@ -160,13 +163,20 @@ def patch_f04(
             [],
         )
     values = payload.model_dump(exclude_unset=True)
+    for field in ("issue_owner_user_id", "customer_success_user_id"):
+        referenced_user_id = values.get(field)
+        if referenced_user_id is not None and referenced_user_id != actor_user_id:
+            raise SecurityError(
+                "F04_ACTOR_REFERENCE_INVALID",
+                "مسئول ثبت‌شده در F04 باید همان کاربر انجام‌دهنده عملیات باشد.",
+                403,
+                [{"field": field, "reason": "must_match_actor"}],
+            )
     users = _active_users(
         db,
         [
             values.get("issue_owner_user_id"),
             values.get("customer_success_user_id"),
-            values.get("sales_user_id"),
-            values.get("pilot_manager_user_id"),
         ],
     )
     form = pilot.form_f04
@@ -296,7 +306,7 @@ def upsert_external_evidence(
             422,
             [{"field": "capability", "reason": "unsupported"}],
         )
-    pilot = get_pilot(db, pilot_id)
+    pilot = get_pilot(db, pilot_id, lock=True)
     evidence_stage = (
         13 if capability in CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES else 15
     )

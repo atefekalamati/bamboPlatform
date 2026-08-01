@@ -38,17 +38,17 @@ Authoritative source:
 | Continuation capture | Implemented for stage 14 | Mission sequence 2+, complete per-Floor capture/Upload, explicit stages 5-13 recheck, independent result, and all-cycle validation |
 | Five-dimension evaluation | Implemented for stage 15 | Operations, quality, technical, customer, and commercial status/result plus a text-only one-page summary |
 | Stage 15 evidence | Implemented | Existing main-platform capabilities are stored only as status, checker, time, and short result; file/audio/URL fields are rejected |
-| F04 closing session | Implemented for stage 16 | Login count, viewed sections, visit reduction, need, value, users/projects/frequency, decision maker, blocker, and decision |
-| G5 commercial gate | Implemented | Stages 14-16 use canonical Mission/review/evaluation/F04 data and source changes reopen the affected stage without mutating snapshots |
+| F04 closing session | Implemented for stage 16 | Login count, known viewed sections, visit reduction, need, value, users/projects/frequency, decision maker, blocker, and decision are all enforced at submit |
+| G5 commercial gate | Implemented | Stage 15 approval passes G5 and opens Stage 16; source changes reopen the affected stage without mutating snapshots |
 | Commercial proposal | Implemented for stage 17 | Project/floor/area/frequency/period/users/support/features, decision maker, follow-up date, and optional all-or-none name/size/SHA-256 PDF metadata; paths, URLs, invalid types, and oversized files are rejected |
 | Sales follow-up calendar | Implemented for stage 18 | All four day 0/2/5/7-10 slots require obstacle, action, active owner, valid due window, completion, and result |
-| Final commercial outcome | Implemented for stage 19 | Contract, ready-on-date, negotiation, rejected, and closed outcomes with conditional details and explicit Pilot Manager confirmation |
+| Final commercial outcome | Implemented for stage 19 | Contract, ready-on-date, negotiation, rejected, and closed outcomes with conditional details, mandatory negotiation next-action text, and explicit Pilot Manager confirmation |
 | Contract handoff | Implemented | Contract outcomes require success owner, periodic-capture decision, user count, and first-capture time |
 | Final closure invalidation | Implemented | Outcome changes reset manager confirmation and reopen stage 19 while preserving all approved snapshots |
 | Approved-source invalidation | Implemented | F01/F02/Floor/DWG/Mission/F03 changes reopen the affected stage and lock downstream work without changing old snapshots |
 | Stage-specific validation for all domains | Implemented | Stages 1-19 and G1-G5 use canonical persisted data rather than client-supplied checklist claims |
 | PostgreSQL configuration | Implemented | psycopg URL, local Compose service, and live PostgreSQL 17 integration in GitHub Actions |
-| Alembic migrations | Implemented | Revisions 0001-0011, live PostgreSQL upgrade/check/downgrade/re-upgrade, JSONB verification, SQL compilation, metadata drift tests, reversible Stage-title backfill, and optional Stage 17 PDF metadata |
+| Alembic migrations | Implemented | Revisions 0001-0012, live PostgreSQL upgrade/check/downgrade/re-upgrade, JSONB verification, SQL compilation, metadata drift tests, and reversible Stage-title/G5 backfills; Stage 17 requires complete validated PDF metadata at the API and submit gate while nullable legacy rows remain readable |
 | Backend CI | Implemented | Pull requests and pushes to `master` run the complete SQLite suite plus an isolated PostgreSQL service-container job |
 | OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, independent multi-session login/logout, and PostgreSQL concurrency locks |
 | Production SMS provider | Blocked by PRD question | Provider company and API limits are not specified |

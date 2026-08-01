@@ -328,7 +328,7 @@ def _prepare_pilot_through_g4(
             "owner_logged_in": True,
             "project_opened": True,
             "main_tour_viewed": True,
-            "viewing_result": "Owner reviewed the main output.",
+            "viewing_result": "مشاهده موفق",
             "first_follow_up_at": "2027-01-11T09:00:00+00:00",
             "second_follow_up_at": "2027-01-14T09:00:00+00:00",
         },
@@ -399,6 +399,18 @@ def test_stage_12_requires_every_frontend_training_control(
         f"/pilots/{pilot_id}",
         headers=super_admin_headers,
     ).json()["current_stage"] == 13
+    invalid_viewing_result = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"viewing_result": "arbitrary legacy display text"},
+        headers=super_admin_headers,
+    )
+    assert invalid_viewing_result.status_code == 422
+    system_managed_field = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"pilot_manager_user_id": 1},
+        headers=super_admin_headers,
+    )
+    assert system_managed_field.status_code == 422
 
 
 def test_stages_14_to_16_and_g5(
@@ -591,6 +603,43 @@ def test_stages_14_to_16_and_g5(
         ]
     }
     assert {"actual_progress", "manager_audio_report"} <= evidence_names
+    after_g5 = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert after_g5["current_stage"] == 16
+    g5 = next(gate for gate in after_g5["gates"] if gate["code"] == "G5")
+    assert g5["after_stage"] == 15
+    assert g5["status"] == "passed"
+
+    incomplete_closing = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={
+            "customer_need_summary": "Remote visibility remains necessary.",
+            "closing_decision": "proposal",
+            "realized_value": "Fewer site visits.",
+            "purchase_blocker": "No active blocker.",
+            "decision_maker": "Owner CEO",
+        },
+        headers=super_admin_headers,
+    )
+    assert incomplete_closing.status_code == 200, incomplete_closing.json()
+    blocked_stage_16 = client.post(
+        f"/pilots/{pilot_id}/stages/16/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert blocked_stage_16.status_code == 422
+    assert {
+        error["field"] for error in blocked_stage_16.json()["errors"]
+    } >= {
+        "form_data.main_platform_login_count",
+        "form_data.viewed_sections",
+        "form_data.visit_reduction_result",
+        "form_data.project_count",
+        "form_data.usage_frequency",
+        "form_data.user_count",
+    }
 
     closing = client.patch(
         f"/pilots/{pilot_id}/forms/f04",
@@ -619,12 +668,12 @@ def test_stages_14_to_16_and_g5(
     assert stage_16["snapshot"]["content"]["submission"]["form_data"][
         "decision"
     ] == "proposal"
-    after_g5 = client.get(
+    after_stage_16 = client.get(
         f"/pilots/{pilot_id}",
         headers=super_admin_headers,
     ).json()
-    assert after_g5["current_stage"] == 17
-    assert next(gate for gate in after_g5["gates"] if gate["code"] == "G5")[
+    assert after_stage_16["current_stage"] == 17
+    assert next(gate for gate in after_stage_16["gates"] if gate["code"] == "G5")[
         "status"
     ] == "passed"
 
@@ -1117,6 +1166,13 @@ def test_stages_17_to_19_full_commercial_workflow(
     )
     assert invalid_approver.status_code == 403
     assert invalid_approver.json()["code"] == "FINAL_OUTCOME_APPROVER_INVALID"
+    forged_f04_owner = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"customer_success_user_id": success_owner_id},
+        headers=customer_success_headers,
+    )
+    assert forged_f04_owner.status_code == 403
+    assert forged_f04_owner.json()["code"] == "F04_ACTOR_REFERENCE_INVALID"
     missing_confirmation = client.post(
         f"/pilots/{pilot_id}/final-outcome/approve",
         json={"confirmed": False},
@@ -1156,9 +1212,28 @@ def test_stages_17_to_19_full_commercial_workflow(
     assert closing_form.json()["customer_success_user_id"] == success_owner_id
     assert closing_form.json()["pilot_manager_user_id"] is not None
 
-    changed_outcome = client.put(
+    missing_negotiation_reason = client.put(
         f"/pilots/{pilot_id}/final-outcome",
         json={"outcome": "negotiation"},
+        headers=super_admin_headers,
+    )
+    assert missing_negotiation_reason.status_code == 422
+    unrelated_ready_date = client.put(
+        f"/pilots/{pilot_id}/final-outcome",
+        json={
+            "outcome": "negotiation",
+            "reason": "Schedule the next commercial decision meeting.",
+            "ready_at": "2027-04-10T08:00:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert unrelated_ready_date.status_code == 422
+    changed_outcome = client.put(
+        f"/pilots/{pilot_id}/final-outcome",
+        json={
+            "outcome": "negotiation",
+            "reason": "Schedule the next commercial decision meeting.",
+        },
         headers=super_admin_headers,
     )
     assert changed_outcome.status_code == 200, changed_outcome.json()
@@ -1327,7 +1402,7 @@ def test_customer_success_incident_blocker_and_g4(
             "owner_logged_in": True,
             "project_opened": True,
             "main_tour_viewed": True,
-            "viewing_result": "Owner reviewed the main output successfully.",
+            "viewing_result": "مشاهده موفق",
             "first_follow_up_at": "2027-01-11T09:00:00+00:00",
             "second_follow_up_at": "2027-01-14T09:00:00+00:00",
             "useful": True,

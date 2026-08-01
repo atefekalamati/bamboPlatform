@@ -181,6 +181,13 @@ class FinalOutcomeUpdate(BaseModel):
     def normalize_optional_datetime(cls, value: datetime | None) -> datetime | None:
         return normalize_utc_datetime(value) if value else None
 
+    @field_validator("reason", mode="before")
+    @classmethod
+    def normalize_optional_reason(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value
+
     @model_validator(mode="after")
     def validate_outcome_details(self) -> "FinalOutcomeUpdate":
         if self.outcome == "contract" and not (
@@ -194,10 +201,24 @@ class FinalOutcomeUpdate(BaseModel):
             )
         if self.outcome == "ready_on_date" and not self.ready_at:
             raise ValueError("ready_at is required for ready_on_date")
-        if self.outcome in {"rejected", "closed"} and not (
-            self.reason and self.reason.strip()
+        if self.outcome in {"negotiation", "rejected", "closed"} and not (
+            self.reason and len(self.reason) >= 2
         ):
-            raise ValueError("reason is required for rejected or closed outcomes")
+            raise ValueError(
+                "reason is required for negotiation, rejected, or closed outcomes"
+            )
+        contract_fields = (
+            self.success_owner_user_id,
+            self.periodic_capture,
+            self.contracted_user_count,
+            self.first_capture_at,
+        )
+        if self.outcome != "contract" and any(
+            value is not None for value in contract_fields
+        ):
+            raise ValueError("contract details are only valid for contract outcomes")
+        if self.outcome != "ready_on_date" and self.ready_at is not None:
+            raise ValueError("ready_at is only valid for ready_on_date outcomes")
         return self
 
 

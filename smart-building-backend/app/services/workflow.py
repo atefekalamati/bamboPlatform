@@ -170,6 +170,23 @@ def _validation_errors(stage_number: int, submission: StageSubmission) -> list[d
                     "reason": "open_critical_incident",
                 }
             )
+    if stage_number == 16:
+        for key in (
+            "realized_value",
+            "customer_need",
+            "decision_maker",
+            "blocker",
+            "usage_frequency",
+        ):
+            value = submission.form_data.get(key)
+            if isinstance(value, str) and value.strip() and len(value.strip()) < 2:
+                errors.append(
+                    {
+                        "field": f"form_data.{key}",
+                        "label": key,
+                        "reason": "min_length_2",
+                    }
+                )
     if stage_number == 19:
         outcome = submission.form_data.get("outcome")
         if outcome and outcome not in FINAL_OUTCOMES:
@@ -748,18 +765,20 @@ def _canonical_submission_data(
             },
             {
                 "value_clear": bool(
-                    form.realized_value and form.realized_value.strip()
+                    form.realized_value
+                    and len(form.realized_value.strip()) >= 2
                 ),
                 "need_clear": bool(
                     form.customer_need_summary
-                    and form.customer_need_summary.strip()
+                    and len(form.customer_need_summary.strip()) >= 2
                 ),
                 "decision_maker_clear": bool(
-                    form.decision_maker and form.decision_maker.strip()
+                    form.decision_maker
+                    and len(form.decision_maker.strip()) >= 2
                 ),
                 "blocker_clear": bool(
                     form.purchase_blocker
-                    and form.purchase_blocker.strip()
+                    and len(form.purchase_blocker.strip()) >= 2
                 ),
             },
         )
@@ -864,8 +883,11 @@ def _canonical_submission_data(
             outcome.outcome != "ready_on_date" or outcome.ready_at is not None
         )
         closing_reason_complete = (
-            outcome.outcome not in {"rejected", "closed"}
-            or bool(outcome.reason and outcome.reason.strip())
+            outcome.outcome not in {"negotiation", "rejected", "closed"}
+            or bool(
+                outcome.reason
+                and len(outcome.reason.strip()) >= 2
+            )
         )
         return (
             {
