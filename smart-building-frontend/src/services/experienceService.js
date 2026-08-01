@@ -95,6 +95,23 @@ export const experienceService = Object.freeze({
         customer_success_user_id: values.customerSuccessUserId || null,
       }),
     }),
+  saveF04Closing: (pilotId, values) =>
+    request(`/pilots/${pilotId}/forms/f04`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        main_platform_login_count: Number(values.loginCount),
+        viewed_sections: values.viewedSections,
+        visit_reduction_result: values.visitReductionResult,
+        customer_need_summary: values.customerNeedSummary,
+        closing_decision: values.closingDecision,
+        realized_value: values.realizedValue,
+        purchase_blocker: values.purchaseBlocker,
+        project_count: Number(values.projectCount),
+        usage_frequency: values.usageFrequency,
+        user_count: Number(values.userCount),
+        decision_maker: values.decisionMaker,
+      }),
+    }),
   getIncidents: (pilotId) => request(`/pilots/${pilotId}/incidents`),
   closeIncident: (incidentId, values) =>
     request(`/incidents/${incidentId}/close`, {

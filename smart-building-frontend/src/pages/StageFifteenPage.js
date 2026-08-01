@@ -195,6 +195,14 @@ export const StageFifteenPage = ({ pilotId }) => {
           approvedNotice: "G5 تأیید شد و Stage 16 باز شد.",
           rejectedNotice: "Stage 15 برای اصلاح بازگردانده شد.",
           canApprove, canReject, reload: load,
+          onApproved: async () => {
+            const refreshedPilot = await pilotService.getPilotById(pilot.id);
+            if (refreshedPilot.currentStage === 16) {
+              window.location.hash = `#/pilots/${pilot.id}/stages/16`;
+              return;
+            }
+            await load("G5 تأیید شد، اما Stage 16 هنوز از سمت سرور فعال نشده است.");
+          },
         }));
       }
       page.append(StageSnapshots({ snapshots, title: "نسخه‌های تأییدشده Stage 15" }));
