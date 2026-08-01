@@ -357,6 +357,14 @@ export const StageFourteenPage = ({ pilotId }) => {
           approvedNotice: "Stage 14 تأیید شد و Stage 15 باز شد.",
           rejectedNotice: "Stage 14 برای اصلاح برگشت داده شد.",
           canApprove, canReject, reload: load,
+          onApproved: async () => {
+            const refreshedPilot = await pilotService.getPilotById(pilot.id);
+            if (refreshedPilot.currentStage === 15) {
+              window.location.hash = `#/pilots/${pilot.id}/stages/15`;
+              return;
+            }
+            await load("Stage 14 تأیید شد، اما Stage 15 هنوز از سمت سرور فعال نشده است.");
+          },
         }));
       }
       page.append(StageSnapshots({ snapshots, title: "نسخه‌های تأییدشده Stage 14" }));
