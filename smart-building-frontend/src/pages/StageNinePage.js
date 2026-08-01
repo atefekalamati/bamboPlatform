@@ -28,6 +28,14 @@ const UPLOAD_ITEMS = Object.freeze([
   ["operationsNotified", "تکمیل Upload به تیم عملیات اطلاع داده شده است."],
 ]);
 
+// The API stores mission timestamps as UTC and currently serializes them
+// without an explicit timezone. Preserve that meaning when Stage 9 sends the
+// existing capture data back alongside the upload-only fields.
+const backendUtcTime = (value) => {
+  if (!value || /(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return value;
+  return `${value}Z`;
+};
+
 const floorValues = (state) => ({
   captureState: state.capture_state,
   correctFloor: state.correct_floor,
@@ -37,8 +45,8 @@ const floorValues = (state) => ({
   coverageCompleted: state.coverage_completed,
   captureFinished: state.capture_finished,
   savedInMainApp: state.saved_in_main_app,
-  captureStartedAt: state.capture_started_at,
-  captureFinishedAt: state.capture_finished_at,
+  captureStartedAt: backendUtcTime(state.capture_started_at),
+  captureFinishedAt: backendUtcTime(state.capture_finished_at),
   mainUploadStarted: state.main_upload_started,
   mainUploadCompleted: state.main_upload_completed,
   correctFloorLink: state.correct_floor_link,
