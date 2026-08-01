@@ -5,6 +5,7 @@ import json
 from datetime import UTC, datetime
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.exceptions import WorkflowError
@@ -101,12 +102,20 @@ def create_pilot(db: Session, payload: PilotCreate, actor_user_id: int | None = 
     return pilot
 
 
-def get_stage(db: Session, pilot_id: int, stage_number: int) -> PilotStage:
-    stage = (
-        db.query(PilotStage)
-        .filter(PilotStage.pilot_id == pilot_id, PilotStage.number == stage_number)
-        .first()
+def get_stage(
+    db: Session,
+    pilot_id: int,
+    stage_number: int,
+    *,
+    lock: bool = False,
+) -> PilotStage:
+    query = db.query(PilotStage).filter(
+        PilotStage.pilot_id == pilot_id,
+        PilotStage.number == stage_number,
     )
+    if lock:
+        query = query.with_for_update()
+    stage = query.first()
     if not stage:
         raise WorkflowError(
             code="STAGE_NOT_FOUND",
@@ -538,6 +547,7 @@ def _canonical_submission_data(
                 "plan": form.plan_trained,
                 "tour": form.tour_trained,
                 "navigation": form.navigation_trained,
+                "training_completed": form.training_completed,
                 "support": form.support_trained,
                 "independent_use": form.independent_use_confirmed,
             },
@@ -757,6 +767,17 @@ def _canonical_submission_data(
         proposal = pilot.commercial_proposal
         if proposal is None:
             return {}, {}
+        proposal_file = None
+        if (
+            proposal.proposal_file_name
+            and proposal.proposal_file_size
+            and proposal.proposal_file_sha256
+        ):
+            proposal_file = {
+                "name": proposal.proposal_file_name,
+                "size": proposal.proposal_file_size,
+                "sha256": proposal.proposal_file_sha256,
+            }
         return (
             {
                 "project_count": proposal.project_count,
@@ -767,20 +788,14 @@ def _canonical_submission_data(
                 "user_count": proposal.user_count,
                 "support_scope": proposal.support_scope,
                 "features": proposal.features,
-                "proposal_file": {
-                    "name": proposal.proposal_file_name,
-                    "size": proposal.proposal_file_size,
-                    "sha256": proposal.proposal_file_sha256,
-                },
+                "proposal_file": proposal_file,
                 "decision_maker": proposal.decision_maker,
                 "follow_up_date": proposal.follow_up_at.isoformat(),
                 "responsible_user_id": proposal.responsible_user_id,
             },
             {
-                "proposal_file_registered": bool(
-                    proposal.proposal_file_name
-                    and proposal.proposal_file_size > 0
-                    and len(proposal.proposal_file_sha256) == 64
+                "proposal_text_registered": bool(
+                    proposal.support_scope and proposal.support_scope.strip()
                 ),
             },
         )
@@ -906,7 +921,7 @@ def submit_stage(
     submitted_by: str,
     actor_user_id: int | None = None,
 ) -> tuple[PilotStage, StageSubmission]:
-    stage = get_stage(db, pilot_id, stage_number)
+    stage = get_stage(db, pilot_id, stage_number, lock=True)
     if stage.status == "locked" or stage.pilot.current_stage != stage_number:
         raise WorkflowError(
             code="STAGE_LOCKED",
@@ -939,7 +954,17 @@ def submit_stage(
     stage.status = "submitted"
     stage.submitted_at = submitted_at
     db.add(submission)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise WorkflowError(
+            code="STAGE_TRANSITION_NOT_ALLOWED",
+            message="تصمیم دیگری هم‌زمان برای این مرحله ثبت شده است.",
+            stage=stage_number,
+            status_code=409,
+            errors=[],
+        ) from exc
     add_audit_log(
         db,
         action="stages.submitted",
@@ -1026,7 +1051,7 @@ def approve_stage(
     actor_user_id: int | None = None,
     comment: str | None = None,
 ) -> tuple[PilotStage, StageSubmission, ImmutableSnapshot]:
-    stage = get_stage(db, pilot_id, stage_number)
+    stage = get_stage(db, pilot_id, stage_number, lock=True)
     if stage.status != "submitted":
         raise WorkflowError(
             code="STAGE_TRANSITION_NOT_ALLOWED",
@@ -1094,7 +1119,17 @@ def approve_stage(
         stage.pilot.status = "converted" if outcome == "contract" else "closed"
 
     db.add(snapshot)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise WorkflowError(
+            code="STAGE_TRANSITION_NOT_ALLOWED",
+            message="تصمیم دیگری هم‌زمان برای این مرحله ثبت شده است.",
+            stage=stage_number,
+            status_code=409,
+            errors=[],
+        ) from exc
     add_audit_log(
         db,
         action="stages.approved",
@@ -1119,7 +1154,7 @@ def reject_stage(
     reviewer: str,
     actor_user_id: int | None = None,
 ) -> tuple[PilotStage, StageSubmission]:
-    stage = get_stage(db, pilot_id, stage_number)
+    stage = get_stage(db, pilot_id, stage_number, lock=True)
     if stage.status != "submitted":
         raise WorkflowError(
             code="STAGE_TRANSITION_NOT_ALLOWED",
@@ -1139,7 +1174,17 @@ def reject_stage(
     submission.status = "rejected"
     stage.status = "needs_revision"
     db.add(review)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise WorkflowError(
+            code="STAGE_TRANSITION_NOT_ALLOWED",
+            message="تصمیم دیگری هم‌زمان برای این مرحله ثبت شده است.",
+            stage=stage_number,
+            status_code=409,
+            errors=[],
+        ) from exc
     add_audit_log(
         db,
         action="stages.rejected",

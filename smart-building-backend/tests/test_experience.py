@@ -339,6 +339,68 @@ def _prepare_pilot_through_g4(
     return pilot, mission
 
 
+def test_stage_12_requires_every_frontend_training_control(
+    client,
+    super_admin_headers,
+):
+    pilot, _ = _prepare_pilot_through_g3(
+        client,
+        super_admin_headers,
+        expert_mobile="09153334444",
+    )
+    pilot_id = pilot["id"]
+    external_status = client.put(
+        f"/pilots/{pilot_id}/external-platform",
+        json=_external_platform_payload(),
+        headers=super_admin_headers,
+    )
+    assert external_status.status_code == 200, external_status.json()
+    submit_and_approve_stage(client, pilot_id, 10, super_admin_headers)
+    notification = client.post(
+        f"/pilots/{pilot_id}/notifications/main-output",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert notification.status_code == 201, notification.json()
+    submit_and_approve_stage(client, pilot_id, 11, super_admin_headers)
+
+    incomplete_training = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json=_training_payload() | {"training_completed": False},
+        headers=super_admin_headers,
+    )
+    assert incomplete_training.status_code == 200, incomplete_training.json()
+    blocked = client.post(
+        f"/pilots/{pilot_id}/stages/12/submit",
+        json={"form_data": {}, "checklist": {}},
+        headers=super_admin_headers,
+    )
+    assert blocked.status_code == 422
+    assert {
+        error["field"] for error in blocked.json()["errors"]
+    } == {"checklist.training_completed"}
+
+    completed_training = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"training_completed": True},
+        headers=super_admin_headers,
+    )
+    assert completed_training.status_code == 200, completed_training.json()
+    assert completed_training.json()["login_trained"] is True
+    approved = submit_and_approve_stage(
+        client,
+        pilot_id,
+        12,
+        super_admin_headers,
+    )
+    checklist = approved["snapshot"]["content"]["submission"]["checklist"]
+    assert checklist["training_completed"] is True
+    assert client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()["current_stage"] == 13
+
+
 def test_stages_14_to_16_and_g5(
     client,
     super_admin_headers,
@@ -718,6 +780,104 @@ def _prepare_pilot_through_g5(
     return pilot
 
 
+def test_stage_17_text_proposal_can_advance_without_pdf(
+    client,
+    super_admin_headers,
+):
+    pilot = _prepare_pilot_through_g5(client, super_admin_headers)
+    pilot_id = pilot["id"]
+    proposal_without_file = {
+        "project_count": 2,
+        "floor_count": 7,
+        "area_sqm": 8200.0,
+        "frequency": "monthly",
+        "period": "6 months",
+        "user_count": 4,
+        "support_scope": "A valid text proposal with onboarding and support.",
+        "features": ["capture", "tour"],
+        "decision_maker": "Owner CEO",
+        "follow_up_at": "2027-03-01T09:00:00+00:00",
+    }
+
+    missing_text = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_without_file | {"support_scope": ""},
+        headers=super_admin_headers,
+    )
+    assert missing_text.status_code == 422
+    whitespace_text = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_without_file | {"support_scope": "  "},
+        headers=super_admin_headers,
+    )
+    assert whitespace_text.status_code == 422
+    file_without_text = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_without_file
+        | {
+            "support_scope": "",
+            "proposal_file_name": "proposal.pdf",
+            "proposal_file_size": 1024,
+            "proposal_file_sha256": "b" * 64,
+        },
+        headers=super_admin_headers,
+    )
+    assert file_without_text.status_code == 422
+
+    saved = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_without_file
+        | {
+            "proposal_file_name": "",
+            "proposal_file_size": 0,
+            "proposal_file_sha256": "",
+        },
+        headers=super_admin_headers,
+    )
+    assert saved.status_code == 200, saved.json()
+    assert saved.json()["proposal_file_name"] is None
+    assert saved.json()["proposal_file_size"] is None
+    assert saved.json()["proposal_file_sha256"] is None
+
+    repeated = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_without_file,
+        headers=super_admin_headers,
+    )
+    assert repeated.status_code == 200, repeated.json()
+    assert repeated.json()["id"] == saved.json()["id"]
+
+    submitted = client.post(
+        f"/pilots/{pilot_id}/stages/17/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert submitted.status_code == 200, submitted.json()
+    assert submitted.json()["submission"]["form_data"]["proposal_file"] is None
+    assert submitted.json()["submission"]["checklist"] == {
+        "proposal_text_registered": True
+    }
+    after_submit = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert after_submit["current_stage"] == 17
+
+    approved = client.post(
+        f"/pilots/{pilot_id}/stages/17/approve",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert approved.status_code == 200, approved.json()
+    after_approval = client.get(
+        f"/pilots/{pilot_id}",
+        headers=super_admin_headers,
+    ).json()
+    assert after_approval["current_stage"] == 18
+    assert after_approval["stages"][16]["status"] == "approved"
+    assert after_approval["stages"][17]["status"] == "open"
+
+
 def test_stages_17_to_19_full_commercial_workflow(
     client,
     super_admin_headers,
@@ -752,6 +912,28 @@ def test_stages_17_to_19_full_commercial_workflow(
         headers=super_admin_headers,
     )
     assert unsafe_file.status_code == 422
+    invalid_file_type = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_payload | {"proposal_file_name": "proposal.txt"},
+        headers=super_admin_headers,
+    )
+    assert invalid_file_type.status_code == 422
+    oversized_file = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_payload | {"proposal_file_size": 100 * 1024 * 1024 + 1},
+        headers=super_admin_headers,
+    )
+    assert oversized_file.status_code == 422
+    incomplete_file_metadata = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json={
+            key: value
+            for key, value in proposal_payload.items()
+            if key != "proposal_file_sha256"
+        },
+        headers=super_admin_headers,
+    )
+    assert incomplete_file_metadata.status_code == 422
     external_file_field = client.put(
         f"/pilots/{pilot_id}/commercial-proposal",
         json=proposal_payload | {"proposal_url": "https://example.invalid/proposal"},
@@ -765,6 +947,30 @@ def test_stages_17_to_19_full_commercial_workflow(
     )
     assert proposal.status_code == 200, proposal.json()
     assert proposal.json()["proposal_file_sha256"] == "a" * 64
+    proposal_without_file_fields = {
+        key: value
+        for key, value in proposal_payload.items()
+        if not key.startswith("proposal_file_")
+    }
+    updated_text = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_without_file_fields
+        | {"support_scope": "Updated proposal text without replacing the PDF."},
+        headers=super_admin_headers,
+    )
+    assert updated_text.status_code == 200, updated_text.json()
+    assert updated_text.json()["id"] == proposal.json()["id"]
+    assert updated_text.json()["proposal_file_name"] == "BAMBO-proposal-v1.pdf"
+    assert updated_text.json()["proposal_file_size"] == 245760
+    assert updated_text.json()["proposal_file_sha256"] == "a" * 64
+    repeated_update = client.put(
+        f"/pilots/{pilot_id}/commercial-proposal",
+        json=proposal_without_file_fields
+        | {"support_scope": "Updated proposal text without replacing the PDF."},
+        headers=super_admin_headers,
+    )
+    assert repeated_update.status_code == 200, repeated_update.json()
+    assert repeated_update.json()["id"] == proposal.json()["id"]
     stage_17 = submit_and_approve_stage(
         client,
         pilot_id,
@@ -778,7 +984,6 @@ def test_stages_17_to_19_full_commercial_workflow(
         "sha256": "a" * 64,
     }
     assert "proposal_url" not in proposal_snapshot
-
     invalid_schedule = client.put(
         f"/pilots/{pilot_id}/commercial-follow-ups/day_2",
         json={

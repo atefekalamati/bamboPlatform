@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.config import (
@@ -41,6 +42,21 @@ def _otp_hash(public_id: str, code: str) -> str:
 
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _transaction_lock(db: Session, scope: str) -> None:
+    """Serialize a small authentication scope across PostgreSQL workers."""
+    if db.get_bind().dialect.name != "postgresql":
+        return
+    lock_key = int.from_bytes(
+        hashlib.sha256(scope.encode()).digest()[:8],
+        byteorder="big",
+        signed=True,
+    )
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:lock_key)"),
+        {"lock_key": lock_key},
+    )
 
 
 def effective_permissions(user: User) -> set[str]:
@@ -134,6 +150,9 @@ def request_otp(db: Session, mobile: str, ip_address: str | None) -> OtpDispatch
     window_seconds = get_int_setting("OTP_RATE_WINDOW_SECONDS", 600)
     max_requests = get_int_setting("OTP_MAX_REQUESTS_PER_WINDOW", 3)
     cooldown = get_int_setting("OTP_RESEND_COOLDOWN_SECONDS", 60)
+    _transaction_lock(db, f"otp-request-mobile:{mobile}")
+    if ip_address:
+        _transaction_lock(db, f"otp-request-ip:{ip_address}")
     recent = (
         db.query(OtpRequest)
         .filter(
@@ -226,7 +245,12 @@ def verify_otp(
     db: Session, request_id: str, code: str, ip_address: str | None
 ) -> tuple[str, int, User]:
     now = utc_now()
-    otp_request = db.query(OtpRequest).filter(OtpRequest.public_id == request_id).first()
+    otp_request = (
+        db.query(OtpRequest)
+        .filter(OtpRequest.public_id == request_id)
+        .with_for_update()
+        .first()
+    )
     generic_error = SecurityError(
         code="OTP_INVALID",
         message="کد نامعتبر یا منقضی است.",
@@ -249,6 +273,7 @@ def verify_otp(
 
     otp_request.status = "verified"
     otp_request.verified_at = now
+    _transaction_lock(db, f"otp-verify-mobile:{otp_request.mobile}")
     user = db.query(User).filter(User.mobile == otp_request.mobile).first()
     if user is None:
         user = User(
@@ -270,14 +295,16 @@ def verify_otp(
             errors=[],
         )
 
+    session_started_at = utc_now()
     token = secrets.token_urlsafe(32)
     session_ttl = get_int_setting("AUTH_SESSION_TTL_SECONDS", 28800)
     auth_session = AuthSession(
         user=user,
         token_hash=_token_hash(token),
-        expires_at=now + timedelta(seconds=session_ttl),
+        created_at=session_started_at,
+        expires_at=session_started_at + timedelta(seconds=session_ttl),
     )
-    user.last_login_at = now
+    user.last_login_at = session_started_at
     db.add(auth_session)
     db.flush()
     add_audit_log(
@@ -348,13 +375,22 @@ def require_permission(permission_code: str):
 
 
 def revoke_session(db: Session, context: AuthContext) -> None:
-    context.session.revoked_at = utc_now()
+    auth_session = (
+        db.query(AuthSession)
+        .filter(AuthSession.id == context.session.id)
+        .populate_existing()
+        .with_for_update()
+        .one()
+    )
+    if auth_session.revoked_at is not None:
+        return
+    auth_session.revoked_at = utc_now()
     add_audit_log(
         db,
         action="auth.logout",
         entity_type="AuthSession",
-        entity_id=context.session.id,
+        entity_id=auth_session.id,
         actor_user_id=context.user.id,
-        session_id=context.session.id,
+        session_id=auth_session.id,
     )
     db.commit()

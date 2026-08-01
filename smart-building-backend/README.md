@@ -56,7 +56,7 @@ contract is defined by `BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`.
   minimal external-evidence status, evaluation, and F04 closing-session data
 - CommercialProposal persistence for stage 17 with project/floor/area/frequency,
   period, users, support, feature, decision-maker, follow-up, and secure
-  proposal-file metadata (name, size, and SHA-256 only; no path or URL)
+  optional proposal-file metadata (name, size, and SHA-256 only; no path or URL)
 - Four-slot customer follow-up calendar for stage 18 (`day_0`, `day_2`,
   `day_5`, and `day_7_10`) with obstacle, action, owner, due time, and result
 - Canonical final outcome for stage 19, including contract handoff details,
@@ -134,7 +134,7 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 - `POST /roles`
 - `GET /roles/permissions`
 - `PUT /roles/{id}/permissions`
-- `GET /audit`
+- `GET /audit` (optional pagination and exact filters for action, entity, actor, and UTC range)
 
 ## Run locally
 
@@ -156,6 +156,14 @@ The mobile configured by `BOOTSTRAP_SUPER_ADMIN_MOBILE` receives the
 OTP provider and `debug_code` response are enabled only in development/test.
 Production intentionally rejects OTP requests until an approved SMS provider
 adapter is configured.
+
+Each successful OTP verification creates an independent opaque session. A user
+may have multiple active sessions, and logout revokes only the presented
+session. Sessions are persisted in the database (not process memory), so this
+policy works across application instances. PostgreSQL transaction locks make
+OTP rate checks atomic, prevent concurrent reuse of one OTP, and serialize
+first login for the same mobile number. Refresh tokens are not part of the
+current API.
 
 Mission notifications are recorded independently from the mission transaction.
 Development/test marks the console adapter as delivered. Production records a

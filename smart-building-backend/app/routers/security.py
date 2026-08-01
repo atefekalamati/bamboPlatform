@@ -1,6 +1,8 @@
 """OTP authentication and RBAC administration API."""
 
-from fastapi import APIRouter, Depends, Request, status
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -449,7 +451,51 @@ def delete_role(
 
 @audit_router.get("", response_model=list[AuditLogRead])
 def list_audit_logs(
+    limit: int = Query(default=200, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    action: str | None = Query(default=None, min_length=1, max_length=120),
+    entity_type: str | None = Query(default=None, min_length=1, max_length=80),
+    entity_id: str | None = Query(default=None, min_length=1, max_length=80),
+    actor_user_id: int | None = Query(default=None, ge=1),
+    created_from: datetime | None = Query(default=None),
+    created_to: datetime | None = Query(default=None),
     _: AuthContext = Depends(require_permission("audit.read")),
     db: Session = Depends(get_db),
 ) -> list[AuditLog]:
-    return db.query(AuditLog).order_by(AuditLog.id.desc()).limit(200).all()
+    def normalize_utc(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise SecurityError(
+                "AUDIT_TIMEZONE_REQUIRED",
+                "زمان فیلتر Audit باید شامل منطقه زمانی باشد.",
+                422,
+                [],
+            )
+        return value.astimezone(UTC).replace(tzinfo=None)
+
+    normalized_from = normalize_utc(created_from)
+    normalized_to = normalize_utc(created_to)
+    if normalized_from and normalized_to and normalized_from > normalized_to:
+        raise SecurityError(
+            "AUDIT_DATE_RANGE_INVALID",
+            "ابتدای بازه Audit نباید بعد از انتهای آن باشد.",
+            422,
+            [],
+        )
+
+    query = db.query(AuditLog)
+    if action is not None:
+        query = query.filter(AuditLog.action == action)
+    if entity_type is not None:
+        query = query.filter(AuditLog.entity_type == entity_type)
+    if entity_id is not None:
+        query = query.filter(AuditLog.entity_id == entity_id)
+    if actor_user_id is not None:
+        query = query.filter(AuditLog.actor_user_id == actor_user_id)
+    if normalized_from is not None:
+        query = query.filter(AuditLog.created_at >= normalized_from)
+    if normalized_to is not None:
+        query = query.filter(AuditLog.created_at <= normalized_to)
+
+    return query.order_by(AuditLog.id.desc()).offset(offset).limit(limit).all()

@@ -1,6 +1,6 @@
 import pytest
 
-from conftest import sample_pilot_payload, save_valid_f01
+from conftest import login_with_otp, sample_pilot_payload, save_valid_f01
 
 STAGE_1_CHECKLIST = {
     "project_active": True,
@@ -28,6 +28,70 @@ def create_pilot(client, headers):
     )
     assert response.status_code == 201
     return response.json()
+
+
+def test_stage_decision_is_single_use_and_requires_permission(
+    client,
+    super_admin_headers,
+):
+    pilot = create_pilot(client, super_admin_headers)
+    save_valid_f01(client, pilot["id"], super_admin_headers)
+
+    sales_role = next(
+        role
+        for role in client.get("/roles", headers=super_admin_headers).json()
+        if role["name"] == "sales"
+    )
+    sales_user = client.post(
+        "/users",
+        json={
+            "mobile": "09151000004",
+            "display_name": "کاربر ارسال مرحله",
+            "role_ids": [sales_role["id"]],
+        },
+        headers=super_admin_headers,
+    )
+    assert sales_user.status_code == 201
+    sales_headers = login_with_otp(client, "09151000004")
+
+    submitted = client.post(
+        f"/pilots/{pilot['id']}/stages/1/submit",
+        json={},
+        headers=sales_headers,
+    )
+    assert submitted.status_code == 200
+    denied = client.post(
+        f"/pilots/{pilot['id']}/stages/1/approve",
+        json={},
+        headers=sales_headers,
+    )
+    assert denied.status_code == 403
+    assert denied.json()["code"] == "PERMISSION_DENIED"
+
+    approved = client.post(
+        f"/pilots/{pilot['id']}/stages/1/approve",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert approved.status_code == 200
+    repeated = client.post(
+        f"/pilots/{pilot['id']}/stages/1/approve",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert repeated.status_code == 409
+    assert repeated.json()["code"] == "STAGE_TRANSITION_NOT_ALLOWED"
+
+    stage_approvals = [
+        item
+        for item in client.get(
+            "/audit",
+            params={"action": "stages.approved"},
+            headers=super_admin_headers,
+        ).json()
+        if item["new_data"]["stage"] == 1
+    ]
+    assert len(stage_approvals) == 1
 
 
 def test_health_endpoint(client):
@@ -64,6 +128,20 @@ def test_pilot_creation_builds_prd_stage_and_gate_structure(client, super_admin_
     assert len(pilot["stages"]) == 19
     assert pilot["stages"][0]["status"] == "open"
     assert all(stage["status"] == "locked" for stage in pilot["stages"][1:])
+    assert [stage["title"] for stage in pilot["stages"][:12]] == [
+        "انتخاب پروژه مناسب برای پایلوت",
+        "معرفی و موافقت",
+        "دریافت DWG و اطلاعات طبقات",
+        "راه‌اندازی در پلتفرم اصلی",
+        "برنامه‌ریزی و تخصیص مأموریت",
+        "آمادگی قبل از برداشت",
+        "اجرای برداشت طبقات",
+        "کنترل نتیجه چندطبقه",
+        "وضعیت Upload در پلتفرم اصلی",
+        "کنترل پردازش در پلتفرم اصلی",
+        "اطلاع‌رسانی آماده‌شدن بازدید",
+        "آموزش اولیه مالک",
+    ]
     assert [gate["code"] for gate in pilot["gates"]] == ["G1", "G2", "G3", "G4", "G5"]
 
 

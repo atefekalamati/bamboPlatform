@@ -26,9 +26,16 @@ class CommercialProposalUpdate(BaseModel):
     user_count: int = Field(gt=0)
     support_scope: str = Field(min_length=2, max_length=10000)
     features: list[str] = Field(min_length=1, max_length=100)
-    proposal_file_name: str = Field(min_length=1, max_length=255)
-    proposal_file_size: int = Field(gt=0, le=100 * 1024 * 1024)
-    proposal_file_sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
+    proposal_file_name: str | None = Field(default=None, max_length=255)
+    proposal_file_size: int | None = Field(
+        default=None,
+        gt=0,
+        le=100 * 1024 * 1024,
+    )
+    proposal_file_sha256: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-fA-F]{64}$",
+    )
     decision_maker: str = Field(min_length=2, max_length=160)
     follow_up_at: datetime
 
@@ -36,23 +43,48 @@ class CommercialProposalUpdate(BaseModel):
 
     _normalize_follow_up_at = field_validator("follow_up_at")(normalize_utc_datetime)
 
-    @field_validator("proposal_file_name")
+    @field_validator("support_scope")
     @classmethod
-    def validate_file_name(cls, value: str) -> str:
+    def normalize_proposal_text(cls, value: str) -> str:
         normalized = value.strip()
-        if (
-            "/" in normalized
-            or "\\" in normalized
-            or normalized in {".", ".."}
-            or "://" in normalized
-        ):
-            raise ValueError("proposal_file_name must be a safe file name, not a path or URL")
+        if len(normalized) < 2:
+            raise ValueError("support_scope must contain a valid proposal text")
         return normalized
 
-    @field_validator("proposal_file_sha256")
+    @field_validator("proposal_file_name", mode="before")
     @classmethod
-    def normalize_sha256(cls, value: str) -> str:
-        return value.lower()
+    def normalize_optional_file_name(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+        return value or None
+
+    @field_validator("proposal_file_name")
+    @classmethod
+    def validate_file_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if (
+            "/" in value
+            or "\\" in value
+            or value in {".", ".."}
+            or "://" in value
+        ):
+            raise ValueError("proposal_file_name must be a safe file name, not a path or URL")
+        if not value.lower().endswith(".pdf"):
+            raise ValueError("proposal_file_name must use the .pdf extension")
+        return value
+
+    @field_validator("proposal_file_size", mode="before")
+    @classmethod
+    def normalize_optional_file_size(cls, value):
+        return None if value is None or value == "" or value == 0 else value
+
+    @field_validator("proposal_file_sha256", mode="before")
+    @classmethod
+    def normalize_sha256(cls, value):
+        if isinstance(value, str):
+            value = value.strip().lower()
+        return value or None
 
     @field_validator("features")
     @classmethod
@@ -63,6 +95,21 @@ class CommercialProposalUpdate(BaseModel):
         if len(set(normalized)) != len(normalized):
             raise ValueError("features must be unique")
         return normalized
+
+    @model_validator(mode="after")
+    def require_complete_file_metadata(self) -> "CommercialProposalUpdate":
+        file_metadata = (
+            self.proposal_file_name,
+            self.proposal_file_size,
+            self.proposal_file_sha256,
+        )
+        if any(value is not None for value in file_metadata) and not all(
+            value is not None for value in file_metadata
+        ):
+            raise ValueError(
+                "proposal file name, size, and sha256 must be provided together"
+            )
+        return self
 
 
 class CommercialProposalRead(BaseModel):
@@ -77,9 +124,9 @@ class CommercialProposalRead(BaseModel):
     user_count: int
     support_scope: str
     features: list[str]
-    proposal_file_name: str
-    proposal_file_size: int
-    proposal_file_sha256: str
+    proposal_file_name: str | None
+    proposal_file_size: int | None
+    proposal_file_sha256: str | None
     decision_maker: str
     follow_up_at: datetime
     created_at: datetime

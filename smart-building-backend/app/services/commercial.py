@@ -118,6 +118,16 @@ def update_commercial_proposal(
         )
     responsible = _active_user(db, actor_user_id, "responsible_user_id")
     values = payload.model_dump()
+    file_fields = {
+        "proposal_file_name",
+        "proposal_file_size",
+        "proposal_file_sha256",
+    }
+    if not any(values[field] is not None for field in file_fields):
+        # Omitting an optional PDF must preserve already-registered metadata.
+        # This also accepts the frontend's empty string/zero no-file sentinel.
+        for field in file_fields:
+            values.pop(field)
     proposal = pilot.commercial_proposal
     if proposal is None:
         proposal = CommercialProposal(
