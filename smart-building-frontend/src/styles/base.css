@@ -6,6 +6,9 @@ body {
   font-family: var(--font-family-ui);
   font-size: var(--font-size-md);
   line-height: 1.7;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 :focus-visible {
@@ -34,4 +37,3 @@ noscript {
   padding: var(--space-4);
   text-align: center;
 }
-

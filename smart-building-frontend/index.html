@@ -10,6 +10,22 @@
     <title>BAMBO Pilot</title>
     <link rel="icon" href="./src/assets/images/Logo Sign.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./src/styles/index.css" />
+
+    <script>
+      (function () {
+        var THEME_KEY = "bambo_theme";
+        var stored = localStorage.getItem(THEME_KEY);
+        var theme =
+          stored === "dark" || stored === "light"
+            ? stored
+            : window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+
   </head>
   <body>
     <a class="skip-link" href="#main-content">رفتن به محتوای اصلی</a>

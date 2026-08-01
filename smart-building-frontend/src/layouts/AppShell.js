@@ -1,4 +1,5 @@
 import { sessionStore } from "../app/sessionStore.js";
+import { themeStore } from "../app/themeStore.js";
 import { PRIMARY_NAVIGATION } from "../constants/routes.js";
 import { authService } from "../services/authService.js";
 
@@ -41,6 +42,30 @@ const createSidebar = (currentRoute) => {
   return sidebar;
 };
 
+const createThemeToggle = () => {
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "theme-toggle";
+
+  const syncState = () => {
+    const isDark = themeStore.getTheme() === themeStore.DARK_THEME;
+    toggle.textContent = isDark ? "☀️" : "🌙";
+    toggle.setAttribute(
+      "aria-label",
+      isDark ? "فعال‌سازی پوسته روشن" : "فعال‌سازی پوسته تیره",
+    );
+    toggle.setAttribute("aria-pressed", String(isDark));
+  };
+
+  toggle.addEventListener("click", () => {
+    themeStore.toggle();
+    syncState();
+  });
+
+  syncState();
+  return toggle;
+};
+
 const createHeader = () => {
   const header = document.createElement("header");
   const title = document.createElement("span");
@@ -61,7 +86,7 @@ const createHeader = () => {
     await authService.logout();
     window.location.reload();
   });
-  account.append(userName, logout);
+  account.append(userName, createThemeToggle(), logout);
   header.append(title, account);
   return header;
 };

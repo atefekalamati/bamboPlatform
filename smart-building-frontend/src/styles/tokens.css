@@ -1,25 +1,25 @@
 :root {
   /*
-   * Brand colors are provisional values extracted from the official SVG logo.
-   * Replace only after the brand palette is approved by the product team.
+   * Brand colors aligned with the production dashboard (dash.bambo1.ir).
    */
-  --color-brand-primary: #00af7e;
-  --color-brand-secondary: #009da2;
-  --color-brand-primary-strong: #008a66;
+  --color-brand-primary: #00ac58;
+  --color-brand-secondary: #008897;
+  --color-brand-primary-strong: #007a3f;
 
-  --color-background: #f5f8f7;
+  --color-background: #f4f6fb;
   --color-surface: #ffffff;
-  --color-text-primary: #15211e;
-  --color-text-secondary: #5f6f6a;
-  --color-border: #dce5e2;
-  --color-focus: #006e74;
-  --color-danger: #b42318;
+  --color-text-primary: #14122e;
+  --color-text-secondary: #5b6480;
+  --color-border: rgb(29 23 79 / 14%);
+  --color-focus: #008897;
+  --color-danger: #c0392b;
   --color-danger-surface: #fef3f2;
   --color-warning: #9a6700;
   --color-warning-surface: #fff8c5;
   --color-overlay: rgb(21 33 30 / 55%);
 
-  --font-family-ui: "Vazirmatn", Tahoma, Arial, sans-serif;
+  --font-family-ui:
+    "Vazirmatn", Tahoma, Arial, sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
@@ -41,4 +41,24 @@
 
   --shadow-sm: 0 0.25rem 1rem rgb(21 33 30 / 6%);
   --transition-fast: 150ms ease;
+}
+
+[data-theme="dark"] {
+  --color-brand-primary: #00ac58;
+  --color-brand-secondary: #008897;
+  --color-brand-primary-strong: #00c96a;
+
+  --color-background: #0a1120;
+  --color-surface: #16223c;
+  --color-text-primary: #eef1f5;
+  --color-text-secondary: #9aa3b2;
+  --color-border: rgb(120 145 205 / 14%);
+  --color-focus: #00e4ff;
+  --color-danger: #f04438;
+  --color-danger-surface: rgb(240 68 56 / 12%);
+  --color-warning: #eab308;
+  --color-warning-surface: rgb(234 179 8 / 12%);
+  --color-overlay: rgb(3 8 20 / 65%);
+
+  --shadow-sm: 0 0.25rem 1rem rgb(0 0 0 / 30%);
 }

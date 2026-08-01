@@ -101,6 +101,33 @@
   color: var(--color-text-secondary);
 }
 
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.theme-toggle:hover {
+  border-color: var(--color-brand-primary);
+  transform: scale(1.05);
+}
+
+
+
 @media (min-width: 64rem) {
   .app-shell {
     grid-template-columns: 17rem minmax(0, 1fr);
