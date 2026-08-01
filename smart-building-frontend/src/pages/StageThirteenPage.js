@@ -412,6 +412,16 @@ export const StageThirteenPage = ({ pilotId }) => {
           canApprove,
           canReject,
           reload: load,
+          onApproved: async () => {
+            const refreshedPilot = await pilotService.getPilotById(pilot.id);
+            if (refreshedPilot.currentStage === 14) {
+              window.location.hash = `#/pilots/${pilot.id}/stages/14`;
+              return;
+            }
+            await load(
+              "Stage 13 تأیید شد، اما Stage 14 هنوز از سمت سرور فعال نشده است.",
+            );
+          },
         }));
       }
       page.append(StageSnapshots({ snapshots, title: "نسخه‌های تأییدشده G4" }));
