@@ -1,10 +1,13 @@
 import { AuthLayout } from "../layouts/AuthLayout.js";
 import { LoginPage } from "../pages/LoginPage.js";
 import { authService } from "../services/authService.js";
+import { startPersianDigitLocalization } from "../utils/persianDigits.js";
 import { sessionStore } from "./sessionStore.js";
 import { startRouter } from "./router.js";
 
 const APP_ROOT_ID = "app";
+
+startPersianDigitLocalization();
 
 const renderAuthenticatedApp = (appRoot) => {
   appRoot.replaceChildren();
