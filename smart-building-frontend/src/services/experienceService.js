@@ -63,4 +63,49 @@ export const experienceService = Object.freeze({
         independent_use_confirmed: values.independentUse,
       }),
     }),
+  saveF04FollowUp: (pilotId, values) =>
+    request(`/pilots/${pilotId}/forms/f04`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        owner_logged_in: values.ownerLoggedIn,
+        project_opened: values.projectOpened,
+        main_tour_viewed: values.mainTourViewed,
+        viewing_result: values.viewingResult || null,
+        first_follow_up_at: values.firstFollowUpAt
+          ? new Date(values.firstFollowUpAt).toISOString()
+          : null,
+        second_follow_up_at: values.secondFollowUpAt
+          ? new Date(values.secondFollowUpAt).toISOString()
+          : null,
+        useful: values.useful,
+        coverage_score: values.coverageScore || null,
+        quality_score: values.qualityScore || null,
+        most_useful_part: values.mostUsefulPart || null,
+        missing_part: values.missingPart || null,
+        other_users: values.otherUsers || null,
+        more_training_needed: values.moreTrainingNeeded,
+        satisfaction_score: values.satisfactionScore || null,
+        issue_description: values.issueDescription || null,
+        issue_category: values.issueCategory || null,
+        issue_route: values.issueRoute || null,
+        issue_owner_user_id: values.issueOwnerUserId || null,
+        issue_due_at: values.issueDueAt
+          ? new Date(values.issueDueAt).toISOString()
+          : null,
+        customer_success_user_id: values.customerSuccessUserId || null,
+      }),
+    }),
+  getIncidents: (pilotId) => request(`/pilots/${pilotId}/incidents`),
+  closeIncident: (incidentId, values) =>
+    request(`/incidents/${incidentId}/close`, {
+      method: "POST",
+      body: JSON.stringify({
+        root_cause: values.rootCause,
+        corrective_action: values.correctiveAction,
+        result: values.result,
+        evidence: values.evidence || null,
+        lessons_learned: values.lessonsLearned,
+        confirmed: true,
+      }),
+    }),
 });

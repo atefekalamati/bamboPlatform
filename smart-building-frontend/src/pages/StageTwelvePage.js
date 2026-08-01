@@ -192,6 +192,16 @@ export const StageTwelvePage = ({ pilotId }) => {
             canApprove,
             canReject,
             reload: load,
+            onApproved: async () => {
+              const refreshedPilot = await pilotService.getPilotById(pilot.id);
+              if (refreshedPilot.currentStage === 13) {
+                window.location.hash = `#/pilots/${pilot.id}/stages/13`;
+                return;
+              }
+              await load(
+                "Stage 12 تأیید شد، اما Stage 13 هنوز از سمت سرور فعال نشده است.",
+              );
+            },
           }),
         );
       }
