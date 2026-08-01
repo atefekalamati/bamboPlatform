@@ -17,6 +17,8 @@
   --color-warning: #9a6700;
   --color-warning-surface: #fff8c5;
   --color-overlay: rgb(21 33 30 / 55%);
+  --brand-green: #00ac58;
+  --brand-teal: #008897;
 
   --font-family-ui:
     "Vazirmatn", Tahoma, Arial, sans-serif;
@@ -47,9 +49,8 @@
   --color-brand-primary: #00ac58;
   --color-brand-secondary: #008897;
   --color-brand-primary-strong: #00c96a;
-
   --color-background: #0a1120;
-  --color-surface: #16223c;
+  --color-surface: #0f1830;
   --color-text-primary: #eef1f5;
   --color-text-secondary: #9aa3b2;
   --color-border: rgb(120 145 205 / 14%);
@@ -61,4 +62,5 @@
   --color-overlay: rgb(3 8 20 / 65%);
 
   --shadow-sm: 0 0.25rem 1rem rgb(0 0 0 / 30%);
+  --app-card-navy: linear-gradient(180deg, #16223c 0%, #111a30 100%);
 }

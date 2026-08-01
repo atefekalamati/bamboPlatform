@@ -51,7 +51,7 @@
   padding: var(--space-5);
   border: 0.0625rem solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--app-card-navy);
   box-shadow: var(--shadow-sm);
 }
 

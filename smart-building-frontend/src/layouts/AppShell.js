@@ -49,7 +49,7 @@ const createThemeToggle = () => {
 
   const syncState = () => {
     const isDark = themeStore.getTheme() === themeStore.DARK_THEME;
-    toggle.textContent = isDark ? "☀️" : "🌙";
+    toggle.textContent = '◐';
     toggle.setAttribute(
       "aria-label",
       isDark ? "فعال‌سازی پوسته روشن" : "فعال‌سازی پوسته تیره",
