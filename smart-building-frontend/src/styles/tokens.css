@@ -19,8 +19,7 @@
   --color-warning-surface: #fff8c5;
   --color-overlay: rgb(21 33 30 / 55%);
 
-  --font-family-ui:
-    Tahoma, Arial, sans-serif;
+  --font-family-ui: "Vazirmatn", Tahoma, Arial, sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;
