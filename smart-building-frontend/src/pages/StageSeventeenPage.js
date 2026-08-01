@@ -110,6 +110,14 @@ export const StageSeventeenPage = ({ pilotId }) => {
       if (stage.status === "submitted" && (canApprove || canReject)) page.append(StageReviewPanel({
         pilotId: pilot.id, stageNumber: 17, title: "بررسی پیشنهاد تجاری", approveLabel: "تأیید و ورود به Stage 18",
         approvedNotice: "Stage 17 تأیید و Stage 18 باز شد.", rejectedNotice: "Stage 17 برای اصلاح بازگردانده شد.", canApprove, canReject, reload: load,
+        onApproved: async () => {
+          const refreshedPilot = await pilotService.getPilotById(pilot.id);
+          if (refreshedPilot.currentStage === 18) {
+            window.location.hash = `#/pilots/${pilot.id}/stages/18`;
+            return;
+          }
+          await load("Stage 17 تأیید شد، اما Stage 18 هنوز از سمت سرور فعال نشده است.");
+        },
       }));
       page.append(StageSnapshots({ snapshots, title: "نسخه‌های تأییدشده Stage 17" }));
     } catch (error) { renderError(error.message ?? "دریافت Stage 17 انجام نشد."); }

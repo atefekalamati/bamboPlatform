@@ -1,6 +1,19 @@
 import { request } from "./httpClient.js";
 
 export const commercialService = Object.freeze({
+  getFollowUps: (pilotId) => request(`/pilots/${pilotId}/commercial-follow-ups`),
+  saveFollowUp: (pilotId, slot, values) =>
+    request(`/pilots/${pilotId}/commercial-follow-ups/${slot}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        obstacle: values.obstacle,
+        action: values.action,
+        owner_user_id: Number(values.ownerUserId),
+        due_at: new Date(values.dueAt).toISOString(),
+        result: values.result,
+        completed_at: new Date(values.completedAt).toISOString(),
+      }),
+    }),
   getProposal: async (pilotId) => {
     try {
       return await request(`/pilots/${pilotId}/commercial-proposal`);
