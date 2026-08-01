@@ -1,6 +1,32 @@
 import { request } from "./httpClient.js";
 
 export const commercialService = Object.freeze({
+  getFinalOutcome: async (pilotId) => {
+    try {
+      return await request(`/pilots/${pilotId}/final-outcome`);
+    } catch (error) {
+      if (error.status === 404) return null;
+      throw error;
+    }
+  },
+  saveFinalOutcome: (pilotId, values) =>
+    request(`/pilots/${pilotId}/final-outcome`, {
+      method: "PUT",
+      body: JSON.stringify({
+        outcome: values.outcome,
+        reason: values.reason || null,
+        ready_at: values.readyAt ? new Date(values.readyAt).toISOString() : null,
+        success_owner_user_id: values.successOwnerUserId ? Number(values.successOwnerUserId) : null,
+        periodic_capture: values.periodicCapture,
+        contracted_user_count: values.contractedUserCount ? Number(values.contractedUserCount) : null,
+        first_capture_at: values.firstCaptureAt ? new Date(values.firstCaptureAt).toISOString() : null,
+      }),
+    }),
+  approveFinalOutcome: (pilotId) =>
+    request(`/pilots/${pilotId}/final-outcome/approve`, {
+      method: "POST",
+      body: JSON.stringify({ confirmed: true }),
+    }),
   getFollowUps: (pilotId) => request(`/pilots/${pilotId}/commercial-follow-ups`),
   saveFollowUp: (pilotId, slot, values) =>
     request(`/pilots/${pilotId}/commercial-follow-ups/${slot}`, {
