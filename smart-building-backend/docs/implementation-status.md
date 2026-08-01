@@ -40,7 +40,7 @@ Authoritative source:
 | Stage 15 evidence | Implemented | Existing main-platform capabilities are stored only as status, checker, time, and short result; file/audio/URL fields are rejected |
 | F04 closing session | Implemented for stage 16 | Login count, viewed sections, visit reduction, need, value, users/projects/frequency, decision maker, blocker, and decision |
 | G5 commercial gate | Implemented | Stages 14-16 use canonical Mission/review/evaluation/F04 data and source changes reopen the affected stage without mutating snapshots |
-| Commercial proposal | Implemented for stage 17 | Project/floor/area/frequency/period/users/support/features, decision maker, follow-up date, and name/size/SHA-256 proposal-file metadata; paths and URLs are rejected |
+| Commercial proposal | Implemented for stage 17 | Project/floor/area/frequency/period/users/support/features, decision maker, follow-up date, and optional all-or-none name/size/SHA-256 PDF metadata; paths, URLs, invalid types, and oversized files are rejected |
 | Sales follow-up calendar | Implemented for stage 18 | All four day 0/2/5/7-10 slots require obstacle, action, active owner, valid due window, completion, and result |
 | Final commercial outcome | Implemented for stage 19 | Contract, ready-on-date, negotiation, rejected, and closed outcomes with conditional details and explicit Pilot Manager confirmation |
 | Contract handoff | Implemented | Contract outcomes require success owner, periodic-capture decision, user count, and first-capture time |
@@ -48,15 +48,16 @@ Authoritative source:
 | Approved-source invalidation | Implemented | F01/F02/Floor/DWG/Mission/F03 changes reopen the affected stage and lock downstream work without changing old snapshots |
 | Stage-specific validation for all domains | Implemented | Stages 1-19 and G1-G5 use canonical persisted data rather than client-supplied checklist claims |
 | PostgreSQL configuration | Implemented | psycopg URL, local Compose service, and live PostgreSQL 17 integration in GitHub Actions |
-| Alembic migrations | Implemented | Revisions 0001-0009, live PostgreSQL upgrade/check/downgrade/re-upgrade, JSONB verification, SQL compilation, and metadata drift tests |
+| Alembic migrations | Implemented | Revisions 0001-0011, live PostgreSQL upgrade/check/downgrade/re-upgrade, JSONB verification, SQL compilation, metadata drift tests, reversible Stage-title backfill, and optional Stage 17 PDF metadata |
 | Backend CI | Implemented | Pull requests and pushes to `master` run the complete SQLite suite plus an isolated PostgreSQL service-container job |
-| OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, login/logout tests |
+| OTP authentication | Implemented foundation | HMAC code storage, expiry, attempt/rate limits, masking, independent multi-session login/logout, and PostgreSQL concurrency locks |
 | Production SMS provider | Blocked by PRD question | Provider company and API limits are not specified |
 | User/Role/Permission | Implemented | Grouped permissions, system roles, assignment and toggle APIs |
 | Backend authorization | Implemented for current APIs | Pilot and workflow routes enforce live session permissions |
 | Privilege escalation protection | Implemented | Delegation and last-Super-Admin security tests |
 | Audit log | Implemented foundation | Auth, RBAC, user, pilot, and stage actions are recorded |
 | Audit pagination/filtering | Implemented | Backward-compatible limit/offset plus exact action, entity, actor, and timezone-aware UTC range filters |
+| Concurrent stage decisions | Implemented | PostgreSQL row locking and unique decision constraints accept one submit/approve/reject result and return controlled conflicts for repeats |
 
 ## Remaining MVP backend areas
 

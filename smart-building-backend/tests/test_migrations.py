@@ -35,10 +35,23 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
         migrated_columns = {column["name"] for column in inspector.get_columns(table_name)}
         assert migrated_columns == {column.name for column in table.columns}
 
+    proposal_columns = {
+        column["name"]: column
+        for column in inspector.get_columns("commercial_proposals")
+    }
+    assert proposal_columns["proposal_file_name"]["nullable"] is True
+    assert proposal_columns["proposal_file_size"]["nullable"] is True
+    assert proposal_columns["proposal_file_sha256"]["nullable"] is True
+    proposal_checks = {
+        constraint["name"]
+        for constraint in inspector.get_check_constraints("commercial_proposals")
+    }
+    assert "ck_commercial_proposal_file_metadata" in proposal_checks
+
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0009_incident_unique_cleanup"
+            == "0011_optional_stage17_proposal_pdf"
         )
     engine.dispose()
 
@@ -65,3 +78,85 @@ def test_initial_migration_compiles_for_postgresql(monkeypatch):
     assert "JSONB" in sql
     assert "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)" in sql
     assert "ALTER TABLE incidents DROP CONSTRAINT incidents_code_key" in sql
+    assert "ck_commercial_proposal_file_metadata" in sql
+
+
+def test_stage_title_alignment_migration_preserves_and_restores_existing_data(
+    monkeypatch,
+    tmp_path,
+):
+    database_path = tmp_path / "stage-title-migration.db"
+    database_url = f"sqlite:///{database_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    config = alembic_config()
+    command.upgrade(config, "0009_incident_unique_cleanup")
+
+    engine = create_engine(database_url)
+    old_titles = {
+        3: "دریافت DWG و اطلاعات",
+        5: "مأموریت",
+        6: "آمادگی در محل",
+        7: "برداشت Floor",
+        8: "چند Floor",
+        10: "پردازش در پلتفرم اصلی",
+        11: "اطلاع‌رسانی",
+        12: "آموزش مالک",
+    }
+    new_titles = {
+        3: "دریافت DWG و اطلاعات طبقات",
+        5: "برنامه‌ریزی و تخصیص مأموریت",
+        6: "آمادگی قبل از برداشت",
+        7: "اجرای برداشت طبقات",
+        8: "کنترل نتیجه چندطبقه",
+        10: "کنترل پردازش در پلتفرم اصلی",
+        11: "اطلاع‌رسانی آماده‌شدن بازدید",
+        12: "آموزش اولیه مالک",
+    }
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO pilots "
+                "(id, code, pilot_year, sequence, project_number, "
+                "project_system_name, display_name, status, current_stage, "
+                "created_at, updated_at) VALUES "
+                "(1, 'PIL-1405-001', 1405, 1, 1, 'project-1', "
+                "'Migration pilot', 'operations', 12, "
+                "'2026-08-01 00:00:00', '2026-08-01 00:00:00')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO pilot_stages "
+                "(id, pilot_id, number, title, status, latest_version, "
+                "created_at, updated_at) VALUES "
+                "(:id, 1, :number, :title, 'locked', 0, "
+                "'2026-08-01 00:00:00', '2026-08-01 00:00:00')"
+            ),
+            [
+                {"id": index, "number": number, "title": title}
+                for index, (number, title) in enumerate(old_titles.items(), start=1)
+            ],
+        )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        upgraded = dict(
+            connection.execute(
+                text("SELECT number, title FROM pilot_stages ORDER BY number")
+            ).all()
+        )
+    assert upgraded == new_titles
+    engine.dispose()
+
+    command.downgrade(config, "0009_incident_unique_cleanup")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        downgraded = dict(
+            connection.execute(
+                text("SELECT number, title FROM pilot_stages ORDER BY number")
+            ).all()
+        )
+    assert downgraded == old_titles
+    engine.dispose()

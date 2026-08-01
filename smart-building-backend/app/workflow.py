@@ -39,7 +39,11 @@ STAGE_DEFINITIONS = (
         ),
         ("site_coordinator_phone",),
     ),
-    StageDefinition(3, "دریافت DWG و اطلاعات", ("floors_registered", "valid_dwg_registered")),
+    StageDefinition(
+        3,
+        "دریافت DWG و اطلاعات طبقات",
+        ("floors_registered", "valid_dwg_registered"),
+    ),
     StageDefinition(
         4,
         "راه‌اندازی در پلتفرم اصلی",
@@ -56,13 +60,13 @@ STAGE_DEFINITIONS = (
     ),
     StageDefinition(
         5,
-        "مأموریت",
+        "برنامه‌ریزی و تخصیص مأموریت",
         ("expert_assignment_confirmed",),
         ("scheduled_at", "expert", "floors", "site_contact"),
     ),
     StageDefinition(
         6,
-        "آمادگی در محل",
+        "آمادگی قبل از برداشت",
         (
             "assignment_accepted",
             "site_entry",
@@ -79,7 +83,7 @@ STAGE_DEFINITIONS = (
     ),
     StageDefinition(
         7,
-        "برداشت Floor",
+        "اجرای برداشت طبقات",
         (
             "correct_floor",
             "start_point",
@@ -91,7 +95,7 @@ STAGE_DEFINITIONS = (
             "capture_times_registered",
         ),
     ),
-    StageDefinition(8, "چند Floor", ("all_floors_resolved",)),
+    StageDefinition(8, "کنترل نتیجه چندطبقه", ("all_floors_resolved",)),
     StageDefinition(
         9,
         "وضعیت Upload در پلتفرم اصلی",
@@ -107,7 +111,7 @@ STAGE_DEFINITIONS = (
     ),
     StageDefinition(
         10,
-        "پردازش در پلتفرم اصلی",
+        "کنترل پردازش در پلتفرم اصلی",
         (
             "processing_started",
             "route_detected",
@@ -121,14 +125,24 @@ STAGE_DEFINITIONS = (
     ),
     StageDefinition(
         11,
-        "اطلاع‌رسانی",
+        "اطلاع‌رسانی آماده‌شدن بازدید",
         ("main_output_ready", "notification_sent", "delivery_registered"),
         ("delivery_status",),
     ),
     StageDefinition(
         12,
-        "آموزش مالک",
-        ("login", "project", "floor", "plan", "tour", "navigation", "support", "independent_use"),
+        "آموزش اولیه مالک",
+        (
+            "login",
+            "project",
+            "floor",
+            "plan",
+            "tour",
+            "navigation",
+            "training_completed",
+            "support",
+            "independent_use",
+        ),
     ),
     StageDefinition(
         13,
@@ -167,8 +181,14 @@ STAGE_DEFINITIONS = (
     StageDefinition(
         17,
         "پیشنهاد تجاری",
-        ("proposal_file_registered",),
-        ("project_count", "floor_count", "decision_maker", "follow_up_date"),
+        ("proposal_text_registered",),
+        (
+            "project_count",
+            "floor_count",
+            "support_scope",
+            "decision_maker",
+            "follow_up_date",
+        ),
     ),
     StageDefinition(
         18,

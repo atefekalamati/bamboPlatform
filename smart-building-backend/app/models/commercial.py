@@ -38,9 +38,9 @@ class CommercialProposal(Base):
     user_count = Column(Integer, nullable=False)
     support_scope = Column(Text, nullable=False)
     features = Column(JSON_TYPE, nullable=False, default=list)
-    proposal_file_name = Column(String(255), nullable=False)
-    proposal_file_size = Column(Integer, nullable=False)
-    proposal_file_sha256 = Column(String(64), nullable=False)
+    proposal_file_name = Column(String(255), nullable=True)
+    proposal_file_size = Column(Integer, nullable=True)
+    proposal_file_sha256 = Column(String(64), nullable=True)
     decision_maker = Column(String(160), nullable=False)
     follow_up_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, nullable=False, default=utc_now)
@@ -52,8 +52,12 @@ class CommercialProposal(Base):
         CheckConstraint("area_sqm > 0", name="ck_commercial_proposal_area"),
         CheckConstraint("user_count > 0", name="ck_commercial_proposal_user_count"),
         CheckConstraint(
-            "proposal_file_size > 0",
-            name="ck_commercial_proposal_file_size",
+            "(proposal_file_name IS NULL AND proposal_file_size IS NULL "
+            "AND proposal_file_sha256 IS NULL) OR "
+            "(proposal_file_name IS NOT NULL AND proposal_file_size IS NOT NULL "
+            "AND proposal_file_size > 0 AND proposal_file_sha256 IS NOT NULL "
+            "AND length(proposal_file_sha256) = 64)",
+            name="ck_commercial_proposal_file_metadata",
         ),
     )
 

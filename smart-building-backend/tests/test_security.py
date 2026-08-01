@@ -15,6 +15,40 @@ def test_otp_login_masks_mobile_and_logout_revokes_session(client):
     assert client.get("/auth/me", headers=headers).status_code == 401
 
 
+def test_parallel_session_policy_and_session_isolation(client, monkeypatch):
+    monkeypatch.setenv("OTP_RESEND_COOLDOWN_SECONDS", "0")
+
+    first_session = login_with_otp(client, "09151000001")
+    second_session = login_with_otp(client, "09151000001")
+    other_user_session = login_with_otp(client, "09151000002")
+
+    assert first_session != second_session
+    assert client.get("/auth/me", headers=first_session).status_code == 200
+    assert client.get("/auth/me", headers=second_session).status_code == 200
+    assert client.get("/auth/me", headers=other_user_session).status_code == 200
+
+    assert client.post("/auth/logout", headers=first_session).status_code == 204
+    assert client.get("/auth/me", headers=first_session).status_code == 401
+    assert client.get("/auth/me", headers=second_session).status_code == 200
+    assert client.get("/auth/me", headers=other_user_session).status_code == 200
+
+
+def test_otp_is_single_use(client):
+    requested = client.post(
+        "/auth/otp/request",
+        json={"mobile": "09151000003"},
+    ).json()
+    payload = {
+        "request_id": requested["request_id"],
+        "code": requested["debug_code"],
+    }
+
+    assert client.post("/auth/otp/verify", json=payload).status_code == 200
+    replayed = client.post("/auth/otp/verify", json=payload)
+    assert replayed.status_code == 400
+    assert replayed.json()["code"] == "OTP_INVALID"
+
+
 def test_otp_attempt_limit_and_request_rate_limit(client, monkeypatch):
     request_body = client.post("/auth/otp/request", json={"mobile": "09151111111"}).json()
     wrong_code = "111111" if request_body["debug_code"] == "000000" else "000000"
