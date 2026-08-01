@@ -12,15 +12,21 @@ from app.services.security import add_audit_log
 from app.services.workflow import invalidate_from_stage
 
 
-def get_mission(db: Session, mission_id: int) -> Mission:
-    mission = db.get(Mission, mission_id)
+def get_mission(db: Session, mission_id: int, *, lock: bool = False) -> Mission:
+    query = db.query(Mission).filter(Mission.id == mission_id)
+    if lock:
+        query = query.with_for_update()
+    mission = query.first()
     if mission is None:
         raise SecurityError("MISSION_NOT_FOUND", "مأموریت پیدا نشد.", 404, [])
     return mission
 
 
-def get_pilot(db: Session, pilot_id: int) -> Pilot:
-    pilot = db.get(Pilot, pilot_id)
+def get_pilot(db: Session, pilot_id: int, *, lock: bool = False) -> Pilot:
+    query = db.query(Pilot).filter(Pilot.id == pilot_id)
+    if lock:
+        query = query.with_for_update()
+    pilot = query.first()
     if pilot is None:
         raise SecurityError("PILOT_NOT_FOUND", "پرونده پایلوت پیدا نشد.", 404, [])
     return pilot
@@ -34,7 +40,7 @@ def update_continuation_review(
     actor_user_id: int,
     session_id: int,
 ) -> ContinuationReview:
-    mission = get_mission(db, mission_id)
+    mission = get_mission(db, mission_id, lock=True)
     pilot = mission.pilot
     if mission.sequence < 2 or pilot.current_stage < 14:
         raise SecurityError(
@@ -96,7 +102,7 @@ def update_pilot_evaluation(
     actor_user_id: int,
     session_id: int,
 ) -> PilotEvaluation:
-    pilot = get_pilot(db, pilot_id)
+    pilot = get_pilot(db, pilot_id, lock=True)
     if pilot.current_stage < 15:
         raise SecurityError(
             "EVALUATION_STAGE_LOCKED",

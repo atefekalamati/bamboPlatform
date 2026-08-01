@@ -51,7 +51,7 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0011_optional_stage17_proposal_pdf"
+            == "0012_stage_13_19_g5_alignment"
         )
     engine.dispose()
 
@@ -159,4 +159,116 @@ def test_stage_title_alignment_migration_preserves_and_restores_existing_data(
             ).all()
         )
     assert downgraded == old_titles
+    engine.dispose()
+
+
+def test_stage_13_19_titles_and_g5_alignment_are_reversible(
+    monkeypatch,
+    tmp_path,
+):
+    database_path = tmp_path / "stage-13-19-g5-migration.db"
+    database_url = f"sqlite:///{database_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    config = alembic_config()
+    command.upgrade(config, "0011_optional_stage17_proposal_pdf")
+
+    old_titles = {
+        13: "موفقیت مشتری",
+        14: "ادامه برداشت",
+        15: "ارزیابی",
+        16: "جلسه جمع‌بندی",
+        17: "پیشنهاد تجاری",
+        18: "پیگیری",
+        19: "قرارداد یا بستن",
+    }
+    new_titles = {
+        13: "پیگیری موفقیت مشتری",
+        14: "ادامه برداشت‌های پایلوت",
+        15: "ارزیابی موفقیت پایلوت",
+        16: "جلسه جمع‌بندی با مالک",
+        17: "تهیه و ارائه پیشنهاد تجاری",
+        18: "پیگیری تا تصمیم و عقد قرارداد",
+        19: "تبدیل پایلوت به قرارداد یا بستن پرونده",
+    }
+    engine = create_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO pilots "
+                "(id, code, pilot_year, sequence, project_number, "
+                "project_system_name, display_name, status, current_stage, "
+                "created_at, updated_at) VALUES "
+                "(1, 'PIL-1405-001', 1405, 1, 1, 'project-1', "
+                "'Migration pilot', 'evaluating', 16, "
+                "'2026-08-01 00:00:00', '2026-08-01 00:00:00')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO pilot_stages "
+                "(id, pilot_id, number, title, status, latest_version, "
+                "approved_at, created_at, updated_at) VALUES "
+                "(:id, 1, :number, :title, :status, 1, :approved_at, "
+                "'2026-08-01 00:00:00', '2026-08-01 00:00:00')"
+            ),
+            [
+                {
+                    "id": index,
+                    "number": number,
+                    "title": title,
+                    "status": "approved" if number == 15 else "open",
+                    "approved_at": (
+                        "2026-08-01 01:00:00" if number == 15 else None
+                    ),
+                }
+                for index, (number, title) in enumerate(old_titles.items(), start=1)
+            ],
+        )
+        connection.execute(
+            text(
+                "INSERT INTO pilot_gates "
+                "(pilot_id, code, title, after_stage, status, passed_at) "
+                "VALUES (1, 'G5', 'تجاری', 16, 'locked', NULL)"
+            )
+        )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        upgraded_titles = dict(
+            connection.execute(
+                text("SELECT number, title FROM pilot_stages ORDER BY number")
+            ).all()
+        )
+        upgraded_gate = connection.execute(
+            text(
+                "SELECT after_stage, status, passed_at FROM pilot_gates "
+                "WHERE code = 'G5'"
+            )
+        ).one()
+    assert upgraded_titles == new_titles
+    assert upgraded_gate.after_stage == 15
+    assert upgraded_gate.status == "passed"
+    assert upgraded_gate.passed_at is not None
+    engine.dispose()
+
+    command.downgrade(config, "0011_optional_stage17_proposal_pdf")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        downgraded_titles = dict(
+            connection.execute(
+                text("SELECT number, title FROM pilot_stages ORDER BY number")
+            ).all()
+        )
+        downgraded_gate = connection.execute(
+            text(
+                "SELECT after_stage, status, passed_at FROM pilot_gates "
+                "WHERE code = 'G5'"
+            )
+        ).one()
+    assert downgraded_titles == old_titles
+    assert downgraded_gate.after_stage == 16
+    assert downgraded_gate.status == "locked"
+    assert downgraded_gate.passed_at is None
     engine.dispose()

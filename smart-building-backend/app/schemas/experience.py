@@ -45,6 +45,14 @@ ClosingDecision = Literal[
     "stop",
     "undecided",
 ]
+ViewingResult = Literal[
+    "مشاهده موفق",
+    "نیازمند آموزش",
+    "مشکل فنی",
+    "هنوز مشاهده نکرده",
+    "عدم پاسخ",
+]
+ViewedSection = Literal["project", "floor", "plan", "tour"]
 
 EVIDENCE_CAPABILITIES = {
     "actual_progress",
@@ -128,7 +136,7 @@ class FormF04Patch(BaseModel):
     project_opened: bool | None = None
     main_tour_viewed: bool | None = None
     training_completed: bool | None = None
-    viewing_result: str | None = Field(default=None, max_length=4000)
+    viewing_result: ViewingResult | None = None
     issue_description: str | None = Field(default=None, max_length=4000)
     issue_category: IssueCategory | None = None
     issue_route: IssueRoute | None = None
@@ -145,19 +153,13 @@ class FormF04Patch(BaseModel):
     more_training_needed: bool | None = None
     satisfaction_score: int | None = Field(default=None, ge=1, le=10)
     continuation_interest: bool | None = None
-    proposal_ready: bool | None = None
-    realized_value: str | None = Field(default=None, max_length=4000)
-    purchase_blocker: str | None = Field(default=None, max_length=4000)
+    realized_value: str | None = Field(default=None, min_length=2, max_length=4000)
+    purchase_blocker: str | None = Field(default=None, min_length=2, max_length=4000)
     project_count: int | None = Field(default=None, ge=0, le=100000)
-    usage_frequency: str | None = Field(default=None, max_length=160)
+    usage_frequency: str | None = Field(default=None, min_length=2, max_length=160)
     user_count: int | None = Field(default=None, ge=0, le=100000)
-    decision_maker: str | None = Field(default=None, max_length=160)
-    next_action: str | None = Field(default=None, max_length=4000)
-    final_result: str | None = Field(default=None, max_length=160)
-    final_reason: str | None = Field(default=None, max_length=4000)
+    decision_maker: str | None = Field(default=None, min_length=2, max_length=160)
     customer_success_user_id: int | None = None
-    sales_user_id: int | None = None
-    pilot_manager_user_id: int | None = None
     login_trained: bool | None = None
     project_trained: bool | None = None
     floor_trained: bool | None = None
@@ -167,9 +169,13 @@ class FormF04Patch(BaseModel):
     support_trained: bool | None = None
     independent_use_confirmed: bool | None = None
     main_platform_login_count: int | None = Field(default=None, ge=0)
-    viewed_sections: list[str] | None = Field(default=None, max_length=50)
+    viewed_sections: list[ViewedSection] | None = Field(default=None, max_length=4)
     visit_reduction_result: VisitReductionResult | None = None
-    customer_need_summary: str | None = Field(default=None, max_length=4000)
+    customer_need_summary: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=4000,
+    )
     closing_decision: ClosingDecision | None = None
 
     model_config = ConfigDict(extra="forbid")

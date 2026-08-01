@@ -14,13 +14,17 @@ from app.exceptions import SecurityError, WorkflowError
 from app.models import (
     AuditLog,
     AuthSession,
+    FormF04,
     OtpRequest,
     Pilot,
+    Role,
     StageApproval,
     StageSubmission,
     User,
 )
+from app.schemas.experience import FormF04Patch
 from app.schemas.workflow import PilotCreate, StageReject
+from app.services.experience import patch_f04
 from app.services.security import (
     AuthContext,
     request_otp,
@@ -72,7 +76,7 @@ def test_postgresql_schema_and_persistence(monkeypatch):
             connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            == "0011_optional_stage17_proposal_pdf"
+            == "0012_stage_13_19_g5_alignment"
         )
 
     with database.get_session() as db:
@@ -358,5 +362,75 @@ def test_postgresql_concurrent_stage_decision_accepts_one(
             assert stage.status == "needs_revision"
             assert pilot.current_stage == 2
             assert gate.status == "locked"
+
+    engine.dispose()
+
+
+def test_postgresql_concurrent_f04_partial_updates_preserve_fields(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
+    engine = database.get_engine()
+    with database.get_session() as db:
+        seed_security_data(db)
+        super_admin_role = db.query(Role).filter(Role.name == "super_admin").one()
+        actor = User(
+            mobile="+989150001100",
+            display_name="Concurrent F04 actor",
+            roles=[super_admin_role],
+        )
+        db.add(actor)
+        db.flush()
+        pilot = create_pilot(
+            db,
+            PilotCreate.model_validate(
+                {
+                    "pilot_year": 1496,
+                    "owner": {
+                        "name": "Concurrent F04 owner",
+                        "decision_maker_name": "Decision Maker",
+                        "decision_maker_position": "Director",
+                        "primary_mobile": "+989150001101",
+                    },
+                    "project": {
+                        "name": "Concurrent F04 project",
+                        "total_floors": 1,
+                        "address": "PostgreSQL concurrency test",
+                        "progress_stage": "active",
+                        "customer_need": "Preserve independent draft fields",
+                        "expected_value": "Prevent duplicate F04 rows",
+                    },
+                }
+            ),
+            actor_user_id=actor.id,
+        )
+        pilot.current_stage = 12
+        db.commit()
+        pilot_id = pilot.id
+        actor_id = actor.id
+
+    barrier = Barrier(2)
+    payloads = (
+        FormF04Patch(owner_logged_in=True),
+        FormF04Patch(project_opened=True),
+    )
+
+    def update_at_once(payload: FormF04Patch) -> None:
+        barrier.wait()
+        with database.get_session() as db:
+            patch_f04(
+                db,
+                pilot_id,
+                payload,
+                actor_user_id=actor_id,
+                session_id=None,
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(update_at_once, payloads))
+
+    with database.get_session() as db:
+        forms = db.query(FormF04).filter(FormF04.pilot_id == pilot_id).all()
+        assert len(forms) == 1
+        assert forms[0].owner_logged_in is True
+        assert forms[0].project_opened is True
 
     engine.dispose()

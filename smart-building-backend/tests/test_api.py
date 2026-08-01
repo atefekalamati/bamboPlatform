@@ -128,7 +128,7 @@ def test_pilot_creation_builds_prd_stage_and_gate_structure(client, super_admin_
     assert len(pilot["stages"]) == 19
     assert pilot["stages"][0]["status"] == "open"
     assert all(stage["status"] == "locked" for stage in pilot["stages"][1:])
-    assert [stage["title"] for stage in pilot["stages"][:12]] == [
+    assert [stage["title"] for stage in pilot["stages"]] == [
         "انتخاب پروژه مناسب برای پایلوت",
         "معرفی و موافقت",
         "دریافت DWG و اطلاعات طبقات",
@@ -141,8 +141,16 @@ def test_pilot_creation_builds_prd_stage_and_gate_structure(client, super_admin_
         "کنترل پردازش در پلتفرم اصلی",
         "اطلاع‌رسانی آماده‌شدن بازدید",
         "آموزش اولیه مالک",
+        "پیگیری موفقیت مشتری",
+        "ادامه برداشت‌های پایلوت",
+        "ارزیابی موفقیت پایلوت",
+        "جلسه جمع‌بندی با مالک",
+        "تهیه و ارائه پیشنهاد تجاری",
+        "پیگیری تا تصمیم و عقد قرارداد",
+        "تبدیل پایلوت به قرارداد یا بستن پرونده",
     ]
     assert [gate["code"] for gate in pilot["gates"]] == ["G1", "G2", "G3", "G4", "G5"]
+    assert [gate["after_stage"] for gate in pilot["gates"]] == [2, 4, 9, 13, 15]
 
 
 def test_locked_stage_cannot_be_submitted(client, super_admin_headers):

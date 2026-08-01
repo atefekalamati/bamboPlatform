@@ -146,13 +146,13 @@ STAGE_DEFINITIONS = (
     ),
     StageDefinition(
         13,
-        "موفقیت مشتری",
+        "پیگیری موفقیت مشتری",
         ("first_follow_up", "second_follow_up", "owner_viewed", "no_open_critical_incident"),
         ("follow_up_result",),
     ),
     StageDefinition(
         14,
-        "ادامه برداشت",
+        "ادامه برداشت‌های پایلوت",
         (
             "new_mission",
             "stage_5_rechecked",
@@ -169,18 +169,28 @@ STAGE_DEFINITIONS = (
     ),
     StageDefinition(
         15,
-        "ارزیابی",
+        "ارزیابی موفقیت پایلوت",
         ("operations", "quality", "technical", "customer", "commercial", "one_page_report"),
     ),
     StageDefinition(
         16,
-        "جلسه جمع‌بندی",
+        "جلسه جمع‌بندی با مالک",
         ("value_clear", "need_clear", "decision_maker_clear", "blocker_clear"),
-        ("decision", "decision_maker", "blocker"),
+        (
+            "decision",
+            "decision_maker",
+            "blocker",
+            "main_platform_login_count",
+            "viewed_sections",
+            "visit_reduction_result",
+            "project_count",
+            "usage_frequency",
+            "user_count",
+        ),
     ),
     StageDefinition(
         17,
-        "پیشنهاد تجاری",
+        "تهیه و ارائه پیشنهاد تجاری",
         ("proposal_text_registered",),
         (
             "project_count",
@@ -192,13 +202,13 @@ STAGE_DEFINITIONS = (
     ),
     StageDefinition(
         18,
-        "پیگیری",
+        "پیگیری تا تصمیم و عقد قرارداد",
         ("follow_up_registered",),
         ("obstacle", "action", "owner", "due_at", "result"),
     ),
     StageDefinition(
         19,
-        "قرارداد یا بستن",
+        "تبدیل پایلوت به قرارداد یا بستن پرونده",
         ("final_result_registered", "pilot_manager_approved"),
         ("outcome",),
     ),
@@ -211,7 +221,7 @@ GATE_DEFINITIONS = (
     ("G2", "آمادگی فنی", 4),
     ("G3", "عملیات", 9),
     ("G4", "تجربه", 13),
-    ("G5", "تجاری", 16),
+    ("G5", "تجاری", 15),
 )
 
 PILOT_STATUS_AFTER_STAGE = {
