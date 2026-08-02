@@ -219,6 +219,7 @@
 
 .forms-preview {
   margin-top: var(--space-4);
+  overflow-x: auto;
 }
 
 .forms-preview__header {
@@ -261,10 +262,229 @@
   color: var(--color-warning);
 }
 
+.official-form {
+  --official-green: #19634c;
+  --official-green-soft: #e8f1ed;
+  width: min(100%, 52.5rem);
+  min-height: 74.25rem;
+  margin: var(--space-4) auto;
+  padding: 2.25rem 2.5rem;
+  border: 0.0625rem solid #8ab2a5;
+  background: #fff;
+  color: #171717;
+  box-shadow: 0 0.5rem 1.5rem rgba(25, 99, 76, 0.1);
+  font-family: var(--font-family-ui);
+  font-size: 0.82rem;
+  line-height: 1.75;
+}
+
+.official-form__header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  align-items: start;
+  padding-bottom: 0.75rem;
+  border-bottom: 0.2rem solid var(--official-green);
+}
+
+.official-form__identity {
+  text-align: right;
+}
+
+.official-form__label,
+.official-form__title,
+.official-form__section-title {
+  color: var(--official-green);
+}
+
+.official-form__label {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.official-form__title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.official-form__meta {
+  min-width: 11rem;
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.official-form__meta > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem;
+}
+
+.official-form__meta dt,
+.official-form__meta dd {
+  margin: 0;
+}
+
+.official-form__meta dt::after {
+  content: ":";
+}
+
+.official-form__section {
+  margin-top: 1.15rem;
+  break-inside: avoid;
+}
+
+.official-form__section-title {
+  margin: 0 0 0.4rem;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.official-form__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.38rem 0.7rem;
+  margin: 0;
+}
+
+.official-form__field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.official-form__field dt,
+.official-form__field dd {
+  margin: 0;
+}
+
+.official-form__field dt {
+  margin-bottom: 0.15rem;
+  padding: 0 0.3rem;
+  color: #273b34;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.official-form__field dd {
+  min-height: 2.15rem;
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  border: 0.0625rem solid #a6c7bc;
+  border-radius: 0.38rem;
+  background: #fff;
+}
+
+.official-form__field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.8rem;
+}
+
+.official-form__field--check dt {
+  order: 2;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.official-form__field--check dd {
+  order: 1;
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.official-form__field--wide {
+  grid-column: 1 / -1;
+}
+
+.official-form__field--signature dd {
+  min-height: 3rem;
+  border-style: dashed;
+}
+
+.official-form__checkbox {
+  display: inline-grid;
+  width: 1rem;
+  height: 1rem;
+  place-items: center;
+  border: 0.09rem solid var(--official-green);
+  color: var(--official-green);
+  font: 700 0.8rem/1 var(--font-family-ui);
+}
+
+.official-form :where(h1, h2, h3, h4, h5, h6, p, dl, dt, dd, table, th, td, span) {
+  font-family: inherit;
+}
+
+.official-form__table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.official-form__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.official-form__table th,
+.official-form__table td {
+  min-width: 5rem;
+  padding: 0.38rem;
+  border: 0.0625rem solid #8ab2a5;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.official-form__table th {
+  background: var(--official-green-soft);
+  color: #174c3c;
+}
+
+.official-form__nested {
+  grid-column: 1 / -1;
+}
+
+.official-form__nested h5 {
+  margin: 0.35rem 0;
+  color: var(--official-green);
+}
+
+.official-form__empty {
+  min-height: 2rem;
+  margin: 0;
+  border: 0.0625rem solid #a6c7bc;
+}
+
+@media (max-width: 47.99rem) {
+  .official-form {
+    min-width: 40rem;
+    min-height: auto;
+    padding: 1.5rem;
+  }
+
+  .official-form__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media print {
   .project-forms .button,
   .forms-preview__missing {
     display: none;
+  }
+
+  .official-form {
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 10mm;
+    border-color: #8ab2a5;
+    box-shadow: none;
   }
 }
 
