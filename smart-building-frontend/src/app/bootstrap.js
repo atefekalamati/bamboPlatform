@@ -2,6 +2,11 @@ import { AuthLayout } from "../layouts/AuthLayout.js";
 import { LoginPage } from "../pages/LoginPage.js";
 import { authService } from "../services/authService.js";
 import { startPersianDigitLocalization } from "../utils/persianDigits.js";
+import {
+  markApiErrorFields,
+  onApiError,
+  onAuthenticationRequired,
+} from "./apiErrorPresenter.js";
 import { sessionStore } from "./sessionStore.js";
 import { startRouter } from "./router.js";
 
@@ -24,10 +29,17 @@ const renderLogin = (appRoot) => {
   );
 };
 
+const registerGlobalErrorHandling = (appRoot) => {
+  onApiError(({ detail: error }) => markApiErrorFields(appRoot, error));
+  onAuthenticationRequired(() => renderLogin(appRoot));
+};
+
 const bootstrap = async () => {
   const appRoot = document.getElementById(APP_ROOT_ID);
 
   if (!appRoot) return;
+
+  registerGlobalErrorHandling(appRoot);
 
   if (!sessionStore.getToken()) {
     renderLogin(appRoot);

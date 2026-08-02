@@ -40,7 +40,6 @@
 }
 
 .sidebar__link--active {
-  /* background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent); */
   background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-teal) 100%);
   color: #fff;
 }
