@@ -1,6 +1,9 @@
 """External platform, F04, evidence, notification, and F05 incident APIs."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, status
+from fastapi import Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -21,6 +24,7 @@ from app.schemas.experience import (
     FormF04Read,
     IncidentClose,
     IncidentCreate,
+    IncidentList,
     IncidentPatch,
     IncidentRead,
     OutputNotificationCreate,
@@ -32,12 +36,13 @@ from app.services.experience import (
     create_main_output_notification,
     get_incident,
     get_pilot,
+    list_incidents as list_incidents_service,
     patch_f04,
     patch_incident,
     update_external_platform_reference,
     upsert_external_evidence,
 )
-from app.services.security import AuthContext, require_permission
+from app.services.security import AuthContext, effective_permissions, require_permission
 
 router = APIRouter(tags=["customer-experience"])
 
@@ -162,13 +167,48 @@ def post_main_output_notification(
     )
 
 
-@router.get("/pilots/{pilot_id}/incidents", response_model=list[IncidentRead])
+@router.get("/pilots/{pilot_id}/incidents", response_model=IncidentList)
 def list_incidents(
     pilot_id: int,
-    _: AuthContext = Depends(require_permission("pilots.read")),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=200),
+    search: str | None = Query(default=None, min_length=1, max_length=160),
+    status_filter: str | None = Query(default=None, alias="status"),
+    severity: str | None = Query(default=None),
+    incident_type: str | None = Query(default=None),
+    stage_number: int | None = Query(default=None, ge=1, le=19),
+    mission_id: int | None = Query(default=None, ge=1),
+    owner_user_id: int | None = Query(default=None, ge=1),
+    reported_by_user_id: int | None = Query(default=None, ge=1),
+    occurred_from: datetime | None = Query(default=None),
+    occurred_to: datetime | None = Query(default=None),
+    response_overdue: bool | None = Query(default=None),
+    correction_overdue: bool | None = Query(default=None),
+    sort_by: str = Query(default="created_at", max_length=80),
+    sort_order: str = Query(default="desc", pattern="^(asc|desc)$"),
+    _: AuthContext = Depends(require_permission("incidents.read")),
     db: Session = Depends(get_db),
-) -> list[Incident]:
-    return get_pilot(db, pilot_id).incidents
+) -> IncidentList:
+    return list_incidents_service(
+        db,
+        pilot_id,
+        page=page,
+        page_size=page_size,
+        search=search,
+        status=status_filter,
+        severity=severity,
+        incident_type=incident_type,
+        stage_number=stage_number,
+        mission_id=mission_id,
+        owner_user_id=owner_user_id,
+        reported_by_user_id=reported_by_user_id,
+        occurred_from=occurred_from,
+        occurred_to=occurred_to,
+        response_overdue=response_overdue,
+        correction_overdue=correction_overdue,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
 
 
 @router.post(
@@ -179,7 +219,7 @@ def list_incidents(
 def post_incident(
     pilot_id: int,
     payload: IncidentCreate,
-    context: AuthContext = Depends(require_permission("incidents.manage")),
+    context: AuthContext = Depends(require_permission("incidents.create")),
     db: Session = Depends(get_db),
 ) -> Incident:
     return create_incident(
@@ -194,7 +234,7 @@ def post_incident(
 @router.get("/incidents/{incident_id}", response_model=IncidentRead)
 def get_incident_endpoint(
     incident_id: int,
-    _: AuthContext = Depends(require_permission("pilots.read")),
+    _: AuthContext = Depends(require_permission("incidents.read")),
     db: Session = Depends(get_db),
 ) -> Incident:
     return get_incident(db, incident_id)
@@ -204,7 +244,7 @@ def get_incident_endpoint(
 def patch_incident_endpoint(
     incident_id: int,
     payload: IncidentPatch,
-    context: AuthContext = Depends(require_permission("incidents.manage")),
+    context: AuthContext = Depends(require_permission("incidents.update")),
     db: Session = Depends(get_db),
 ) -> Incident:
     return patch_incident(
@@ -220,7 +260,7 @@ def patch_incident_endpoint(
 def close_incident_endpoint(
     incident_id: int,
     payload: IncidentClose,
-    context: AuthContext = Depends(require_permission("incidents.manage")),
+    context: AuthContext = Depends(require_permission("incidents.close")),
     db: Session = Depends(get_db),
 ) -> Incident:
     return close_incident(
@@ -229,4 +269,5 @@ def close_incident_endpoint(
         payload,
         actor_user_id=context.user.id,
         session_id=context.session.id,
+        actor_permissions=effective_permissions(context.user),
     )

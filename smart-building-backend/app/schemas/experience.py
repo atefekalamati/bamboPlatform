@@ -312,17 +312,20 @@ class IncidentCreate(BaseModel):
     stage_number: int = Field(ge=1, le=19)
     severity: IncidentSeverity
     incident_type: IncidentType
+    location: str | None = Field(default=None, max_length=500)
     description: str = Field(min_length=2, max_length=10000)
     containment_action: str | None = Field(default=None, max_length=10000)
     notified_people: list[str] = Field(default_factory=list, max_length=100)
+    informed_at: datetime | None = None
     owner_user_id: int | None = None
+    response_due_at: datetime | None = None
     correction_due_at: datetime | None = None
 
     model_config = ConfigDict(extra="forbid")
 
     _normalize_occurred_at = field_validator("occurred_at")(normalize_utc_datetime)
 
-    @field_validator("correction_due_at")
+    @field_validator("informed_at", "response_due_at", "correction_due_at")
     @classmethod
     def normalize_optional_due_at(cls, value: datetime | None) -> datetime | None:
         return normalize_utc_datetime(value) if value else None
@@ -337,18 +340,29 @@ class IncidentCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_correction_due_at(self) -> "IncidentCreate":
+        if self.response_due_at and self.response_due_at < self.occurred_at:
+            raise ValueError("response_due_at cannot be before occurred_at")
         if self.correction_due_at and self.correction_due_at < self.occurred_at:
             raise ValueError("correction_due_at cannot be before occurred_at")
+        if self.informed_at and self.informed_at < self.occurred_at:
+            raise ValueError("informed_at cannot be before occurred_at")
         return self
 
 
 class IncidentPatch(BaseModel):
+    severity: IncidentSeverity | None = None
+    incident_type: IncidentType | None = None
+    location: str | None = Field(default=None, max_length=500)
     containment_action: str | None = Field(default=None, max_length=10000)
     notified_people: list[str] | None = Field(default=None, max_length=100)
+    informed_at: datetime | None = None
     root_cause: str | None = Field(default=None, max_length=10000)
     corrective_action: str | None = Field(default=None, max_length=10000)
+    preventive_action: str | None = Field(default=None, max_length=10000)
     owner_user_id: int | None = None
+    response_due_at: datetime | None = None
     correction_due_at: datetime | None = None
+    responded_at: datetime | None = None
     result: str | None = Field(default=None, max_length=10000)
     evidence: str | None = Field(default=None, max_length=10000)
     lessons_learned: str | None = Field(default=None, max_length=10000)
@@ -356,7 +370,7 @@ class IncidentPatch(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    @field_validator("correction_due_at")
+    @field_validator("informed_at", "response_due_at", "correction_due_at", "responded_at")
     @classmethod
     def normalize_optional_due_at(cls, value: datetime | None) -> datetime | None:
         return normalize_utc_datetime(value) if value else None
@@ -381,9 +395,11 @@ class IncidentPatch(BaseModel):
 class IncidentClose(BaseModel):
     root_cause: str = Field(min_length=2, max_length=10000)
     corrective_action: str = Field(min_length=2, max_length=10000)
+    preventive_action: str | None = Field(default=None, max_length=10000)
     result: str = Field(min_length=2, max_length=10000)
     evidence: str | None = Field(default=None, max_length=10000)
     lessons_learned: str = Field(min_length=2, max_length=10000)
+    closure_note: str | None = Field(default=None, max_length=10000)
     confirmed: bool
 
     model_config = ConfigDict(extra="forbid")
@@ -397,30 +413,63 @@ class IncidentClose(BaseModel):
 
 class IncidentRead(BaseModel):
     id: int
+    incident_code: str
+    sequence_number: int
     pilot_id: int
     mission_id: int | None
     sequence: int
     code: str
     occurred_at: datetime
+    reported_at: datetime
     reported_by_user_id: int
     stage_number: int
     severity: IncidentSeverity
     incident_type: IncidentType
+    location: str | None
     description: str
     containment_action: str | None
     notified_people: list[str]
+    informed_at: datetime | None
     root_cause: str | None
     corrective_action: str | None
+    preventive_action: str | None
     owner_user_id: int | None
     response_due_at: datetime
     correction_due_at: datetime | None
+    responded_at: datetime | None
+    contained_at: datetime | None
     result: str | None
     evidence: str | None
     lessons_learned: str | None
     status: IncidentStatus
+    is_closed: bool
+    is_response_overdue: bool
+    is_correction_overdue: bool
+    response_remaining_seconds: int | None
+    correction_remaining_seconds: int | None
     closed_by_user_id: int | None
     closed_at: datetime | None
+    closure_note: str | None
+    closure_approved_by_user_id: int | None
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class IncidentSummary(BaseModel):
+    open: int
+    contained: int
+    resolved: int
+    closed: int
+    critical: int
+    overdue: int
+
+
+class IncidentList(BaseModel):
+    items: list[IncidentRead]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    summary: IncidentSummary

@@ -204,24 +204,32 @@ class Incident(Base):
     sequence = Column(Integer, nullable=False)
     code = Column(String(64), nullable=False, unique=True, index=True)
     occurred_at = Column(DateTime, nullable=False, index=True)
-    reported_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    reported_at = Column(DateTime, nullable=False, default=utc_now, index=True)
+    reported_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     stage_number = Column(Integer, nullable=False, index=True)
     severity = Column(String(16), nullable=False, index=True)
     incident_type = Column(String(24), nullable=False, index=True)
+    location = Column(String(500), nullable=True)
     description = Column(Text, nullable=False)
     containment_action = Column(Text, nullable=True)
     notified_people = Column(JSON_TYPE, nullable=False, default=list)
+    informed_at = Column(DateTime, nullable=True)
     root_cause = Column(Text, nullable=True)
     corrective_action = Column(Text, nullable=True)
-    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    preventive_action = Column(Text, nullable=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     response_due_at = Column(DateTime, nullable=False, index=True)
-    correction_due_at = Column(DateTime, nullable=True)
+    correction_due_at = Column(DateTime, nullable=True, index=True)
+    responded_at = Column(DateTime, nullable=True, index=True)
+    contained_at = Column(DateTime, nullable=True)
     result = Column(Text, nullable=True)
     evidence = Column(Text, nullable=True)
     lessons_learned = Column(Text, nullable=True)
     status = Column(String(16), nullable=False, default="open", index=True)
     closed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     closed_at = Column(DateTime, nullable=True)
+    closure_note = Column(Text, nullable=True)
+    closure_approved_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now)
     updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
 
@@ -252,3 +260,44 @@ class Incident(Base):
     reported_by = relationship("User", foreign_keys=[reported_by_user_id])
     owner = relationship("User", foreign_keys=[owner_user_id])
     closed_by = relationship("User", foreign_keys=[closed_by_user_id])
+    closure_approved_by = relationship("User", foreign_keys=[closure_approved_by_user_id])
+
+    @property
+    def incident_code(self) -> str:
+        return self.code
+
+    @property
+    def sequence_number(self) -> int:
+        return self.sequence
+
+    @property
+    def is_closed(self) -> bool:
+        return self.status == "closed"
+
+    @property
+    def is_response_overdue(self) -> bool:
+        return (
+            self.status != "closed"
+            and self.responded_at is None
+            and self.response_due_at < utc_now()
+        )
+
+    @property
+    def is_correction_overdue(self) -> bool:
+        return (
+            self.status != "closed"
+            and self.correction_due_at is not None
+            and self.correction_due_at < utc_now()
+        )
+
+    @property
+    def response_remaining_seconds(self) -> int | None:
+        if self.status == "closed" or self.responded_at is not None:
+            return None
+        return int((self.response_due_at - utc_now()).total_seconds())
+
+    @property
+    def correction_remaining_seconds(self) -> int | None:
+        if self.status == "closed" or self.correction_due_at is None:
+            return None
+        return int((self.correction_due_at - utc_now()).total_seconds())

@@ -1,8 +1,9 @@
 """External platform status, customer experience, evidence, and incident services."""
 
+import math
 from datetime import timedelta
 
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,7 @@ from app.schemas.experience import (
     FormF04Patch,
     IncidentClose,
     IncidentCreate,
+    IncidentList,
     IncidentPatch,
     OutputNotificationCreate,
 )
@@ -39,6 +41,23 @@ ISSUE_ROUTES = {
     "training": "training",
     "capability": "product",
     "continuation": "sales",
+}
+
+INCIDENT_TRANSITIONS = {
+    "open": {"contained", "resolved"},
+    "contained": {"resolved"},
+    "resolved": set(),
+    "closed": set(),
+}
+
+INCIDENT_SORT_COLUMNS = {
+    "created_at": Incident.created_at,
+    "occurred_at": Incident.occurred_at,
+    "response_due_at": Incident.response_due_at,
+    "correction_due_at": Incident.correction_due_at,
+    "severity": Incident.severity,
+    "status": Incident.status,
+    "stage_number": Incident.stage_number,
 }
 
 
@@ -57,6 +76,127 @@ def get_incident(db: Session, incident_id: int) -> Incident:
     if not incident:
         raise SecurityError("INCIDENT_NOT_FOUND", "رخداد پیدا نشد.", 404, [])
     return incident
+
+
+def _require_incident_owner(db: Session, user_id: int | None, field: str) -> User | None:
+    if user_id is None:
+        return None
+    user = (
+        db.query(User)
+        .filter(
+            User.id == user_id,
+            User.is_active.is_(True),
+            User.locked_at.is_(None),
+        )
+        .first()
+    )
+    if user is None:
+        raise SecurityError(
+            "INCIDENT_OWNER_INVALID",
+            "مسئول رخداد باید کاربر فعال باشد.",
+            422,
+            [{"field": field, "reason": "invalid_active_user"}],
+        )
+    return user
+
+
+def _notify_incident(
+    db: Session,
+    *,
+    incident: Incident,
+    recipient_user: User | None,
+    actor_user_id: int,
+    event: str,
+    title: str,
+    body: str,
+    priority: str,
+    deduplication_key: str,
+) -> None:
+    if recipient_user is None:
+        return
+    create_notification(
+        db,
+        recipient_user=recipient_user,
+        actor_user_id=actor_user_id,
+        notification_type=event,
+        category="INCIDENT",
+        priority=priority,
+        title=title,
+        body=body,
+        short_body=f"{incident.code}: {incident.status}",
+        entity_type="Incident",
+        entity_id=incident.id,
+        pilot_id=incident.pilot_id,
+        mission_id=incident.mission_id,
+        action_url=f"/pilots/{incident.pilot_id}/stages/{incident.stage_number}",
+        template_code=event.replace(".", "_"),
+        payload={
+            "incident_code": incident.code,
+            "severity": incident.severity,
+            "status": incident.status,
+            "response_due_at": incident.response_due_at.isoformat(),
+        },
+        deduplication_key=deduplication_key,
+    )
+
+
+def _validate_resolved_fields(incident: Incident) -> list[dict]:
+    missing = []
+    for field in ("corrective_action", "result"):
+        if not getattr(incident, field):
+            missing.append({"field": field, "reason": "required"})
+    if incident.severity in {"important", "critical"} and not incident.root_cause:
+        missing.append({"field": "root_cause", "reason": "required_for_severity"})
+    return missing
+
+
+def _apply_incident_status_transition(
+    incident: Incident,
+    target_status: str,
+    *,
+    allow_close_override: bool = False,
+) -> str | None:
+    if target_status == incident.status:
+        return None
+    if target_status == "closed":
+        if incident.status != "resolved" and not allow_close_override:
+            raise SecurityError(
+                "INVALID_INCIDENT_TRANSITION",
+                "رخداد فقط پس از resolved شدن قابل بسته‌شدن است.",
+                409,
+                [{"field": "status", "reason": f"{incident.status}_to_closed_forbidden"}],
+            )
+    elif target_status not in INCIDENT_TRANSITIONS[incident.status]:
+        raise SecurityError(
+            "INVALID_INCIDENT_TRANSITION",
+            "تغییر وضعیت رخداد مجاز نیست.",
+            409,
+            [{"field": "status", "reason": f"{incident.status}_to_{target_status}_forbidden"}],
+        )
+    if target_status == "contained" and not incident.containment_action:
+        raise SecurityError(
+            "INCIDENT_CONTAINMENT_REQUIRED",
+            "برای مهار رخداد، اقدام مهار اولیه الزامی است.",
+            422,
+            [{"field": "containment_action", "reason": "required"}],
+        )
+    if target_status == "resolved":
+        missing = _validate_resolved_fields(incident)
+        if missing:
+            raise SecurityError(
+                "INCIDENT_RESOLVE_VALIDATION_FAILED",
+                "رخداد قابل حل‌شدن نیست.",
+                422,
+                missing,
+            )
+    previous = incident.status
+    now = utc_now()
+    incident.status = target_status
+    if target_status in {"contained", "resolved"} and incident.responded_at is None:
+        incident.responded_at = now
+    if target_status == "contained":
+        incident.contained_at = now
+    return previous
 
 
 def _active_users(db: Session, user_ids: list[int | None]) -> dict[int, User]:
@@ -435,6 +575,145 @@ def _incident_response_due_at(occurred_at, severity: str):
     return occurred_at.replace(hour=23, minute=59, second=59, microsecond=999999)
 
 
+def list_incidents(
+    db: Session,
+    pilot_id: int,
+    *,
+    page: int,
+    page_size: int,
+    search: str | None = None,
+    status: str | None = None,
+    severity: str | None = None,
+    incident_type: str | None = None,
+    stage_number: int | None = None,
+    mission_id: int | None = None,
+    owner_user_id: int | None = None,
+    reported_by_user_id: int | None = None,
+    occurred_from=None,
+    occurred_to=None,
+    response_overdue: bool | None = None,
+    correction_overdue: bool | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+) -> IncidentList:
+    get_pilot(db, pilot_id)
+    query = db.query(Incident).filter(Incident.pilot_id == pilot_id)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Incident.code.ilike(pattern),
+                Incident.description.ilike(pattern),
+                Incident.result.ilike(pattern),
+            )
+        )
+    if status:
+        query = query.filter(Incident.status == status)
+    if severity:
+        query = query.filter(Incident.severity == severity)
+    if incident_type:
+        query = query.filter(Incident.incident_type == incident_type)
+    if stage_number is not None:
+        query = query.filter(Incident.stage_number == stage_number)
+    if mission_id is not None:
+        query = query.filter(Incident.mission_id == mission_id)
+    if owner_user_id is not None:
+        query = query.filter(Incident.owner_user_id == owner_user_id)
+    if reported_by_user_id is not None:
+        query = query.filter(Incident.reported_by_user_id == reported_by_user_id)
+    if occurred_from is not None:
+        query = query.filter(Incident.occurred_at >= occurred_from)
+    if occurred_to is not None:
+        query = query.filter(Incident.occurred_at <= occurred_to)
+
+    now = utc_now()
+    if response_overdue is True:
+        query = query.filter(
+            Incident.status != "closed",
+            Incident.responded_at.is_(None),
+            Incident.response_due_at < now,
+        )
+    elif response_overdue is False:
+        query = query.filter(
+            or_(
+                Incident.status == "closed",
+                Incident.responded_at.is_not(None),
+                Incident.response_due_at >= now,
+            )
+        )
+    if correction_overdue is True:
+        query = query.filter(
+            Incident.status != "closed",
+            Incident.correction_due_at.is_not(None),
+            Incident.correction_due_at < now,
+        )
+    elif correction_overdue is False:
+        query = query.filter(
+            or_(
+                Incident.status == "closed",
+                Incident.correction_due_at.is_(None),
+                Incident.correction_due_at >= now,
+            )
+        )
+
+    summary_base = db.query(Incident).filter(Incident.pilot_id == pilot_id)
+    summary_counts = {
+        value: (
+            summary_base.filter(Incident.status == value).count()
+            if value in {"open", "contained", "resolved", "closed"}
+            else 0
+        )
+        for value in ("open", "contained", "resolved", "closed")
+    }
+    critical_count = summary_base.filter(Incident.severity == "critical").count()
+    overdue_count = summary_base.filter(
+        Incident.status != "closed",
+        or_(
+            and_(Incident.responded_at.is_(None), Incident.response_due_at < now),
+            and_(Incident.correction_due_at.is_not(None), Incident.correction_due_at < now),
+        ),
+    ).count()
+
+    total = query.count()
+    sort_column = INCIDENT_SORT_COLUMNS.get(sort_by)
+    if sort_column is None:
+        raise SecurityError(
+            "INCIDENT_SORT_INVALID",
+            "مرتب‌سازی رخداد معتبر نیست.",
+            422,
+            [{"field": "sort_by", "reason": "unsupported"}],
+        )
+    if sort_order == "desc":
+        sort_expression = sort_column.desc()
+    elif sort_order == "asc":
+        sort_expression = sort_column.asc()
+    else:
+        raise SecurityError(
+            "INCIDENT_SORT_INVALID",
+            "جهت مرتب‌سازی رخداد معتبر نیست.",
+            422,
+            [{"field": "sort_order", "reason": "unsupported"}],
+        )
+    items = (
+        query.order_by(sort_expression, Incident.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return IncidentList(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=math.ceil(total / page_size) if total else 0,
+        summary={
+            **summary_counts,
+            "critical": critical_count,
+            "overdue": overdue_count,
+        },
+    )
+
+
 def create_incident(
     db: Session,
     pilot_id: int,
@@ -463,12 +742,12 @@ def create_incident(
         mission = db.get(Mission, payload.mission_id)
         if mission is None or mission.pilot_id != pilot.id:
             raise SecurityError(
-                "INCIDENT_MISSION_INVALID",
+                "INCIDENT_MISSION_MISMATCH",
                 "مأموریت متعلق به این پایلوت نیست.",
                 422,
                 [],
             )
-    _active_users(db, [payload.owner_user_id])
+    owner = _require_incident_owner(db, payload.owner_user_id, "owner_user_id")
     sequence = (
         db.query(func.coalesce(func.max(Incident.sequence), 0))
         .filter(Incident.pilot_id == pilot.id)
@@ -481,18 +760,19 @@ def create_incident(
         sequence=sequence,
         code=f"INC-{pilot.code}-{sequence:02d}",
         occurred_at=payload.occurred_at,
+        reported_at=utc_now(),
         reported_by_user_id=actor_user_id,
         stage_number=payload.stage_number,
         severity=payload.severity,
         incident_type=payload.incident_type,
+        location=payload.location,
         description=payload.description,
         containment_action=payload.containment_action,
         notified_people=payload.notified_people,
+        informed_at=payload.informed_at,
         owner_user_id=payload.owner_user_id,
-        response_due_at=_incident_response_due_at(
-            payload.occurred_at,
-            payload.severity,
-        ),
+        response_due_at=payload.response_due_at
+        or _incident_response_due_at(payload.occurred_at, payload.severity),
         correction_due_at=payload.correction_due_at,
     )
     db.add(incident)
@@ -514,17 +794,18 @@ def create_incident(
             actor_user_id=actor_user_id,
             reason=f"Critical incident {incident.code} opened",
         )
-    if incident.owner is not None:
-        create_notification(
+    recipient = owner or (db.get(User, actor_user_id) if incident.severity == "critical" else None)
+    if recipient is not None:
+        _notify_incident(
             db,
-            recipient_user=incident.owner,
+            incident=incident,
+            recipient_user=recipient,
             actor_user_id=actor_user_id,
-            notification_type=(
+            event=(
                 "incident.critical_created"
                 if incident.severity == "critical"
                 else "incident.created"
             ),
-            category="INCIDENT",
             priority="CRITICAL" if incident.severity == "critical" else "HIGH",
             title=(
                 "رخداد بحرانی جدید"
@@ -532,19 +813,7 @@ def create_incident(
                 else "رخداد جدید به شما تخصیص داده شد"
             ),
             body=f"رخداد {incident.code} برای پرونده {pilot.code} نیازمند اقدام است.",
-            short_body=f"رخداد {incident.code}",
-            entity_type="Incident",
-            entity_id=incident.id,
-            pilot_id=pilot.id,
-            mission_id=incident.mission_id,
-            action_url=f"/pilots/{pilot.id}/stages/{incident.stage_number}",
-            template_code="incident_created",
-            payload={
-                "incident_code": incident.code,
-                "severity": incident.severity,
-                "response_due_at": incident.response_due_at.isoformat(),
-            },
-            deduplication_key=f"incident.created:{incident.id}:{incident.owner_user_id}",
+            deduplication_key=f"incident.created:{incident.id}:{recipient.id}",
         )
     add_audit_log(
         db,
@@ -589,7 +858,18 @@ def patch_incident(
             [],
         )
     values = payload.model_dump(exclude_unset=True)
-    _active_users(db, [values.get("owner_user_id")])
+    old_values = {field: getattr(incident, field) for field in values}
+    old_owner_id = incident.owner_user_id
+    _require_incident_owner(db, values.get("owner_user_id"), "owner_user_id")
+    for due_field in ("response_due_at", "correction_due_at", "responded_at", "informed_at"):
+        due_value = values.get(due_field)
+        if due_value and due_value < incident.occurred_at:
+            raise SecurityError(
+                "INCIDENT_DUE_DATE_INVALID",
+                "زمان رخداد و موعدهای ثبت‌شده سازگار نیستند.",
+                422,
+                [{"field": due_field, "reason": "before_occurred_at"}],
+            )
     correction_due_at = values.get("correction_due_at")
     if correction_due_at and correction_due_at < incident.occurred_at:
         raise SecurityError(
@@ -598,15 +878,19 @@ def patch_incident(
             422,
             [{"field": "correction_due_at", "reason": "before_occurred_at"}],
         )
-    changed_fields = {
-        field
-        for field, value in values.items()
-        if getattr(incident, field) != value
-    }
+    target_status = values.pop("status", None)
+    changed_fields = set()
+    for field, value in values.items():
+        if getattr(incident, field) != value:
+            setattr(incident, field, value)
+            changed_fields.add(field)
+    old_status = None
+    if target_status is not None:
+        old_status = _apply_incident_status_transition(incident, target_status)
+        if old_status is not None:
+            changed_fields.add("status")
     if not changed_fields:
         return incident
-    for field, value in values.items():
-        setattr(incident, field, value)
     if incident.severity == "critical":
         invalidate_from_stage(
             db,
@@ -615,15 +899,43 @@ def patch_incident(
             actor_user_id=actor_user_id,
             reason=f"Critical incident {incident.code} updated",
         )
+    new_owner = incident.owner if incident.owner_user_id != old_owner_id else None
+    if new_owner is not None:
+        _notify_incident(
+            db,
+            incident=incident,
+            recipient_user=new_owner,
+            actor_user_id=actor_user_id,
+            event="incident.assigned",
+            priority="HIGH" if incident.severity != "critical" else "CRITICAL",
+            title="رخداد به شما تخصیص داده شد",
+            body=f"مسئول پیگیری رخداد {incident.code} شدید.",
+            deduplication_key=f"incident.assigned:{incident.id}:{new_owner.id}:{incident.updated_at}",
+        )
+    if old_status is not None and incident.owner is not None:
+        _notify_incident(
+            db,
+            incident=incident,
+            recipient_user=incident.owner,
+            actor_user_id=actor_user_id,
+            event=f"incident.{incident.status}",
+            priority="HIGH" if incident.severity != "critical" else "CRITICAL",
+            title=f"وضعیت رخداد {incident.status} شد",
+            body=f"وضعیت رخداد {incident.code} به {incident.status} تغییر کرد.",
+            deduplication_key=f"incident.status:{incident.id}:{incident.status}",
+        )
     add_audit_log(
         db,
-        action="incidents.updated",
+        action=f"incidents.{incident.status}" if old_status else "incidents.updated",
         entity_type="Incident",
         entity_id=incident.id,
         actor_user_id=actor_user_id,
+        old_data={field: old_values.get(field) for field in changed_fields if field in old_values}
+        | ({"status": old_status} if old_status else {}),
         new_data={
             "status": incident.status,
             "changed_fields": sorted(changed_fields),
+            "owner_user_id": incident.owner_user_id,
         },
         session_id=session_id,
     )
@@ -639,6 +951,7 @@ def close_incident(
     *,
     actor_user_id: int,
     session_id: int,
+    actor_permissions: set[str] | None = None,
 ) -> Incident:
     incident = (
         db.query(Incident)
@@ -655,6 +968,15 @@ def close_incident(
             409,
             [],
         )
+    actor_permissions = actor_permissions or set()
+    if incident.severity == "critical" and "incidents.approve_closure" not in actor_permissions:
+        raise SecurityError(
+            "CRITICAL_INCIDENT_CLOSURE_FORBIDDEN",
+            "بستن رخداد بحرانی نیازمند تأیید مجاز است.",
+            403,
+            [{"permission": "incidents.approve_closure"}],
+        )
+    allow_close_override = "incidents.approve_closure" in actor_permissions
     missing_close_fields = [
         field
         for field, value in (
@@ -673,15 +995,30 @@ def close_incident(
                 for field in missing_close_fields
             ],
         )
-    old_status = incident.status
     incident.root_cause = payload.root_cause
     incident.corrective_action = payload.corrective_action
+    incident.preventive_action = payload.preventive_action
     incident.result = payload.result
     incident.evidence = payload.evidence
     incident.lessons_learned = payload.lessons_learned
-    incident.status = "closed"
+    incident.closure_note = payload.closure_note
+    missing_validation = _validate_resolved_fields(incident)
+    if missing_validation and not allow_close_override:
+        raise SecurityError(
+            "INCIDENT_CLOSE_VALIDATION_FAILED",
+            "رخداد قابل بسته‌شدن نیست.",
+            422,
+            missing_validation,
+        )
+    old_status = _apply_incident_status_transition(
+        incident,
+        "closed",
+        allow_close_override=allow_close_override,
+    )
     incident.closed_by_user_id = actor_user_id
     incident.closed_at = utc_now()
+    if "incidents.approve_closure" in actor_permissions:
+        incident.closure_approved_by_user_id = actor_user_id
     if incident.severity == "critical":
         invalidate_from_stage(
             db,
@@ -696,10 +1033,22 @@ def close_incident(
         entity_type="Incident",
         entity_id=incident.id,
         actor_user_id=actor_user_id,
-        old_data={"status": old_status},
+        old_data={"status": old_status or incident.status},
         new_data={"status": "closed", "closed_by_user_id": actor_user_id},
         session_id=session_id,
     )
+    if incident.owner is not None:
+        _notify_incident(
+            db,
+            incident=incident,
+            recipient_user=incident.owner,
+            actor_user_id=actor_user_id,
+            event="incident.closed",
+            priority="HIGH" if incident.severity != "critical" else "CRITICAL",
+            title="رخداد بسته شد",
+            body=f"رخداد {incident.code} بسته شد.",
+            deduplication_key=f"incident.closed:{incident.id}",
+        )
     db.commit()
     db.refresh(incident)
     return incident

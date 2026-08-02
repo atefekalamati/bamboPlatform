@@ -289,6 +289,174 @@ def test_stage_10_platform_status_and_incident_sla(
     submit_and_approve_stage(client, pilot_id, 11, super_admin_headers)
 
 
+def test_incident_list_filters_transition_and_close_lifecycle(
+    client,
+    super_admin_headers,
+):
+    pilot, mission = _prepare_pilot_through_g3(client, super_admin_headers)
+    pilot_id = pilot["id"]
+    owner_id = client.get("/users", headers=super_admin_headers).json()[0]["id"]
+
+    critical_response = client.post(
+        f"/pilots/{pilot_id}/incidents",
+        json={
+            "mission_id": mission["id"],
+            "occurred_at": "2025-01-10T08:00:00+00:00",
+            "stage_number": 10,
+            "severity": "critical",
+            "incident_type": "safety",
+            "location": "طبقه اول",
+            "description": "Critical safety incident needs immediate containment.",
+            "owner_user_id": owner_id,
+            "correction_due_at": "2025-01-10T10:00:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert critical_response.status_code == 201, critical_response.json()
+    critical = critical_response.json()
+    assert critical["incident_code"] == critical["code"]
+    assert critical["sequence_number"] == critical["sequence"]
+    assert critical["reported_at"] is not None
+    assert critical["is_response_overdue"] is True
+    assert critical["is_correction_overdue"] is True
+
+    normal_response = client.post(
+        f"/pilots/{pilot_id}/incidents",
+        json={
+            "occurred_at": "2027-01-10T08:00:00+00:00",
+            "stage_number": 10,
+            "severity": "normal",
+            "incident_type": "process",
+            "description": "Normal process follow-up.",
+        },
+        headers=super_admin_headers,
+    )
+    assert normal_response.status_code == 201, normal_response.json()
+
+    listing = client.get(
+        f"/pilots/{pilot_id}/incidents",
+        params={
+            "page": 1,
+            "page_size": 1,
+            "severity": "critical",
+            "response_overdue": True,
+            "search": "safety",
+            "sort_by": "occurred_at",
+            "sort_order": "asc",
+        },
+        headers=super_admin_headers,
+    )
+    assert listing.status_code == 200, listing.json()
+    incident_list = listing.json()
+    assert incident_list["total"] == 1
+    assert incident_list["page"] == 1
+    assert incident_list["page_size"] == 1
+    assert incident_list["total_pages"] == 1
+    assert incident_list["summary"]["critical"] == 1
+    assert incident_list["summary"]["overdue"] >= 1
+    assert incident_list["items"][0]["id"] == critical["id"]
+
+    invalid_containment = client.patch(
+        f"/incidents/{critical['id']}",
+        json={"status": "contained"},
+        headers=super_admin_headers,
+    )
+    assert invalid_containment.status_code == 422
+    assert invalid_containment.json()["code"] == "INCIDENT_CONTAINMENT_REQUIRED"
+
+    contained = client.patch(
+        f"/incidents/{critical['id']}",
+        json={
+            "containment_action": "Area secured and access stopped.",
+            "status": "contained",
+        },
+        headers=super_admin_headers,
+    )
+    assert contained.status_code == 200, contained.json()
+    assert contained.json()["status"] == "contained"
+    assert contained.json()["contained_at"] is not None
+    assert contained.json()["responded_at"] is not None
+
+    invalid_resolve = client.patch(
+        f"/incidents/{critical['id']}",
+        json={"status": "resolved"},
+        headers=super_admin_headers,
+    )
+    assert invalid_resolve.status_code == 422
+    assert invalid_resolve.json()["code"] == "INCIDENT_RESOLVE_VALIDATION_FAILED"
+
+    resolved = client.patch(
+        f"/incidents/{critical['id']}",
+        json={
+            "root_cause": "Temporary safety process gap.",
+            "corrective_action": "Safety checklist corrected.",
+            "result": "The risk was removed.",
+            "status": "resolved",
+        },
+        headers=super_admin_headers,
+    )
+    assert resolved.status_code == 200, resolved.json()
+    assert resolved.json()["status"] == "resolved"
+
+    invalid_back_transition = client.patch(
+        f"/incidents/{critical['id']}",
+        json={"status": "contained"},
+        headers=super_admin_headers,
+    )
+    assert invalid_back_transition.status_code == 409
+    assert invalid_back_transition.json()["code"] == "INVALID_INCIDENT_TRANSITION"
+
+    closed = client.post(
+        f"/incidents/{critical['id']}/close",
+        json={
+            "root_cause": "Temporary safety process gap.",
+            "corrective_action": "Safety checklist corrected.",
+            "preventive_action": "Monthly safety review added.",
+            "result": "The risk was removed.",
+            "evidence": "Safety review log.",
+            "lessons_learned": "Stop access until safety checklist is complete.",
+            "closure_note": "Approved for closure.",
+            "confirmed": True,
+        },
+        headers=super_admin_headers,
+    )
+    assert closed.status_code == 200, closed.json()
+    assert closed.json()["status"] == "closed"
+    assert closed.json()["is_closed"] is True
+    assert closed.json()["closure_approved_by_user_id"] == owner_id
+
+
+def test_incident_mission_mismatch_uses_stable_error_contract(
+    client,
+    super_admin_headers,
+):
+    first_pilot, _ = _prepare_pilot_through_g3(
+        client,
+        super_admin_headers,
+        expert_mobile="09158881111",
+    )
+    second_pilot, second_mission = _prepare_pilot_through_g3(
+        client,
+        super_admin_headers,
+        expert_mobile="09158882222",
+    )
+    mismatch = client.post(
+        f"/pilots/{first_pilot['id']}/incidents",
+        json={
+            "mission_id": second_mission["id"],
+            "occurred_at": "2027-01-10T08:00:00+00:00",
+            "stage_number": 10,
+            "severity": "important",
+            "incident_type": "equipment",
+            "description": "Mission belongs to another pilot.",
+        },
+        headers=super_admin_headers,
+    )
+    assert second_pilot["id"] != first_pilot["id"]
+    assert mismatch.status_code == 422
+    assert mismatch.json()["code"] == "INCIDENT_MISSION_MISMATCH"
+
+
 def _prepare_pilot_through_g4(
     client,
     headers,
