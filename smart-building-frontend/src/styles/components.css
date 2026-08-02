@@ -155,6 +155,10 @@
   background: var(--color-overlay);
 }
 
+.modal-overlay--centered {
+  align-items: center;
+}
+
 .modal {
   width: min(100%, 36rem);
   max-height: calc(100vh - var(--space-6));
