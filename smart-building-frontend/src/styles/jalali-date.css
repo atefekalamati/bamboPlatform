@@ -1,0 +1,10 @@
+input[data-jalali-enhanced="true"] {
+  direction: ltr;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+input[data-jalali-enhanced="true"]::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.72;
+}

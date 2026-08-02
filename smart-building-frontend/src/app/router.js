@@ -26,6 +26,9 @@ import { StageNineteenPage } from "../pages/StageNineteenPage.js";
 import { UsersPage } from "../pages/UsersPage.js";
 import { NotificationsPage } from "../pages/NotificationsPage.js";
 import { NotificationPreferencesPage } from "../pages/NotificationPreferencesPage.js";
+import { IncidentsPage } from "../pages/IncidentsPage.js";
+import { IncidentCreatePage } from "../pages/IncidentCreatePage.js";
+import { IncidentDetailPage } from "../pages/IncidentDetailPage.js";
 import {
   canLeaveCurrentPage,
   clearNavigationGuard,
@@ -39,6 +42,7 @@ const ROUTE_FACTORIES = Object.freeze({
   [ROUTES.roles]: RolesPage,
   [ROUTES.notifications]: NotificationsPage,
   [ROUTES.notificationSettings]: NotificationPreferencesPage,
+  [ROUTES.incidents]: IncidentsPage,
 });
 
 const getCurrentRoute = () => window.location.hash || ROUTES.dashboard;
@@ -54,6 +58,8 @@ const resolveRoute = (currentRoute) => {
   }
 
   const pilotDetailsMatch = currentRoute.match(/^#\/pilots\/([^/]+)$/);
+  const incidentCreateMatch = currentRoute.match(/^#\/pilots\/([^/]+)\/incidents\/new$/);
+  const incidentDetailMatch = currentRoute.match(/^#\/incidents\/([^/?#]+)$/);
   const notificationDetailsMatch = currentRoute.match(/^#\/notifications\/([^/?#]+)$/);
   const stageOneMatch = currentRoute.match(
     /^#\/pilots\/([^/]+)\/stages\/1$/,
@@ -112,6 +118,20 @@ const resolveRoute = (currentRoute) => {
   const stageNineteenMatch = currentRoute.match(
     /^#\/pilots\/([^/]+)\/stages\/19$/,
   );
+
+  if (incidentCreateMatch) {
+    return {
+      page: IncidentCreatePage({ pilotId: incidentCreateMatch[1] }),
+      navigationRoute: ROUTES.incidents,
+    };
+  }
+
+  if (incidentDetailMatch) {
+    return {
+      page: IncidentDetailPage({ incidentId: incidentDetailMatch[1] }),
+      navigationRoute: ROUTES.incidents,
+    };
+  }
 
   if (notificationDetailsMatch) {
     return {

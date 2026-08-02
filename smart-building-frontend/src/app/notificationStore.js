@@ -73,14 +73,16 @@ export const notificationStore = Object.freeze({
     if (pendingReads.has(id)) return pendingReads.get(id);
     const previous = state;
     const item = state.items.find((entry) => entry.id === id);
-    if (!item || item.is_read) return item;
-    update({
-      items: state.items.map((entry) => entry.id === id ? { ...entry, is_read: true } : entry),
-      unreadCount: Math.max(0, state.unreadCount - 1),
-    });
+    if (item?.is_read) return item;
+    if (item) {
+      update({
+        items: state.items.map((entry) => entry.id === id ? { ...entry, is_read: true } : entry),
+        unreadCount: Math.max(0, state.unreadCount - 1),
+      });
+    }
     const operation = notificationService.markAsRead(id)
       .then((updated) => {
-        update({ items: state.items.map((entry) => entry.id === id ? updated : entry) });
+        if (item) update({ items: state.items.map((entry) => entry.id === id ? updated : entry) });
         return updated;
       })
       .catch((error) => {

@@ -1,5 +1,7 @@
 import { StageStepper } from "../components/StageStepper.js";
 import { PilotFormsPanel } from "../components/PilotFormsPanel.js";
+import { PilotIncidentsPanel } from "../components/PilotIncidentsPanel.js";
+import { sessionStore } from "../app/sessionStore.js";
 import { pilotService } from "../services/pilotService.js";
 import { formatPersianDate } from "../utils/dateFormatter.js";
 
@@ -61,7 +63,7 @@ const renderDetails = (container, pilot) => {
     summaryItem("نیاز مشتری", project.customerNeed),
     summaryItem("ارزش مورد انتظار", project.expectedValue),
   );
-  container.replaceChildren(
+  const sections = [
     back,
     heading,
     summary,
@@ -71,7 +73,9 @@ const renderDetails = (container, pilot) => {
       pilotId: pilot.id,
     }),
     PilotFormsPanel({ pilotId: pilot.id }),
-  );
+  ];
+  if ((sessionStore.getCurrentUser()?.permissions ?? []).includes("incidents.read")) sections.push(PilotIncidentsPanel({ pilotId: pilot.id }));
+  container.replaceChildren(...sections);
 };
 
 export const PilotDetailsPage = ({ pilotId }) => {
