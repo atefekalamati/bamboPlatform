@@ -111,6 +111,10 @@ PERMISSIONS = (
     ("reports.export", "Reports", "خروجی گزارش", False),
     ("reports.kpi", "Reports", "مشاهده KPI", False),
     ("reports.sla", "Reports", "مشاهده SLA", False),
+    ("reports.powerbi", "Reports", "دریافت Embed امن Power BI", True),
+    ("dashboard.read", "Dashboard", "مشاهده نمای کلی سامانه", False),
+    ("dashboard.read_all", "Dashboard", "مشاهده نمای کلی همه پرونده‌ها", True),
+    ("dashboard.export", "Dashboard", "خروجی نمای کلی سامانه", False),
     ("notifications.manage", "Notifications", "ثبت و پیگیری اعلان‌های عملیاتی", False),
     ("notifications.read", "Notifications", "مشاهده اعلان‌های کاربر", False),
     ("notifications.mark_read", "Notifications", "خوانده‌شدن یا حذف اعلان‌های کاربر", False),
@@ -149,6 +153,9 @@ ADMIN_PERMISSIONS = {
     "pilots.read",
     "pilots.create",
     "pilots.manage",
+    "dashboard.read",
+    "dashboard.read_all",
+    "dashboard.export",
     "preferences.manage",
     "forms.read",
     "forms.print",
@@ -186,6 +193,8 @@ PILOT_MANAGER_PERMISSIONS = {
     "reports.read",
     "reports.kpi",
     "reports.sla",
+    "dashboard.read",
+    "dashboard.export",
     "incidents.read",
     "incidents.read_all",
     "incidents.approve_closure",
@@ -384,6 +393,7 @@ TECHNICAL_PERMISSIONS = {
     "incidents.manage",
     "external_status.manage",
     "reports.sla",
+    "dashboard.read",
     "forms.read",
     "forms.f05.read",
     "preferences.manage",
@@ -396,6 +406,8 @@ PRODUCT_MANAGER_PERMISSIONS = {
     "incidents.resolve",
     "reports.read",
     "reports.kpi",
+    "dashboard.read",
+    "dashboard.export",
     "forms.read",
     "forms.print",
     "forms.export_pdf",
@@ -430,3 +442,16 @@ SYSTEM_ROLES = {
 for role_name, (_, permission_codes) in SYSTEM_ROLES.items():
     if role_name != "super_admin":
         permission_codes.update(NOTIFICATION_SELF_PERMISSIONS)
+        if role_name in {
+            "admin",
+            "pilot_manager",
+            "sales",
+            "setup",
+            "operations",
+            "capture_expert",
+            "support",
+            "customer_success",
+            "technical",
+            "product_manager",
+        }:
+            permission_codes.add("dashboard.read")
