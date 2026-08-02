@@ -57,6 +57,73 @@ def test_user_preferences_are_persisted_and_audited(client, super_admin_headers)
     assert audit.json()[0]["entity_type"] == "UserPreference"
 
 
+def test_auth_bootstrap_returns_access_matrix(client, super_admin_headers):
+    response = client.get("/auth/bootstrap", headers=super_admin_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["user"]["id"]
+    assert "roles.manage" in body["permissions"]
+    assert body["scopes"] == ["ALL"]
+    assert body["menu_access"] == ["*"]
+    assert 17 in body["stage_access"]["approve"]
+    assert "G5" in body["gate_access"]["override"]
+    assert body["preferences"]["calendar"] == "jalali"
+
+
+def test_permission_groups_and_role_access_preview_expose_granular_rbac(
+    client,
+    super_admin_headers,
+):
+    groups = client.get("/roles/permissions/groups", headers=super_admin_headers)
+    assert groups.status_code == 200
+    permissions_by_group = {
+        group["group_name"]: {permission["code"] for permission in group["permissions"]}
+        for group in groups.json()
+    }
+    assert "stages.submit" in permissions_by_group["Stages"]
+    assert "gates.override" in permissions_by_group["Gates"]
+    assert "users.assign_roles" in permissions_by_group["Users"]
+
+    roles = client.get("/roles", headers=super_admin_headers).json()
+    capture_role = next(role for role in roles if role["name"] == "capture_expert")
+    preview = client.get(
+        f"/roles/{capture_role['id']}/access-preview",
+        headers=super_admin_headers,
+    )
+    assert preview.status_code == 200
+    body = preview.json()
+    assert body["roles"][0]["official_code"] == "FIELD_EXPERT"
+    assert set(body["stage_access"]["edit"]) == {6, 7, 8, 9}
+    assert set(body["stage_access"]["submit"]) == {6, 7, 8, 9}
+    assert body["stage_access"]["approve"] == []
+    assert body["gate_access"]["approve"] == []
+    assert body["scopes"] == ["ASSIGNED"]
+
+
+def test_role_clone_and_effective_permissions(client, super_admin_headers):
+    roles = client.get("/roles", headers=super_admin_headers).json()
+    sales_role = next(role for role in roles if role["name"] == "sales")
+
+    cloned = client.post(
+        f"/roles/{sales_role['id']}/clone",
+        json={"name": "sales_shadow", "display_name": "فروش پشتیبان"},
+        headers=super_admin_headers,
+    )
+    assert cloned.status_code == 201
+    cloned_body = cloned.json()
+    assert cloned_body["is_system"] is False
+    assert "commercial.create_proposal" in {
+        permission["code"] for permission in cloned_body["permissions"]
+    }
+
+    effective = client.get(
+        f"/roles/{cloned_body['id']}/effective-permissions",
+        headers=super_admin_headers,
+    )
+    assert effective.status_code == 200
+    assert "stages.submit" in effective.json()["permissions"]
+
+
 def test_parallel_session_policy_and_session_isolation(client, monkeypatch):
     monkeypatch.setenv("OTP_RESEND_COOLDOWN_SECONDS", "0")
 
