@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from base64 import b64encode
 from datetime import UTC, date, datetime
+from functools import lru_cache
 from html import escape
+from pathlib import Path
 from typing import Any
 
 from persiantools.jdatetime import JalaliDateTime
@@ -39,6 +42,13 @@ FORM_META = {
     "F04": ("BAMBO-PILOT-F04", "موفقیت مشتری و تبدیل به قرارداد"),
     "F05": ("BAMBO-PILOT-F05", "ثبت رخداد و اقدام اصلاحی"),
 }
+
+FONT_PATH = Path(__file__).resolve().parents[1] / "assets" / "Vazirmatn-Variable.woff2"
+
+
+@lru_cache(maxsize=1)
+def _vazirmatn_data_uri() -> str:
+    return "data:font/woff2;base64," + b64encode(FONT_PATH.read_bytes()).decode("ascii")
 
 ENUM_LABELS = {
     "approved": "تأیید شد",
@@ -79,8 +89,12 @@ def _jalali(value: datetime | date | None) -> str | None:
         return None
     if isinstance(value, datetime):
         aware = value if value.tzinfo else value.replace(tzinfo=UTC)
-        return JalaliDateTime(aware).strftime("%Y/%m/%d - %H:%M")
-    return JalaliDateTime(value.year, value.month, value.day).strftime("%Y/%m/%d")
+        return _fa_digits(JalaliDateTime(aware).strftime("%Y/%m/%d - %H:%M"))
+    return _fa_digits(JalaliDateTime(value.year, value.month, value.day).strftime("%Y/%m/%d"))
+
+
+def _fa_digits(value: Any) -> str:
+    return str(value).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
 
 
 def _label(value: Any) -> Any:
@@ -227,8 +241,6 @@ def build_f01(db: Session, pilot_id: int) -> FormDocument:
             "تعداد طبقات": project.total_floors if project else None,
             "نشانی پروژه": project.address if project else None,
             "مرحله پیشرفت": project.progress_stage if project else None,
-            "نیاز یا مسئله اصلی مشتری": project.customer_need if project else None,
-            "ارزش مورد انتظار از BAMBO": project.expected_value if project else None,
         },
         "بخش ب: تناسب پایلوت": {
             "پروژه فعال": form.project_active if form else None,
@@ -236,6 +248,8 @@ def build_f01(db: Session, pilot_id: int) -> FormDocument:
             "دسترسی ممکن": form.access_possible if form else None,
             "نقشه قابل دریافت": form.dwg_available if form else None,
             "ظرفیت همکاری بعدی": form.continued_capacity if form else None,
+            "نیاز یا مسئله اصلی مشتری": project.customer_need if project else None,
+            "ارزش مورد انتظار از BAMBO": project.expected_value if project else None,
         },
         "بخش ج: موافقت و هماهنگی": {
             "معرفی پایلوت انجام شد": form.introduction_completed if form else None,
@@ -690,8 +704,18 @@ def render_form_html(document: FormDocument, *, print_mode: bool = False) -> str
         else:
             body_parts.append("<dl class='form-grid'>")
             for key, item in value.items():
+                classes = ["form-field"]
+                if isinstance(item, bool):
+                    classes.append("form-field--check")
+                if isinstance(item, list):
+                    classes.append("form-field--wide")
+                if any(token in str(key) for token in ("نشانی", "نیاز", "ارزش", "محدودیت", "ابهام", "توضیح", "علت", "اقدام", "شاهد", "درس", "افراد")):
+                    classes.append("form-field--wide")
+                if any(token in str(key) for token in ("امضا", "تأیید", "ثبت‌کننده", "مسئول اقدام اصلاحی")) and not isinstance(item, bool):
+                    classes.append("form-field--signature")
                 body_parts.append(
-                    f"<dt>{escape(str(key))}</dt><dd>{_render_value(item)}</dd>"
+                    f"<div class='{' '.join(classes)}'><dt>{escape(str(key))}</dt>"
+                    f"<dd>{_render_value(item)}</dd></div>"
                 )
             body_parts.append("</dl>")
         body_parts.append("</section>")
@@ -701,30 +725,48 @@ def render_form_html(document: FormDocument, *, print_mode: bool = False) -> str
             body_parts.append(f"<li>{escape(item.label)} <small>{escape(item.field)}</small></li>")
         body_parts.append("</ul></section>")
     print_button = "" if print_mode else "<button class='screen-only' onclick='window.print()'>چاپ</button>"
+    exceptional_label = " – فقط برای موارد استثنایی" if document.form_code == "F05" else ""
     return f"""<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
   <title>{escape(document.form_code)} - {escape(document.title)}</title>
   <style>
-    @page {{ size: A4; margin: 14mm; }}
-    body {{ font-family: Tahoma, Arial, sans-serif; direction: rtl; color: #111827; }}
+    @font-face {{
+      font-family: "Vazirmatn";
+      src: url("{_vazirmatn_data_uri()}") format("woff2");
+      font-style: normal;
+      font-weight: 100 900;
+    }}
+    @page {{ size: A4; margin: 10mm; }}
+    * {{ box-sizing: border-box; }}
+    html, body, button, input, textarea, select, table {{ font-family: "Vazirmatn", Tahoma, Arial, sans-serif; }}
+    body {{ margin: 0; direction: rtl; color: #171717; font-size: 11px; line-height: 1.7; }}
     .toolbar {{ margin-bottom: 12px; }}
-    .official-form {{ border: 1px solid #111827; padding: 16px; }}
-    header {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 12px; }}
-    h1 {{ margin: 0; font-size: 22px; }}
-    h2 {{ font-size: 16px; margin: 16px 0 8px; border-bottom: 1px solid #9ca3af; padding-bottom: 4px; }}
-    .meta {{ font-size: 12px; line-height: 1.9; }}
-    .form-grid {{ display: grid; grid-template-columns: 190px 1fr; gap: 0; border: 1px solid #d1d5db; }}
-    dt, dd {{ border-bottom: 1px solid #e5e7eb; padding: 7px; margin: 0; min-height: 22px; }}
-    dt {{ background: #f9fafb; font-weight: 700; }}
+    .official-form {{ min-height: 277mm; border: 1px solid #8ab2a5; padding: 12mm; }}
+    header {{ display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; border-bottom: 3px solid #19634c; padding-bottom: 8px; margin-bottom: 10px; }}
+    .form-label {{ display: block; color: #19634c; font-weight: 700; }}
+    h1 {{ margin: 2px 0 0; color: #19634c; font-size: 18px; }}
+    h2 {{ color: #19634c; font-size: 12px; margin: 12px 0 4px; padding: 0; }}
+    .meta {{ min-width: 150px; font-size: 10px; line-height: 1.9; }}
+    .form-section {{ break-inside: avoid; }}
+    .form-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; margin: 0; }}
+    .form-field {{ display: flex; flex-direction: column; min-width: 0; }}
+    .form-field dt, .form-field dd {{ margin: 0; }}
+    .form-field dt {{ margin-bottom: 2px; padding: 0 3px; color: #273b34; font-size: 9px; font-weight: 700; }}
+    .form-field dd {{ min-height: 26px; padding: 4px 7px; border: 1px solid #a6c7bc; border-radius: 5px; background: #fff; }}
+    .form-field--wide {{ grid-column: 1 / -1; }}
+    .form-field--check {{ flex-direction: row; align-items: center; gap: 5px; min-height: 22px; }}
+    .form-field--check dt {{ order: 2; margin: 0; font-size: 10px; font-weight: 400; }}
+    .form-field--check dd {{ order: 1; min-height: 0; padding: 0; border: 0; background: transparent; }}
+    .form-field--signature dd {{ min-height: 38px; border-style: dashed; }}
     table {{ width: 100%; border-collapse: collapse; page-break-inside: auto; }}
     tr {{ page-break-inside: avoid; page-break-after: auto; }}
-    th {{ background: #f9fafb; }}
-    th, td {{ border: 1px solid #d1d5db; padding: 7px; text-align: right; vertical-align: top; }}
+    th {{ background: #e8f1ed; color: #174c3c; }}
+    th, td {{ border: 1px solid #8ab2a5; padding: 5px; text-align: center; vertical-align: middle; }}
     thead {{ display: table-header-group; }}
-    .checkbox {{ font-family: Arial, sans-serif; font-size: 16px; }}
-    footer {{ border-top: 1px solid #111827; margin-top: 18px; padding-top: 8px; font-size: 11px; }}
+    .checkbox {{ color: #19634c; font-family: "Vazirmatn", Tahoma, sans-serif; font-size: 15px; }}
+    footer {{ border-top: 1px solid #8ab2a5; margin-top: 16px; padding-top: 6px; color: #385e52; font-size: 9px; }}
     @media print {{ .screen-only {{ display: none !important; }} body {{ margin: 0; }} }}
   </style>
 </head>
@@ -733,13 +775,12 @@ def render_form_html(document: FormDocument, *, print_mode: bool = False) -> str
   <article class="official-form">
     <header>
       <div>
+        <span class="form-label">فرم {escape(document.form_code)}{exceptional_label}</span>
         <h1>{escape(document.title)}</h1>
-        <div>{escape(document.document_code)} / نسخه {escape(document.version)}</div>
       </div>
       <div class="meta">
-        کد پرونده: {escape(document.pilot_code)}<br>
-        تاریخ تولید: {escape(_jalali(document.generated_at) or "")}<br>
-        وضعیت: {"کامل" if document.is_complete else "اطلاعات ناقص"}
+        کد سند: {escape(document.document_code)}<br>
+        نسخه: {escape(_fa_digits(document.version))}
       </div>
     </header>
     {''.join(body_parts)}
@@ -756,7 +797,7 @@ def _render_value(value: Any) -> str:
         return ""
     if isinstance(value, list):
         return _table(value) if value and isinstance(value[0], dict) else escape("، ".join(map(str, value)))
-    return escape(str(_label(value)))
+    return escape(_fa_digits(_label(value)))
 
 
 def _table(rows: list[dict[str, Any]]) -> str:

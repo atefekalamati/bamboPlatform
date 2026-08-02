@@ -24,6 +24,8 @@ import { StageSeventeenPage } from "../pages/StageSeventeenPage.js";
 import { StageEighteenPage } from "../pages/StageEighteenPage.js";
 import { StageNineteenPage } from "../pages/StageNineteenPage.js";
 import { UsersPage } from "../pages/UsersPage.js";
+import { NotificationsPage } from "../pages/NotificationsPage.js";
+import { NotificationPreferencesPage } from "../pages/NotificationPreferencesPage.js";
 import {
   canLeaveCurrentPage,
   clearNavigationGuard,
@@ -35,6 +37,8 @@ const ROUTE_FACTORIES = Object.freeze({
   [ROUTES.pilots]: PilotsPage,
   [ROUTES.users]: UsersPage,
   [ROUTES.roles]: RolesPage,
+  [ROUTES.notifications]: NotificationsPage,
+  [ROUTES.notificationSettings]: NotificationPreferencesPage,
 });
 
 const getCurrentRoute = () => window.location.hash || ROUTES.dashboard;
@@ -50,6 +54,7 @@ const resolveRoute = (currentRoute) => {
   }
 
   const pilotDetailsMatch = currentRoute.match(/^#\/pilots\/([^/]+)$/);
+  const notificationDetailsMatch = currentRoute.match(/^#\/notifications\/([^/?#]+)$/);
   const stageOneMatch = currentRoute.match(
     /^#\/pilots\/([^/]+)\/stages\/1$/,
   );
@@ -107,6 +112,13 @@ const resolveRoute = (currentRoute) => {
   const stageNineteenMatch = currentRoute.match(
     /^#\/pilots\/([^/]+)\/stages\/19$/,
   );
+
+  if (notificationDetailsMatch) {
+    return {
+      page: NotificationsPage({ notificationId: decodeURIComponent(notificationDetailsMatch[1]) }),
+      navigationRoute: ROUTES.notifications,
+    };
+  }
 
   if (stageNineteenMatch) {
     return {

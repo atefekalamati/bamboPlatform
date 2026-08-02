@@ -137,15 +137,16 @@ def print_f05(
 def _pdf_response(document: FormDocument) -> Response:
     try:
         from weasyprint import HTML
-    except ModuleNotFoundError as exc:
+
+        html = render_form_html(document, print_mode=True)
+        pdf_bytes = HTML(string=html).write_pdf()
+    except (ModuleNotFoundError, OSError) as exc:
         raise SecurityError(
             "PDF_RENDERER_UNAVAILABLE",
-            "تولید PDF نیازمند نصب WeasyPrint در محیط اجرا است.",
+            "سرویس PDF در این محیط آماده نیست؛ از گزینه چاپ و ذخیره به‌صورت PDF استفاده کنید.",
             503,
             [],
         ) from exc
-    html = render_form_html(document, print_mode=True)
-    pdf_bytes = HTML(string=html).write_pdf()
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

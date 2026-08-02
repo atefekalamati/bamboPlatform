@@ -6,6 +6,8 @@ export const ROUTES = Object.freeze({
   incidents: "#/incidents",
   reports: "#/reports",
   audit: "#/audit",
+  notifications: "#/notifications",
+  notificationSettings: "#/settings/notifications",
 });
 
 export const PRIMARY_NAVIGATION = Object.freeze([
@@ -20,4 +22,5 @@ export const PRIMARY_NAVIGATION = Object.freeze([
   { label: "رخدادها", href: ROUTES.incidents },
   { label: "گزارش‌ها", href: ROUTES.reports },
   { label: "تاریخچه تغییرات", href: ROUTES.audit },
+  { label: "اعلان‌ها", href: ROUTES.notifications, isAvailable: true, permission: "notifications.read" },
 ]);

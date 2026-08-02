@@ -11,6 +11,7 @@ import {
 import { sessionStore } from "./sessionStore.js";
 import { startRouter } from "./router.js";
 import { themeStore } from "./themeStore.js";
+import { notificationStore } from "./notificationStore.js";
 
 const APP_ROOT_ID = "app";
 
@@ -22,6 +23,7 @@ const renderAuthenticatedApp = (appRoot) => {
 };
 
 const renderLogin = (appRoot) => {
+  notificationStore.stop();
   appRoot.replaceChildren(
     AuthLayout({
       content: LoginPage({

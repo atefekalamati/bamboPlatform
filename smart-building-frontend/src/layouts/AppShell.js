@@ -3,6 +3,8 @@ import { themeStore } from "../app/themeStore.js";
 import { PRIMARY_NAVIGATION } from "../constants/routes.js";
 import { authService } from "../services/authService.js";
 import { preferenceService } from "../services/preferenceService.js";
+import { NotificationCenter } from "../components/NotificationCenter.js";
+import { notificationStore } from "../app/notificationStore.js";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -34,7 +36,9 @@ const createNavigation = (currentRoute) => {
   navigation.setAttribute("aria-label", "منوی اصلی");
   list.className = "sidebar__list";
 
-  PRIMARY_NAVIGATION.forEach(({ label, href, isAvailable = false }) => {
+  const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
+  PRIMARY_NAVIGATION.forEach(({ label, href, isAvailable = false, permission }) => {
+    if (permission && !permissions.includes(permission)) return;
     const item = document.createElement("li");
     const link = document.createElement(isAvailable ? "a" : "span");
     link.className = "sidebar__link";
@@ -110,9 +114,12 @@ const createHeader = () => {
   logout.append(createLogoutIcon());
   logout.addEventListener("click", async () => {
     logout.disabled = true;
+    notificationStore.stop();
     await authService.logout();
     window.location.reload();
   });
+  const permissions = user?.permissions ?? [];
+  if (permissions.includes("notifications.read")) account.append(NotificationCenter());
   account.append(userName, createThemeToggle(), logout);
   header.append(title, account);
   return header;
