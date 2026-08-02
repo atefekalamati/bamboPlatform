@@ -34,16 +34,16 @@ export const safeNotificationRoute = (actionUrl) => {
   return `#${clean}`;
 };
 
-export const createNotificationItem = ({ item, compact = false, onOpen }) => {
+export const createNotificationItem = ({ item, compact = false, onOpen, onMarkRead = null }) => {
   const article = node("article", `notification-item priority-${item.priority.toLowerCase()}${item.is_read ? " is-read" : " is-unread"}`);
   const icon = node("span", "notification-item__icon", item.priority === "CRITICAL" ? "!" : "●");
   icon.setAttribute("aria-hidden", "true");
   const content = node("div", "notification-item__content");
   const header = node("div", "notification-item__header");
-  const title = node("h3", "notification-item__title", item.title);
+  const title = node("h3", "notification-item__title", item.title || "اعلان سیستمی");
   const time = node("time", "notification-item__time", relativeNotificationTime(item.created_at));
   time.dateTime = item.created_at;
-  const body = node("p", "notification-item__body", compact ? (item.short_body || item.body) : item.body);
+  const body = node("p", "notification-item__body", (compact ? (item.short_body || item.body) : item.body) || "جزئیات این اعلان از سوابق عملیاتی قبلی منتقل شده است.");
   const meta = node("div", "notification-item__meta");
   meta.append(
     node("span", "notification-chip", CATEGORY_LABELS[item.category] ?? item.category),
@@ -53,17 +53,31 @@ export const createNotificationItem = ({ item, compact = false, onOpen }) => {
   header.append(title, time);
   content.append(header, body, meta);
   article.append(icon, content);
-  article.tabIndex = 0;
-  article.setAttribute("role", "button");
-  article.setAttribute("aria-label", `${item.title}، ${item.is_read ? "خوانده‌شده" : "خوانده‌نشده"}`);
   const open = () => onOpen(item);
-  article.addEventListener("click", open);
-  article.addEventListener("keydown", (event) => {
+  const interactiveTarget = onMarkRead ? content : article;
+  interactiveTarget.tabIndex = 0;
+  interactiveTarget.setAttribute("role", "button");
+  interactiveTarget.setAttribute("aria-label", `${item.title || "اعلان سیستمی"}، ${item.is_read ? "خوانده‌شده" : "خوانده‌نشده"}`);
+  interactiveTarget.addEventListener("click", open);
+  interactiveTarget.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       open();
     }
   });
+  if (onMarkRead && !item.is_read) {
+    article.classList.add("notification-item--with-action");
+    const readButton = node("button", "button button--ghost notification-item__read", "خوانده شد");
+    readButton.type = "button";
+    readButton.setAttribute("aria-label", `علامت‌گذاری «${item.title || "اعلان سیستمی"}» به‌عنوان خوانده‌شده`);
+    readButton.addEventListener("click", async () => {
+      readButton.disabled = true;
+      readButton.textContent = "در حال ثبت…";
+      try { await onMarkRead(item); }
+      catch { readButton.disabled = false; readButton.textContent = "خوانده شد"; }
+    });
+    article.append(readButton);
+  }
   return article;
 };
 

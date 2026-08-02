@@ -1,306 +1,191 @@
+import { clearNavigationGuard, createUnsavedChangesGuard, setNavigationGuard } from "../app/navigationGuard.js";
+import { sessionStore } from "../app/sessionStore.js";
 import { confirmDialog } from "../components/AppDialog.js";
 import { roleService } from "../services/roleService.js";
 
-const node = (tag, className, text = "") => {
-  const element = document.createElement(tag);
-  element.className = className;
-  element.textContent = text;
-  return element;
+const GROUP_LABELS = Object.freeze({
+  Users: "کاربران", Roles: "نقش‌ها و دسترسی‌ها", Pilots: "پرونده‌های پایلوت",
+  Projects: "پروژه و طبقات", Stages: "مراحل ۱۹گانه", "Stage 1": "مرحله اول",
+  Gates: "گیت‌های تأیید", "Gate Approval": "تأیید مرحله و گیت", Forms: "فرم‌های رسمی",
+  DWG: "نقشه‌های DWG", Missions: "مأموریت‌ها", Checklists: "چک‌لیست‌ها",
+  Incidents: "رخدادها", "Customer Success": "موفقیت مشتری", Commercial: "فروش و امور تجاری",
+  Reports: "گزارش‌ها", Notifications: "اعلان‌ها", Audit: "تاریخچه تغییرات",
+  System: "تنظیمات سامانه", Preferences: "تنظیمات شخصی", "External Platform": "پلتفرم اصلی",
+});
+const ACTION_LABELS = Object.freeze({
+  read: "مشاهده", read_all: "مشاهده همه", create: "ایجاد", update: "ویرایش",
+  manage: "مدیریت کامل", delete: "حذف", approve: "تأیید", reject: "رد",
+  submit: "ارسال", assign: "تخصیص", close: "بستن", reopen: "بازگشایی",
+  export: "دریافت خروجی", print: "چاپ", upload: "بارگذاری", download: "دریافت فایل",
+  clone: "ساخت نسخه مشابه", start: "شروع", review: "بازبینی", escalate: "ارجاع فوری",
+});
+const SCOPE_LABELS = Object.freeze({ ALL: "همه اطلاعات", ASSIGNED: "فقط موارد تخصیص‌یافته", CREATED_BY_ME: "ایجادشده توسط کاربر", ROLE_RELATED: "مرتبط با مسئولیت نقش", PILOT_MEMBER: "پایلوت‌های تحت مسئولیت", READ_ONLY: "فقط مشاهده" });
+const MENU_LABELS = Object.freeze({ pilots: "پایلوت‌ها", projects: "پروژه‌ها", stages: "مراحل", gates: "گیت‌ها", forms: "فرم‌ها", reports: "گزارش‌ها", incidents: "رخدادها", users: "کاربران", roles: "نقش‌ها", access: "دسترسی‌ها", missions: "مأموریت‌ها", checklists: "چک‌لیست‌ها", commercial: "فروش", notifications: "اعلان‌ها", training: "آموزش", feedback: "بازخورد", "customer-success": "موفقیت مشتری", "external-platform": "پلتفرم اصلی", "*": "تمام بخش‌های سامانه" });
+
+const node = (tag, className = "", text = "") => { const element = document.createElement(tag); element.className = className; element.textContent = text; return element; };
+const permissionTitle = (permission) => {
+  const action = permission.code.split(".").at(-1);
+  return ACTION_LABELS[action] ?? permission.description;
 };
+const validateRoleName = (value) => /^[a-z][a-z0-9_]{2,79}$/.test(value);
 
-const createRoleForm = ({ onCreated }) => {
-  const form = node("form", "role-create");
-  const nameLabel = node("label", "form-field");
-  const nameText = node("span", "form-field__label", "نام فنی نقش");
-  const nameInput = document.createElement("input");
-  const nameError = node("span", "form-field__error");
+const createRoleComposer = ({ title, submitLabel, initialDisplayName = "", onSubmit, onCancel }) => {
+  const form = node("form", "role-composer");
+  form.append(node("h3", "role-composer__title", title));
   const displayLabel = node("label", "form-field");
-  const displayText = node("span", "form-field__label", "عنوان نمایشی");
-  const displayInput = document.createElement("input");
-  const displayError = node("span", "form-field__error");
-  const submit = node("button", "button button--primary", "ایجاد نقش");
-
-  nameInput.className = "form-field__input";
-  nameInput.placeholder = "مثال: project_reviewer";
-  nameInput.dir = "ltr";
-  displayInput.className = "form-field__input";
-  displayInput.placeholder = "مثال: بازبین پروژه";
-  submit.type = "submit";
-  nameLabel.append(nameText, nameInput, nameError);
-  displayLabel.append(displayText, displayInput, displayError);
-  form.append(nameLabel, displayLabel, submit);
-
+  const display = document.createElement("input"); display.className = "form-field__input"; display.value = initialDisplayName; display.placeholder = "مثال: بازبین فنی";
+  displayLabel.append(node("span", "form-field__label", "نام فارسی نقش"), display);
+  const nameLabel = node("label", "form-field");
+  const name = document.createElement("input"); name.className = "form-field__input"; name.dir = "ltr"; name.placeholder = "technical_reviewer";
+  nameLabel.append(node("span", "form-field__label", "کد فنی نقش"), name);
+  const error = node("p", "form-field__error");
+  const actions = node("div", "role-composer__actions");
+  const submit = node("button", "button button--primary", submitLabel); submit.type = "submit";
+  actions.append(submit);
+  if (onCancel) { const cancel = node("button", "button button--ghost", "لغو"); cancel.type = "button"; cancel.addEventListener("click", onCancel); actions.append(cancel); }
+  form.append(displayLabel, nameLabel, error, actions);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const name = nameInput.value.trim();
-    const displayName = displayInput.value.trim();
-    const validName = /^[a-z][a-z0-9_]{2,79}$/.test(name);
-    const validDisplayName = displayName.length >= 2 && displayName.length <= 120;
-    nameError.textContent = validName
-      ? ""
-      : "حداقل سه کاراکتر؛ فقط حروف کوچک انگلیسی، عدد و زیرخط.";
-    displayError.textContent = validDisplayName
-      ? ""
-      : "عنوان باید بین ۲ تا ۱۲۰ کاراکتر باشد.";
-    nameInput.setAttribute("aria-invalid", String(!validName));
-    displayInput.setAttribute("aria-invalid", String(!validDisplayName));
-    if (!validName || !validDisplayName) return;
-
+    const values = { displayName: display.value.trim(), name: name.value.trim() };
+    if (values.displayName.length < 2 || !validateRoleName(values.name)) { error.textContent = "نام فارسی حداقل دو حرف و کد فنی حداقل سه حرف انگلیسی کوچک داشته باشد."; return; }
     submit.disabled = true;
-    submit.textContent = "در حال ایجاد...";
-    try {
-      const role = await roleService.createRole({ name, displayName });
-      form.reset();
-      await onCreated(role);
-    } catch (error) {
-      nameError.textContent = error.message;
-      nameInput.setAttribute("aria-invalid", "true");
-    } finally {
-      submit.disabled = false;
-      submit.textContent = "ایجاد نقش";
-    }
+    try { await onSubmit(values); }
+    catch (exception) { error.textContent = exception.message ?? "ثبت نقش انجام نشد."; submit.disabled = false; }
   });
   return form;
 };
 
-const createPermissionMatrix = ({ permissions, selectedCodes, onChange }) => {
+const createPermissionMatrix = ({ permissions, selectedCodes, searchTerm, disabled, onChange }) => {
   const matrix = node("div", "permission-matrix");
-  const groups = permissions.reduce((result, permission) => {
-    const items = result.get(permission.groupName) ?? [];
-    items.push(permission);
-    result.set(permission.groupName, items);
-    return result;
-  }, new Map());
-
+  const normalizedSearch = searchTerm.trim().toLocaleLowerCase("fa");
+  const visible = permissions.filter((permission) => !normalizedSearch || `${permission.code} ${permission.description} ${GROUP_LABELS[permission.groupName] ?? permission.groupName}`.toLocaleLowerCase("fa").includes(normalizedSearch));
+  const groups = visible.reduce((result, permission) => { const items = result.get(permission.groupName) ?? []; items.push(permission); result.set(permission.groupName, items); return result; }, new Map());
+  if (!groups.size) { matrix.append(node("p", "role-empty", "دسترسی مطابق جست‌وجوی شما پیدا نشد.")); return matrix; }
   groups.forEach((items, groupName) => {
     const section = node("section", "permission-group");
-    const header = node("div", "permission-group__header");
-    const title = node("h3", "permission-group__title", groupName);
-    const toggleLabel = node("label", "permission-group__toggle");
-    const toggle = document.createElement("input");
-    const toggleText = node("span", "", "انتخاب همه");
-    toggle.type = "checkbox";
-    toggle.checked = items.every(({ code }) => selectedCodes.has(code));
-    toggle.indeterminate =
-      !toggle.checked && items.some(({ code }) => selectedCodes.has(code));
-    toggle.addEventListener("change", () => {
-      items.forEach(({ code }) =>
-        toggle.checked ? selectedCodes.add(code) : selectedCodes.delete(code),
-      );
-      onChange();
-    });
-    toggleLabel.append(toggle, toggleText);
-    header.append(title, toggleLabel);
-    section.append(header);
-
+    const header = node("header", "permission-group__header");
+    const heading = node("div", "permission-group__heading");
+    const selectedCount = items.filter(({ code }) => selectedCodes.has(code)).length;
+    heading.append(node("h3", "permission-group__title", GROUP_LABELS[groupName] ?? groupName), node("span", "permission-group__count", `${selectedCount} از ${items.length} دسترسی فعال`));
+    const groupActions = node("div", "permission-group__actions");
+    const selectAll = node("button", "button-link", "انتخاب همه"); const clear = node("button", "button-link", "پاک‌کردن گروه");
+    selectAll.type = clear.type = "button"; selectAll.disabled = clear.disabled = disabled;
+    selectAll.addEventListener("click", () => { items.forEach(({ code }) => selectedCodes.add(code)); onChange(); });
+    clear.addEventListener("click", () => { items.forEach(({ code }) => selectedCodes.delete(code)); onChange(); });
+    groupActions.append(selectAll, clear); header.append(heading, groupActions); section.append(header);
+    const itemsGrid = node("div", "permission-group__items");
     items.forEach((permission) => {
-      const label = node("label", "permission-item");
-      const checkbox = document.createElement("input");
+      const label = node("label", `permission-item${permission.isSensitive ? " permission-item--sensitive" : ""}`);
+      const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.checked = selectedCodes.has(permission.code); checkbox.disabled = disabled;
       const detail = node("span", "permission-item__detail");
-      const code = node("code", "permission-item__code", permission.code);
-      const description = node(
-        "span",
-        "permission-item__description",
-        permission.description,
-      );
-      checkbox.type = "checkbox";
-      checkbox.value = permission.code;
-      checkbox.checked = selectedCodes.has(permission.code);
-      checkbox.addEventListener("change", () => {
-        checkbox.checked
-          ? selectedCodes.add(permission.code)
-          : selectedCodes.delete(permission.code);
-        onChange();
-      });
-      detail.append(code, description);
-      if (permission.isSensitive) {
-        detail.append(node("span", "permission-item__sensitive", "حساس"));
-      }
-      label.append(checkbox, detail);
-      section.append(label);
+      const titleRow = node("span", "permission-item__title-row");
+      titleRow.append(node("strong", "permission-item__title", permissionTitle(permission)));
+      if (permission.isSensitive) titleRow.append(node("span", "permission-item__sensitive", "حساس"));
+      detail.append(titleRow, node("span", "permission-item__description", permission.description), node("code", "permission-item__code", permission.code));
+      checkbox.addEventListener("change", () => { checkbox.checked ? selectedCodes.add(permission.code) : selectedCodes.delete(permission.code); onChange(); });
+      label.append(checkbox, detail); itemsGrid.append(label);
     });
-    matrix.append(section);
+    section.append(itemsGrid); matrix.append(section);
   });
   return matrix;
 };
 
+const createPreview = (preview) => {
+  const container = node("section", "access-preview");
+  const card = (title, values, formatter = (value) => value) => {
+    const section = node("article", "access-preview__card"); section.append(node("h3", "", title));
+    const list = node("div", "access-preview__chips");
+    if (!values?.length) list.append(node("span", "muted-text", "موردی در این بخش تعریف نشده است."));
+    else values.forEach((value) => list.append(node("span", "access-chip", formatter(value))));
+    section.append(list); return section;
+  };
+  container.append(
+    card("محدوده اطلاعات", preview.scopes, (value) => SCOPE_LABELS[value] ?? value),
+    card("منوهای قابل مشاهده", preview.menu_access, (value) => MENU_LABELS[value] ?? value),
+    card("گیت‌های قابل تأیید", preview.gate_access?.approve ?? [], (value) => `گیت ${value}`),
+    card("مرحله‌های قابل ویرایش", preview.stage_access?.edit ?? [], (value) => `مرحله ${value}`),
+    card("مرحله‌های قابل ارسال", preview.stage_access?.submit ?? [], (value) => `مرحله ${value}`),
+    card("مرحله‌های قابل تأیید", preview.stage_access?.approve ?? [], (value) => `مرحله ${value}`),
+  );
+  return container;
+};
+
 export const RolesPage = () => {
+  const userPermissions = sessionStore.getCurrentUser()?.permissions ?? [];
+  const canRead = userPermissions.includes("roles.read");
+  const canManage = userPermissions.includes("roles.manage");
   const page = node("div", "page roles-page");
   const heading = node("header", "page-heading");
-  const eyebrow = node("p", "page-heading__eyebrow", "کنترل دسترسی");
-  const title = node("h1", "page-heading__title", "نقش‌ها و دسترسی‌ها");
-  const description = node(
-    "p",
-    "page-heading__description",
-    "نقش‌ها را از بک‌اند دریافت کنید و دسترسی‌های هر نقش را مدیریت کنید.",
-  );
-  const content = node("div", "roles-content");
-  heading.append(eyebrow, title, description);
-  page.append(heading, content);
-
-  let roles = [];
-  let permissions = [];
-  let activeRoleId = null;
-
-  const renderError = (message, retry) => {
-    const state = node("div", "error-state");
-    const retryButton = node("button", "button button--primary", "تلاش مجدد");
-    retryButton.type = "button";
-    retryButton.addEventListener("click", retry);
-    state.append(node("p", "error-state__message", message), retryButton);
-    content.replaceChildren(state);
-  };
+  heading.append(node("p", "page-heading__eyebrow", "نقش‌ها و مسئولیت‌ها"), node("h1", "page-heading__title", "تعیین سطح دسترسی کاربران"), node("p", "page-heading__description", "برای هر نقش مشخص کنید کاربر چه بخش‌هایی را می‌بیند و چه عملیاتی می‌تواند انجام دهد. دسترسی‌های حساس با هشدار جداگانه مشخص شده‌اند."));
+  const content = node("div", "roles-content"); page.append(heading, content);
+  if (!canRead) { content.append(node("p", "error-state__message", "برای مشاهده نقش‌ها و دسترسی‌ها مجوز لازم را ندارید.")); return page; }
+  let roles = []; let permissions = []; let activeRoleId = null; let dirty = false;
+  const setDirty = (value) => { dirty = value; value ? setNavigationGuard(createUnsavedChangesGuard("تغییرات دسترسی این نقش هنوز ذخیره نشده است.")) : clearNavigationGuard(); };
 
   const render = () => {
-    const sidebar = node("aside", "role-panel");
-    const listTitle = node("h2", "role-panel__title", "نقش‌ها");
-    const list = node("div", "role-list");
-    const workspace = node("section", "role-workspace");
     const activeRole = roles.find(({ id }) => id === activeRoleId) ?? roles[0];
-
+    const sidebar = node("aside", "role-panel");
+    const sidebarHeader = node("div", "role-panel__header"); sidebarHeader.append(node("h2", "role-panel__title", "نقش‌های سامانه"), node("span", "role-panel__count", `${roles.length} نقش`)); sidebar.append(sidebarHeader);
+    const list = node("div", "role-list");
     roles.forEach((role) => {
-      const button = node("button", "role-list__item");
-      button.type = "button";
-      button.classList.toggle("role-list__item--active", role.id === activeRole?.id);
-      button.append(
-        node("strong", "", role.displayName),
-        node("span", "", role.name),
-      );
-      button.addEventListener("click", () => {
-        activeRoleId = role.id;
-        render();
-      });
+      const button = node("button", `role-list__item${role.id === activeRole?.id ? " role-list__item--active" : ""}`); button.type = "button";
+      const top = node("span", "role-list__top"); top.append(node("strong", "", role.displayName), node("span", `role-status${role.isActive ? " is-active" : ""}`, role.isActive ? "فعال" : "غیرفعال"));
+      button.append(top, node("code", "role-list__code", role.name), node("span", "role-list__summary", `${role.permissions.length} دسترسی${role.isSystem ? " · نقش سیستمی" : ""}`));
+      button.addEventListener("click", async () => { if (dirty && !(await confirmDialog({ title: "تغییرات ذخیره‌نشده", message: "تغییرات این نقش ذخیره نشده است. نقش دیگری باز شود؟", confirmLabel: "تغییر نقش", triggerElement: button }))) return; setDirty(false); activeRoleId = role.id; render(); });
       list.append(button);
     });
-    sidebar.append(listTitle, list, createRoleForm({
-      onCreated: async (role) => {
-        roles.push(role);
-        activeRoleId = role.id;
-        render();
-      },
-    }));
-
-    if (!activeRole) {
-      workspace.append(node("p", "loading-state", "نقشی برای نمایش وجود ندارد."));
-      content.replaceChildren(sidebar, workspace);
-      return;
+    sidebar.append(list);
+    if (canManage) {
+      const addToggle = node("button", "button button--ghost role-panel__add", "ایجاد نقش جدید"); addToggle.type = "button";
+      addToggle.addEventListener("click", () => { addToggle.replaceWith(createRoleComposer({ title: "نقش جدید", submitLabel: "ایجاد نقش", onCancel: render, onSubmit: async (values) => { const role = await roleService.createRole(values); roles.push(role); activeRoleId = role.id; render(); } })); });
+      sidebar.append(addToggle);
     }
-
-    const workspaceHeader = node("header", "role-workspace__header");
-    const roleTitle = node("h2", "", activeRole.displayName);
-    const roleMeta = node(
-      "p",
-      "role-workspace__meta",
-      `${activeRole.name}${activeRole.isSystem ? " · نقش سیستمی" : ""}`,
-    );
-    const feedback = node("p", "form-feedback");
-    const actions = node("div", "role-workspace__actions");
-    const save = node("button", "button button--primary", "ذخیره دسترسی‌ها");
-    const remove = node("button", "button button--danger", "حذف نقش");
+    const workspace = node("section", "role-workspace");
+    if (!activeRole) { workspace.append(node("p", "loading-state", "نقشی برای نمایش وجود ندارد.")); content.replaceChildren(sidebar, workspace); return; }
     const initialCodes = new Set(activeRole.permissions.map(({ code }) => code));
     const selectedCodes = new Set(initialCodes);
-
-    const refreshMatrix = () => {
-      const matrix = createPermissionMatrix({
-        permissions,
-        selectedCodes,
-        onChange: refreshMatrix,
-      });
-      const changed =
-        selectedCodes.size !== initialCodes.size ||
-        [...selectedCodes].some((code) => !initialCodes.has(code));
-      save.disabled = !changed;
-      workspace.querySelector(".permission-matrix")?.replaceWith(matrix);
-    };
-
-    save.type = "button";
-    remove.type = "button";
-    remove.hidden = activeRole.isSystem;
-    save.disabled = true;
-    remove.addEventListener("click", async () => {
-      if (
-        !(await confirmDialog({
-          title: "حذف نقش",
-          message: `نقش «${activeRole.displayName}» برای همیشه حذف شود؟ نقش دارای کاربر قابل حذف نیست.`,
-          confirmLabel: "حذف نقش",
-          confirmClassName: "button button--danger",
-          triggerElement: remove,
-        }))
-      ) {
-        return;
-      }
-      remove.disabled = true;
-      try {
-        await roleService.deleteRole(activeRole.id);
-        roles = roles.filter(({ id }) => id !== activeRole.id);
-        activeRoleId = roles[0]?.id ?? null;
-        render();
-      } catch (error) {
-        feedback.textContent = error.message;
-        feedback.dataset.type = "error";
-        remove.disabled = false;
-      }
-    });
+    let searchTerm = "";
+    const workspaceHeader = node("header", "role-workspace__header");
+    const titleBlock = node("div", "role-workspace__identity"); titleBlock.append(node("h2", "", activeRole.displayName), node("code", "role-workspace__code", activeRole.name));
+    const stats = node("div", "role-stats"); stats.append(node("span", "role-stat", `${activeRole.permissions.length} دسترسی فعال`), node("span", "role-stat", activeRole.isSystem ? "نقش سیستمی" : "نقش سفارشی"), node("span", `role-stat${activeRole.isActive ? " is-success" : " is-muted"}`, activeRole.isActive ? "فعال" : "غیرفعال"));
+    workspaceHeader.append(titleBlock, stats);
+    const notice = node("p", "role-readonly-notice", canManage ? "تغییر دسترسی‌ها پس از ذخیره در backend اعمال و در ورود بعدی یا refresh دسترسی کاربر به‌روز می‌شود." : "شما فقط امکان مشاهده مسئولیت‌های این نقش را دارید.");
+    const tools = node("div", "role-tools");
+    const search = document.createElement("input"); search.type = "search"; search.className = "form-field__input role-search"; search.placeholder = "جست‌وجوی دسترسی، مثال: مشاهده پایلوت"; search.setAttribute("aria-label", "جست‌وجوی دسترسی‌ها");
+    const previewButton = node("button", "button button--ghost", "پیش‌نمایش مسئولیت‌ها"); previewButton.type = "button";
+    tools.append(search, previewButton);
+    const matrixHost = node("div", "permission-matrix-host");
+    const previewHost = node("div", "access-preview-host");
+    const feedback = node("p", "form-feedback");
+    const actions = node("div", "role-workspace__actions");
+    const save = node("button", "button button--primary", "ذخیره تغییرات"); const reset = node("button", "button button--ghost", "بازنشانی"); const edit = node("button", "button button--ghost", "ویرایش عنوان نقش"); const clone = node("button", "button button--ghost", "ساخت نقش مشابه"); const toggleStatus = node("button", "button button--ghost", activeRole.isActive ? "غیرفعال‌کردن نقش" : "فعال‌کردن نقش"); const remove = node("button", "button button--danger", "حذف نقش");
+    [save, reset, edit, clone, toggleStatus, remove].forEach((button) => { button.type = "button"; }); remove.hidden = activeRole.isSystem || !canManage; toggleStatus.hidden = activeRole.isSystem || !canManage; edit.hidden = clone.hidden = !canManage; save.hidden = reset.hidden = !canManage;
+    const hasChanges = () => selectedCodes.size !== initialCodes.size || [...selectedCodes].some((code) => !initialCodes.has(code));
+    const refreshMatrix = () => { matrixHost.replaceChildren(createPermissionMatrix({ permissions, selectedCodes, searchTerm, disabled: !canManage, onChange: () => { setDirty(hasChanges()); save.disabled = !dirty; reset.disabled = !dirty; refreshMatrix(); } })); save.disabled = reset.disabled = !hasChanges(); };
+    search.addEventListener("input", () => { searchTerm = search.value; refreshMatrix(); });
+    previewButton.addEventListener("click", async () => { previewButton.disabled = true; previewHost.replaceChildren(node("p", "loading-state", "در حال ساخت پیش‌نمایش…")); try { previewHost.replaceChildren(createPreview(await roleService.getAccessPreview(activeRole.id))); } catch (error) { previewHost.replaceChildren(node("p", "error-state__message", error.message ?? "پیش‌نمایش دریافت نشد.")); } finally { previewButton.disabled = false; } });
+    reset.addEventListener("click", () => { selectedCodes.clear(); initialCodes.forEach((code) => selectedCodes.add(code)); setDirty(false); refreshMatrix(); });
     save.addEventListener("click", async () => {
-      const changedSensitive = permissions.some(
-        ({ code, isSensitive }) =>
-          isSensitive && selectedCodes.has(code) !== initialCodes.has(code),
-      );
-      const confirmed =
-        !changedSensitive ||
-        (await confirmDialog({
-          title: "تأیید تغییر دسترسی حساس",
-          message: "دسترسی حساس تغییر کرده است. این تغییر را تأیید می‌کنید؟",
-          confirmLabel: "تأیید تغییر",
-          triggerElement: save,
-        }));
-      if (!confirmed) return;
-
-      save.disabled = true;
-      save.textContent = "در حال ذخیره...";
-      try {
-        const updated = await roleService.updatePermissions(activeRole.id, {
-          permissionCodes: [...selectedCodes],
-          confirmed: changedSensitive,
-        });
-        roles = roles.map((role) => (role.id === updated.id ? updated : role));
-        render();
-      } catch (error) {
-        feedback.textContent = error.message;
-        feedback.dataset.type = "error";
-        save.disabled = false;
-        save.textContent = "ذخیره دسترسی‌ها";
-      }
+      const sensitiveChanged = permissions.some(({ code, isSensitive }) => isSensitive && selectedCodes.has(code) !== initialCodes.has(code));
+      if (sensitiveChanged && !(await confirmDialog({ title: "تغییر دسترسی حساس", message: "این تغییر می‌تواند امکان تأیید، حذف یا مدیریت اطلاعات مهم را تغییر دهد. ادامه می‌دهید؟", confirmLabel: "تأیید و ذخیره", triggerElement: save }))) return;
+      save.disabled = true; save.textContent = "در حال ذخیره…";
+      try { const updated = await roleService.updatePermissions(activeRole.id, { permissionCodes: [...selectedCodes], confirmed: sensitiveChanged }); roles = roles.map((role) => role.id === updated.id ? updated : role); setDirty(false); feedback.textContent = "دسترسی‌های نقش ذخیره شد."; feedback.dataset.type = "success"; render(); }
+      catch (error) { feedback.textContent = error.message ?? "ذخیره دسترسی‌ها انجام نشد."; feedback.dataset.type = "error"; save.disabled = false; save.textContent = "ذخیره تغییرات"; }
     });
-    workspaceHeader.append(roleTitle, roleMeta);
-    actions.append(save, remove);
-    workspace.append(
-      workspaceHeader,
-      feedback,
-      createPermissionMatrix({
-        permissions,
-        selectedCodes,
-        onChange: refreshMatrix,
-      }),
-      actions,
-    );
-    content.replaceChildren(sidebar, workspace);
+    edit.addEventListener("click", () => {
+      const form = node("form", "role-composer"); const input = document.createElement("input"); input.className = "form-field__input"; input.value = activeRole.displayName;
+      const label = node("label", "form-field"); label.append(node("span", "form-field__label", "عنوان فارسی نقش"), input);
+      const error = node("p", "form-field__error"); const submit = node("button", "button button--primary", "ذخیره عنوان"); submit.type = "submit"; const cancel = node("button", "button button--ghost", "لغو"); cancel.type = "button"; cancel.addEventListener("click", render);
+      const formActions = node("div", "role-composer__actions"); formActions.append(submit, cancel); form.append(node("h3", "role-composer__title", "ویرایش مشخصات نقش"), label, error, formActions);
+      form.addEventListener("submit", async (event) => { event.preventDefault(); const displayName = input.value.trim(); if (displayName.length < 2) { error.textContent = "عنوان نقش حداقل دو حرف باشد."; return; } submit.disabled = true; try { const updated = await roleService.updateRole(activeRole.id, { displayName }); roles = roles.map((role) => role.id === updated.id ? updated : role); render(); } catch (exception) { error.textContent = exception.message; submit.disabled = false; } });
+      actions.replaceChildren(form);
+    });
+    clone.addEventListener("click", () => { actions.replaceChildren(createRoleComposer({ title: `ساخت نقش بر اساس «${activeRole.displayName}»`, submitLabel: "ساخت نسخه مشابه", onCancel: render, onSubmit: async (values) => { const role = await roleService.cloneRole(activeRole.id, values); roles.push(role); activeRoleId = role.id; render(); } })); });
+    toggleStatus.addEventListener("click", async () => { if (!(await confirmDialog({ title: activeRole.isActive ? "غیرفعال‌کردن نقش" : "فعال‌کردن نقش", message: activeRole.isActive ? "کاربران دارای این نقش دیگر دسترسی‌های آن را دریافت نمی‌کنند. ادامه می‌دهید؟" : "این نقش دوباره برای کاربران فعال شود؟", confirmLabel: activeRole.isActive ? "غیرفعال کن" : "فعال کن", triggerElement: toggleStatus }))) return; const updated = await roleService.updateRole(activeRole.id, { isActive: !activeRole.isActive }); roles = roles.map((role) => role.id === updated.id ? updated : role); render(); });
+    remove.addEventListener("click", async () => { if (!(await confirmDialog({ title: "حذف نقش", message: `نقش «${activeRole.displayName}» حذف شود؟ نقش دارای کاربر قابل حذف نیست.`, confirmLabel: "حذف نقش", confirmClassName: "button button--danger", triggerElement: remove }))) return; try { await roleService.deleteRole(activeRole.id); roles = roles.filter(({ id }) => id !== activeRole.id); activeRoleId = roles[0]?.id ?? null; render(); } catch (error) { feedback.textContent = error.message; feedback.dataset.type = "error"; } });
+    actions.append(save, reset, edit, clone, toggleStatus, remove);
+    workspace.append(workspaceHeader, notice, tools, feedback, matrixHost, previewHost, actions); refreshMatrix(); content.replaceChildren(sidebar, workspace);
   };
-
-  const load = async () => {
-    content.replaceChildren(node("p", "loading-state", "در حال دریافت نقش‌ها..."));
-    try {
-      [roles, permissions] = await Promise.all([
-        roleService.getRoles(),
-        roleService.getPermissions(),
-      ]);
-      activeRoleId = roles[0]?.id ?? null;
-      render();
-    } catch (error) {
-      renderError(error.message ?? "دریافت نقش‌ها انجام نشد.", load);
-    }
-  };
-
-  load();
-  return page;
+  const load = async () => { content.replaceChildren(node("p", "loading-state", "در حال دریافت نقش‌ها و مسئولیت‌ها…")); try { [roles, permissions] = await Promise.all([roleService.getRoles(), roleService.getPermissions()]); activeRoleId = roles[0]?.id ?? null; render(); } catch (error) { const retry = node("button", "button button--primary", "تلاش مجدد"); retry.type = "button"; retry.addEventListener("click", load); content.replaceChildren(node("p", "error-state__message", error.message ?? "دریافت نقش‌ها انجام نشد."), retry); } };
+  load(); return page;
 };

@@ -19,7 +19,7 @@ export const PRIMARY_NAVIGATION = Object.freeze([
     href: ROUTES.roles,
     isAvailable: true,
   },
-  { label: "رخدادها", href: ROUTES.incidents },
+  { label: "رخدادها", href: ROUTES.incidents, isAvailable: true, permission: "incidents.read" },
   { label: "گزارش‌ها", href: ROUTES.reports },
   { label: "تاریخچه تغییرات", href: ROUTES.audit },
   { label: "اعلان‌ها", href: ROUTES.notifications, isAvailable: true, permission: "notifications.read" },

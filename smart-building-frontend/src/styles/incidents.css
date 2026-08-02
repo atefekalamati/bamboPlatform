@@ -1,0 +1,48 @@
+.incidents-heading-actions { margin-block-start: var(--space-3); }
+.incident-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.incident-summary__card { display: grid; grid-template-columns: auto 1fr; gap: .15rem var(--space-2); align-items: center; min-height: 5.5rem; padding: var(--space-4); border: .0625rem solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); text-align: start; cursor: pointer; box-shadow: var(--shadow-sm); }
+.incident-summary__card strong { font-size: var(--font-size-xl); }
+.incident-summary__card.is-active { border-color: var(--color-brand-primary); background: color-mix(in srgb, var(--color-brand-primary) 9%, var(--color-surface)); }
+.incident-summary__icon { grid-row: 1 / 3; display: grid; width: 2.5rem; height: 2.5rem; place-items: center; border-radius: 50%; background: var(--color-background); font-weight: 800; }
+.incident-filters { display: grid; gap: var(--space-3); padding: var(--space-4); }
+.incident-card-list, .incident-list { display: grid; gap: var(--space-3); }
+.incident-card { display: grid; gap: var(--space-3); padding: var(--space-4); border: .0625rem solid var(--color-border); border-inline-start-width: .3rem; border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.incident-card.severity-critical, .incident-detail__header.severity-critical { border-inline-start-color: var(--color-danger); }
+.incident-card.severity-important, .incident-detail__header.severity-important { border-inline-start-color: #f97316; }
+.incident-card.severity-normal, .incident-detail__header.severity-normal { border-inline-start-color: var(--color-brand-primary); }
+.incident-card__header, .incident-card__actions, .pilot-incidents__header, .incident-detail__header, .incident-detail__badges { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.incident-card__code { color: var(--color-brand-primary-strong); font-weight: 800; text-decoration: none; }
+.incident-badge { padding: .25rem .65rem; border-radius: 999px; background: var(--color-background); font-size: var(--font-size-xs); font-weight: 700; }
+.incident-badge.severity-critical { background: var(--color-danger-surface); color: var(--color-danger); }
+.incident-badge.severity-important { background: color-mix(in srgb, #f97316 13%, transparent); color: #c2410c; }
+.incident-card__description { display: -webkit-box; margin: 0; overflow: hidden; color: var(--color-text-secondary); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.incident-card__meta, .incident-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); margin: 0; }
+.incident-card__meta div, .incident-info__item { display: grid; gap: .2rem; padding: var(--space-2); border-radius: var(--radius-sm); background: var(--color-background); }
+.incident-card__meta dt, .incident-info dt { color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+.incident-card__meta dd, .incident-info dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.incident-pilot-picker, .incident-form, .incident-editor { display: grid; gap: var(--space-4); }
+.incident-form-shell { padding: var(--space-5); }
+.incident-form__grid { display: grid; gap: var(--space-4); }
+.incident-form__wide { grid-column: 1 / -1; }
+.incident-form__actions, .incident-detail__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.incident-critical-banner { padding: var(--space-4); border: .0625rem solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-danger-surface); color: var(--color-danger); font-weight: 700; }
+.incident-detail__header { padding: var(--space-5); border: .0625rem solid var(--color-border); border-inline-start-width: .35rem; border-radius: var(--radius-md); background: var(--color-surface); }
+.incident-cycle, .incident-overview, .incident-detail__actions, .incident-timeline { padding: var(--space-5); }
+.incident-cycle__steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); padding: 0; list-style: none; }
+.incident-cycle__step { display: grid; gap: .2rem; justify-items: center; padding: var(--space-3); border: .0625rem dashed var(--color-border); border-radius: var(--radius-md); color: var(--color-text-secondary); text-align: center; }
+.incident-cycle__step > span { display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border-radius: 50%; background: var(--color-background); }
+.incident-cycle__step.is-complete { border-style: solid; border-color: var(--color-brand-primary); color: var(--color-brand-primary-strong); }
+.incident-description { padding: var(--space-4); border-radius: var(--radius-md); background: var(--color-background); white-space: pre-wrap; }
+.incident-editor { width: 100%; margin-block-start: var(--space-4); padding-block-start: var(--space-4); border-block-start: .0625rem solid var(--color-border); }
+.incident-timeline__list { display: grid; gap: var(--space-3); margin: 0; padding-inline-start: 1.25rem; }
+.incident-timeline__list li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); }
+.incident-f05-preview { display: grid; gap: var(--space-4); max-height: 65vh; overflow-y: auto; }
+.incident-f05-preview__section { padding: var(--space-3); border: .0625rem solid var(--color-border); border-radius: var(--radius-md); }
+.pilot-incidents { display: grid; gap: var(--space-4); margin-block-start: var(--space-6); padding: var(--space-4); }
+.pilot-incidents__list { display: grid; gap: var(--space-2); }
+.pilot-incident { display: grid; gap: .2rem; padding: var(--space-3); border: .0625rem solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); text-decoration: none; }
+.pilot-incident:hover { border-color: var(--color-brand-primary); }
+.pilot-incident span, .pilot-incident p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+@media (min-width: 48rem) { .incident-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } .incident-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); } .incident-form__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .incident-info { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 70rem) { .incident-summary { grid-template-columns: repeat(6, minmax(0, 1fr)); } .incident-card__meta { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (max-width: 36rem) { .incident-cycle__steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .incident-card__meta, .incident-info { grid-template-columns: 1fr; } .incident-card__actions .button { width: 100%; } }

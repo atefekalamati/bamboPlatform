@@ -28,6 +28,25 @@ export const roleService = Object.freeze({
         body: JSON.stringify({ name, display_name: displayName }),
       }),
     ),
+  updateRole: async (roleId, payload) =>
+    mapRole(
+      await request(`/roles/${roleId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...(payload.name !== undefined ? { name: payload.name } : {}),
+          ...(payload.displayName !== undefined ? { display_name: payload.displayName } : {}),
+          ...(payload.isActive !== undefined ? { is_active: payload.isActive } : {}),
+        }),
+      }),
+    ),
+  cloneRole: async (roleId, { name, displayName }) =>
+    mapRole(
+      await request(`/roles/${roleId}/clone`, {
+        method: "POST",
+        body: JSON.stringify({ name, display_name: displayName }),
+      }),
+    ),
+  getAccessPreview: (roleId) => request(`/roles/${roleId}/access-preview`),
   updatePermissions: async (roleId, { permissionCodes, confirmed }) =>
     mapRole(
       await request(`/roles/${roleId}/permissions`, {
