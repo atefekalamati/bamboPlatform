@@ -137,6 +137,17 @@ class RoleCreate(BaseModel):
     display_name: str = Field(min_length=2, max_length=120)
 
 
+class RoleUpdate(BaseModel):
+    name: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{2,79}$")
+    display_name: str | None = Field(default=None, min_length=2, max_length=120)
+    is_active: bool | None = None
+
+
+class RoleClone(BaseModel):
+    name: str = Field(pattern=r"^[a-z][a-z0-9_]{2,79}$")
+    display_name: str = Field(min_length=2, max_length=120)
+
+
 class RoleRead(BaseModel):
     id: int
     name: str
@@ -149,6 +160,30 @@ class RoleRead(BaseModel):
 class RolePermissionsUpdate(BaseModel):
     permission_codes: list[str]
     confirmed: bool = False
+
+
+class PermissionGroupRead(BaseModel):
+    group_name: str
+    permissions: list[PermissionRead]
+
+
+class EffectivePermissionsRead(BaseModel):
+    permissions: list[str]
+
+
+class AccessPreviewRead(BaseModel):
+    roles: list[dict]
+    permissions: list[str]
+    scopes: list[str]
+    menu_access: list[str]
+    stage_access: dict[str, list[int]]
+    gate_access: dict[str, list[str]]
+    operations: list[str]
+
+
+class AuthBootstrapRead(AccessPreviewRead):
+    user: UserRead
+    preferences: UserPreferenceRead
 
 
 class AuditLogRead(BaseModel):

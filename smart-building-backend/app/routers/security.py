@@ -8,18 +8,29 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.exceptions import SecurityError
 from app.models import AuditLog, Permission, Role, User, UserPreference
+from app.auth.policies import (
+    access_preview,
+    active_role_names,
+    role_names_from_role,
+)
 from app.rbac import ALL_PERMISSION_CODES
 from app.schemas.security import (
+    AccessPreviewRead,
     AuditLogRead,
+    AuthBootstrapRead,
     AuthToken,
+    EffectivePermissionsRead,
     OtpRequestInput,
     OtpRequestResult,
     OtpVerifyInput,
+    PermissionGroupRead,
     PermissionRead,
+    RoleClone,
     RoleCreate,
     RolePermissionsUpdate,
     RoleRead,
     RoleSummary,
+    RoleUpdate,
     UserCreate,
     UserPreferencePatch,
     UserPreferenceRead,
@@ -112,6 +123,22 @@ def role_read(role: Role) -> RoleRead:
     )
 
 
+def permission_read(permission: Permission) -> PermissionRead:
+    return PermissionRead(
+        id=permission.id,
+        code=permission.code,
+        group_name=permission.group_name,
+        description=permission.description,
+        is_sensitive=permission.is_sensitive,
+    )
+
+
+def role_permissions(role: Role) -> set[str]:
+    if role.name == "super_admin":
+        return set(ALL_PERMISSION_CODES)
+    return {permission.code for permission in role.permissions if role.is_active}
+
+
 @auth_router.post("/otp/request", response_model=OtpRequestResult)
 def otp_request_endpoint(
     payload: OtpRequestInput,
@@ -141,6 +168,22 @@ def otp_verify_endpoint(
 @auth_router.get("/me", response_model=UserRead)
 def me(context: AuthContext = Depends(get_auth_context)) -> UserRead:
     return user_read(context.user)
+
+
+@auth_router.get("/bootstrap", response_model=AuthBootstrapRead)
+def bootstrap(
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> AuthBootstrapRead:
+    preference = _get_or_create_preferences(db, context.user)
+    db.commit()
+    db.refresh(preference)
+    preview = access_preview(active_role_names(context.user), effective_permissions(context.user))
+    return AuthBootstrapRead(
+        user=user_read(context.user),
+        preferences=_preference_read(preference),
+        **preview,
+    )
 
 
 @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -328,6 +371,33 @@ def update_user_roles(
     return user_read(user)
 
 
+@users_router.get("/{user_id}/roles", response_model=list[RoleSummary])
+def get_user_roles(
+    user_id: int,
+    _: AuthContext = Depends(require_permission("users.read")),
+    db: Session = Depends(get_db),
+) -> list[RoleSummary]:
+    user = db.get(User, user_id)
+    if not user:
+        raise SecurityError("USER_NOT_FOUND", "کاربر پیدا نشد.", 404, [])
+    return [
+        RoleSummary(id=role.id, name=role.name, display_name=role.display_name)
+        for role in sorted(user.roles, key=lambda item: item.id)
+    ]
+
+
+@users_router.get("/{user_id}/effective-permissions", response_model=EffectivePermissionsRead)
+def get_user_effective_permissions(
+    user_id: int,
+    _: AuthContext = Depends(require_permission("users.read")),
+    db: Session = Depends(get_db),
+) -> EffectivePermissionsRead:
+    user = db.get(User, user_id)
+    if not user:
+        raise SecurityError("USER_NOT_FOUND", "کاربر پیدا نشد.", 404, [])
+    return EffectivePermissionsRead(permissions=sorted(effective_permissions(user)))
+
+
 @users_router.patch("/{user_id}/status", response_model=UserRead)
 def update_user_status(
     user_id: int,
@@ -382,6 +452,33 @@ def list_permissions(
     return db.query(Permission).order_by(Permission.group_name, Permission.code).all()
 
 
+@roles_router.get("/permissions/groups", response_model=list[PermissionGroupRead])
+def list_permission_groups(
+    _: AuthContext = Depends(require_permission("roles.read")),
+    db: Session = Depends(get_db),
+) -> list[PermissionGroupRead]:
+    permissions = db.query(Permission).order_by(Permission.group_name, Permission.code).all()
+    grouped: dict[str, list[PermissionRead]] = {}
+    for permission in permissions:
+        grouped.setdefault(permission.group_name, []).append(permission_read(permission))
+    return [
+        PermissionGroupRead(group_name=group_name, permissions=items)
+        for group_name, items in sorted(grouped.items())
+    ]
+
+
+@roles_router.get("/{role_id}", response_model=RoleRead)
+def get_role(
+    role_id: int,
+    _: AuthContext = Depends(require_permission("roles.read")),
+    db: Session = Depends(get_db),
+) -> RoleRead:
+    role = db.get(Role, role_id)
+    if not role:
+        raise SecurityError("ROLE_NOT_FOUND", "نقش پیدا نشد.", 404, [])
+    return role_read(role)
+
+
 @roles_router.post("", response_model=RoleRead, status_code=status.HTTP_201_CREATED)
 def create_role(
     payload: RoleCreate,
@@ -405,6 +502,105 @@ def create_role(
     db.commit()
     db.refresh(role)
     return role_read(role)
+
+
+@roles_router.put("/{role_id}", response_model=RoleRead)
+def update_role(
+    role_id: int,
+    payload: RoleUpdate,
+    context: AuthContext = Depends(require_permission("roles.manage")),
+    db: Session = Depends(get_db),
+) -> RoleRead:
+    role = db.get(Role, role_id)
+    if not role:
+        raise SecurityError("ROLE_NOT_FOUND", "نقش پیدا نشد.", 404, [])
+    changes = payload.model_dump(exclude_unset=True)
+    if role.is_system and any(field in changes for field in ("name", "is_active")):
+        raise SecurityError(
+            "SYSTEM_ROLE_UPDATE_DENIED",
+            "نام یا وضعیت نقش سیستمی قابل تغییر نیست.",
+            409,
+            [],
+        )
+    if "name" in changes and db.query(Role).filter(Role.name == changes["name"], Role.id != role.id).first():
+        raise SecurityError("ROLE_ALREADY_EXISTS", "این نقش از قبل وجود دارد.", 409, [])
+    old_data = {field: getattr(role, field) for field in changes}
+    for field, value in changes.items():
+        setattr(role, field, value)
+    add_audit_log(
+        db,
+        action="roles.updated",
+        entity_type="Role",
+        entity_id=role.id,
+        actor_user_id=context.user.id,
+        old_data=old_data,
+        new_data=changes,
+        session_id=context.session.id,
+    )
+    db.commit()
+    db.refresh(role)
+    return role_read(role)
+
+
+@roles_router.post("/{role_id}/clone", response_model=RoleRead, status_code=status.HTTP_201_CREATED)
+def clone_role(
+    role_id: int,
+    payload: RoleClone,
+    context: AuthContext = Depends(require_permission("roles.manage")),
+    db: Session = Depends(get_db),
+) -> RoleRead:
+    source = db.get(Role, role_id)
+    if not source:
+        raise SecurityError("ROLE_NOT_FOUND", "نقش پیدا نشد.", 404, [])
+    if db.query(Role).filter(Role.name == payload.name).first():
+        raise SecurityError("ROLE_ALREADY_EXISTS", "این نقش از قبل وجود دارد.", 409, [])
+    _ensure_role_assignment_allowed(context.user, [source])
+    role = Role(
+        name=payload.name,
+        display_name=payload.display_name,
+        is_system=False,
+        is_active=True,
+        permissions=list(source.permissions),
+    )
+    db.add(role)
+    db.flush()
+    add_audit_log(
+        db,
+        action="roles.cloned",
+        entity_type="Role",
+        entity_id=role.id,
+        actor_user_id=context.user.id,
+        old_data={"source_role_id": source.id, "source_role_name": source.name},
+        new_data={"name": role.name, "permission_codes": sorted(role_permissions(source))},
+        session_id=context.session.id,
+    )
+    db.commit()
+    db.refresh(role)
+    return role_read(role)
+
+
+@roles_router.get("/{role_id}/effective-permissions", response_model=EffectivePermissionsRead)
+def get_role_effective_permissions(
+    role_id: int,
+    _: AuthContext = Depends(require_permission("roles.read")),
+    db: Session = Depends(get_db),
+) -> EffectivePermissionsRead:
+    role = db.get(Role, role_id)
+    if not role:
+        raise SecurityError("ROLE_NOT_FOUND", "نقش پیدا نشد.", 404, [])
+    return EffectivePermissionsRead(permissions=sorted(role_permissions(role)))
+
+
+@roles_router.get("/{role_id}/access-preview", response_model=AccessPreviewRead)
+def get_role_access_preview(
+    role_id: int,
+    _: AuthContext = Depends(require_permission("roles.read")),
+    db: Session = Depends(get_db),
+) -> AccessPreviewRead:
+    role = db.get(Role, role_id)
+    if not role:
+        raise SecurityError("ROLE_NOT_FOUND", "نقش پیدا نشد.", 404, [])
+    return AccessPreviewRead(**access_preview(role_names_from_role(role), role_permissions(role)))
 
 
 @roles_router.put("/{role_id}/permissions", response_model=RoleRead)
