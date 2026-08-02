@@ -1,6 +1,7 @@
 import { sessionStore } from "../app/sessionStore.js";
 import {
   clearNavigationGuard,
+  createUnsavedChangesGuard,
   setNavigationGuard,
 } from "../app/navigationGuard.js";
 import {
@@ -259,8 +260,8 @@ export const StageNinePage = ({ pilotId }) => {
               state,
               disabled: !editable,
               onChange: () =>
-                setNavigationGuard(() =>
-                  window.confirm(
+                setNavigationGuard(
+                  createUnsavedChangesGuard(
                     "تغییرات Upload ذخیره نشده‌اند. از صفحه خارج می‌شوید؟",
                   ),
                 ),
@@ -271,8 +272,8 @@ export const StageNinePage = ({ pilotId }) => {
         mission,
         disabled: !editable,
         onChange: () =>
-          setNavigationGuard(() =>
-            window.confirm(
+          setNavigationGuard(
+            createUnsavedChangesGuard(
               "تغییرات تکمیل مأموریت ذخیره نشده‌اند. از صفحه خارج می‌شوید؟",
             ),
           ),

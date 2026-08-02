@@ -1,6 +1,7 @@
 import { sessionStore } from "../app/sessionStore.js";
 import {
   clearNavigationGuard,
+  createUnsavedChangesGuard,
   setNavigationGuard,
 } from "../app/navigationGuard.js";
 import { StageOneForm } from "../components/StageOneForm.js";
@@ -140,8 +141,10 @@ export const StageOnePage = ({ pilotId }) => {
         disabled: !editable,
         onChange: () => {
           status.textContent = "تغییرات ذخیره‌نشده";
-          setNavigationGuard(() =>
-            window.confirm("تغییرات ذخیره نشده‌اند. از صفحه خارج می‌شوید؟"),
+          setNavigationGuard(
+            createUnsavedChangesGuard(
+              "تغییرات ذخیره نشده‌اند. از صفحه خارج می‌شوید؟",
+            ),
           );
         },
       });

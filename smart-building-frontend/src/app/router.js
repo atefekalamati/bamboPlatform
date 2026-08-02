@@ -271,20 +271,21 @@ export const startRouter = (appRoot) => {
   let isRestoringRoute = false;
 
   renderRoute(appRoot);
-  window.addEventListener("hashchange", () => {
+  window.addEventListener("hashchange", async () => {
     if (isRestoringRoute) {
       isRestoringRoute = false;
       return;
     }
 
-    if (!canLeaveCurrentPage()) {
+    const nextRoute = getCurrentRoute();
+    if (!(await canLeaveCurrentPage())) {
       isRestoringRoute = true;
       window.location.hash = renderedRoute;
       return;
     }
 
     clearNavigationGuard();
-    renderedRoute = getCurrentRoute();
+    renderedRoute = nextRoute;
     renderRoute(appRoot);
   });
   window.addEventListener("beforeunload", (event) => {

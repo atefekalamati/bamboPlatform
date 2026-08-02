@@ -1,4 +1,5 @@
 import { sessionStore } from "../app/sessionStore.js";
+import { confirmDialog } from "../components/AppDialog.js";
 import { dwgService } from "../services/dwgService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -162,9 +163,13 @@ const floorCard = ({
         ? ` و ${versions.length} نسخه DWG آن`
         : "";
       if (
-        !window.confirm(
-          `طبقه ${floor.code}${detail} برای همیشه حذف شود؟ این عملیات قابل بازگشت نیست.`,
-        )
+        !(await confirmDialog({
+          title: "حذف طبقه",
+          message: `طبقه ${floor.code}${detail} برای همیشه حذف شود؟ این عملیات قابل بازگشت نیست.`,
+          confirmLabel: "حذف طبقه",
+          confirmClassName: "button button--danger",
+          triggerElement: remove,
+        }))
       ) {
         return;
       }
@@ -206,9 +211,11 @@ const floorCard = ({
     const confirmed = referenceCheckbox.checked;
     if (
       confirmed &&
-      !window.confirm(
-        `تأیید می‌کنید فایل DWG طبقه ${floor.code} در مرجع اصلی وجود دارد یا در اختیار شما نیست؟`,
-      )
+      !(await confirmDialog({
+        title: "تأیید وجود فایل DWG",
+        message: `تأیید می‌کنید فایل DWG طبقه ${floor.code} در مرجع اصلی وجود دارد یا در اختیار شما نیست؟`,
+        triggerElement: referenceCheckbox,
+      }))
     ) {
       referenceCheckbox.checked = false;
       return;
@@ -456,9 +463,12 @@ export const StageThreePage = ({ pilotId }) => {
         const confirmed = referenceRequirementInput.checked;
         if (
           confirmed &&
-          !window.confirm(
-            "تأیید می‌کنید فایل DWG تمام طبقات ثبت‌شده‌ای که فایل ندارند در مرجع اصلی وجود دارد یا در اختیار شما نیست؟",
-          )
+          !(await confirmDialog({
+            title: "تأیید وجود فایل DWG",
+            message:
+              "تأیید می‌کنید فایل DWG تمام طبقات ثبت‌شده‌ای که فایل ندارند در مرجع اصلی وجود دارد یا در اختیار شما نیست؟",
+            triggerElement: referenceRequirementInput,
+          }))
         ) {
           referenceRequirementInput.checked = false;
           return;

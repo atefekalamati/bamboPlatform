@@ -1,6 +1,7 @@
 import { sessionStore } from "../app/sessionStore.js";
 import {
   clearNavigationGuard,
+  createUnsavedChangesGuard,
   setNavigationGuard,
 } from "../app/navigationGuard.js";
 import {
@@ -184,8 +185,8 @@ export const StageSixPage = ({ pilotId }) => {
         initialData: mission.formF03,
         disabled: !editable,
         onChange: () =>
-          setNavigationGuard(() =>
-            window.confirm(
+          setNavigationGuard(
+            createUnsavedChangesGuard(
               "تغییرات چک‌لیست ذخیره نشده‌اند. از صفحه خارج می‌شوید؟",
             ),
           ),

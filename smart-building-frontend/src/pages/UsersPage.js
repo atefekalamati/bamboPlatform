@@ -1,4 +1,5 @@
 import { sessionStore } from "../app/sessionStore.js";
+import { alertDialog, confirmDialog } from "../components/AppDialog.js";
 import { EmptyState } from "../components/EmptyState.js";
 import { Modal } from "../components/Modal.js";
 import { Pagination } from "../components/Pagination.js";
@@ -101,9 +102,12 @@ export const UsersPage = () => {
           onToggleStatus: async (targetUser, trigger) => {
             const action = targetUser.isActive ? "غیرفعال" : "فعال";
             if (
-              !window.confirm(
-                `کاربر «${targetUser.displayName}» ${action} شود؟`,
-              )
+              !(await confirmDialog({
+                title: `${action}‌سازی کاربر`,
+                message: `کاربر «${targetUser.displayName}» ${action} شود؟`,
+                confirmLabel: `${action}‌سازی`,
+                triggerElement: trigger,
+              }))
             ) {
               return;
             }
@@ -115,7 +119,11 @@ export const UsersPage = () => {
               });
               await loadUsers();
             } catch (error) {
-              window.alert(error.message);
+              await alertDialog({
+                title: "خطا در تغییر وضعیت کاربر",
+                message: error.message,
+                triggerElement: trigger,
+              });
               trigger.disabled = false;
             }
           },
@@ -173,7 +181,11 @@ export const UsersPage = () => {
               initialRoleIds.join(",") !== nextRoleIds.join(",");
             if (
               (rolesChanged || values.statusChanged) &&
-              !window.confirm("تغییر نقش یا وضعیت این کاربر را تأیید می‌کنید؟")
+              !(await confirmDialog({
+                title: "تأیید تغییرات کاربر",
+                message: "تغییر نقش یا وضعیت این کاربر را تأیید می‌کنید؟",
+                confirmLabel: "تأیید تغییرات",
+              }))
             ) {
               throw new Error("تغییرات توسط شما لغو شد.");
             }

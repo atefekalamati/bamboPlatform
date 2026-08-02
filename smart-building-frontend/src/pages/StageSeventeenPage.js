@@ -12,11 +12,6 @@ const field = (labelText, input, help = "") => {
   if (help) label.append(element("small", "draft-info", help));
   return label;
 };
-const sha256 = async (file) => {
-  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-};
-
 export const StageSeventeenPage = ({ pilotId }) => {
   const page = element("div", "stage-workspace");
   const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
@@ -64,41 +59,33 @@ export const StageSeventeenPage = ({ pilotId }) => {
       const features = control("textarea"); features.rows = 3; features.value = (proposal?.features ?? []).join("، ");
       const decisionMaker = control(); decisionMaker.value = proposal?.decision_maker ?? "";
       const followUp = control(); followUp.type = "datetime-local"; followUp.value = proposal?.follow_up_at?.slice(0, 16) ?? "";
-      const file = control(); file.type = "file"; file.accept = ".pdf,application/pdf";
-      const fileState = { name: proposal?.proposal_file_name ?? "", size: proposal?.proposal_file_size ?? 0, hash: proposal?.proposal_file_sha256 ?? "" };
-      const fileInfo = element("p", "draft-info", fileState.name ? `فایل ثبت‌شده: ${fileState.name} — ${fileState.size} بایت` : "هنوز فایل پیشنهادی ثبت نشده است.");
-      const inputs = [projectCount, floorCount, area, userCount, frequency, period, support, features, decisionMaker, followUp, file];
+      const inputs = [projectCount, floorCount, area, userCount, frequency, period, support, features, decisionMaker, followUp];
       inputs.forEach((input) => { input.disabled = !editable || !canManage; });
       grid.append(
         field("تعداد پروژه‌ها", projectCount), field("تعداد طبقات", floorCount), field("مساحت کل (مترمربع)", area),
         field("تناوب برداشت", frequency), field("دوره همکاری", period), field("تعداد کاربران", userCount),
         field("سطح پشتیبانی", support), field("امکانات لازم", features, "هر قابلیت را با ویرگول جدا کنید."),
         field("تصمیم‌گیرنده", decisionMaker), field("تاریخ پیگیری بعدی", followUp),
-        field("فایل PDF پیشنهاد", file, "در نسخه فعلی بک‌اند فقط مشخصات و اثرانگشت فایل ثبت می‌شود؛ محتوای فایل آپلود نمی‌شود."),
       );
-      form.append(element("h2", "stage-form__legend", "پیشنهاد اختصاصی مشتری"), element("p", "draft-info", "مبنای پیشنهاد: پروژه، طبقه، مساحت، تناوب، دوره همکاری، کاربران، پشتیبانی و امکانات لازم."), grid, fileInfo);
+      form.append(
+        element("h2", "stage-form__legend", "پیشنهاد اختصاصی مشتری"),
+        element("p", "draft-info", "مبنای پیشنهاد: پروژه، طبقه، مساحت، تناوب، دوره همکاری، کاربران، پشتیبانی و امکانات لازم."),
+        element("p", "draft-info", "طبق قرارداد جدید بک‌اند و راهنمای اجرایی، ثبت یا بارگذاری فایل PDF برای عبور از این مرحله لازم نیست."),
+        grid,
+      );
       page.append(form);
-
-      file.addEventListener("change", async () => {
-        const selected = file.files?.[0]; if (!selected) return;
-        file.setAttribute("aria-invalid", String(selected.type !== "application/pdf" && !selected.name.toLowerCase().endsWith(".pdf")));
-        if (selected.size > 100 * 1024 * 1024) { file.setAttribute("aria-invalid", "true"); fileInfo.textContent = "حجم فایل نباید بیشتر از ۱۰۰ مگابایت باشد."; return; }
-        fileInfo.textContent = "در حال محاسبه اثرانگشت فایل...";
-        try { fileState.name = selected.name; fileState.size = selected.size; fileState.hash = await sha256(selected); fileInfo.textContent = `آماده ثبت: ${selected.name} — ${selected.size} بایت`; }
-        catch { file.setAttribute("aria-invalid", "true"); fileInfo.textContent = "محاسبه اثرانگشت فایل انجام نشد."; }
-      });
       const parsedFeatures = () => features.value.split(/[،,\n]/).map((value) => value.trim()).filter(Boolean);
       const validate = () => {
         [projectCount, floorCount, area, userCount].forEach((input) => input.setAttribute("aria-invalid", String(!input.value || Number(input.value) <= 0)));
         [frequency, period, support, features, decisionMaker].forEach((input) => input.setAttribute("aria-invalid", String(input.value.trim().length < (input === support || input === decisionMaker ? 2 : 1))));
-        followUp.setAttribute("aria-invalid", String(!followUp.value)); file.setAttribute("aria-invalid", String(!fileState.name || !fileState.size || fileState.hash.length !== 64));
+        followUp.setAttribute("aria-invalid", String(!followUp.value));
         return [projectCount, floorCount, area, userCount].every((input) => input.value && Number(input.value) > 0) &&
           frequency.value.trim() && period.value.trim() && support.value.trim().length >= 2 && parsedFeatures().length &&
-          decisionMaker.value.trim().length >= 2 && followUp.value && fileState.name && fileState.size > 0 && fileState.hash.length === 64;
+          decisionMaker.value.trim().length >= 2 && followUp.value;
       };
       const values = () => ({ projectCount: projectCount.value, floorCount: floorCount.value, areaSqm: area.value, frequency: frequency.value.trim(),
         period: period.value.trim(), userCount: userCount.value, supportScope: support.value.trim(), features: parsedFeatures(),
-        fileName: fileState.name, fileSize: fileState.size, fileSha256: fileState.hash, decisionMaker: decisionMaker.value.trim(), followUpAt: followUp.value });
+        decisionMaker: decisionMaker.value.trim(), followUpAt: followUp.value });
       if (editable && canManage) {
         const actions = element("div", "stage-actions"); const save = element("button", "button button--ghost", "ذخیره پیشنهاد");
         const submit = element("button", "button button--primary", "ارسال Stage 17 برای بررسی"); save.type = submit.type = "button"; submit.hidden = !canSubmit;

@@ -3,7 +3,13 @@ const getFocusableElements = (container) =>
     'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
   );
 
-export const Modal = ({ title, content, triggerElement, onClose }) => {
+export const Modal = ({
+  title,
+  content,
+  triggerElement,
+  onClose,
+  centered = false,
+}) => {
   const overlay = document.createElement("div");
   const dialog = document.createElement("section");
   const header = document.createElement("header");
@@ -12,6 +18,7 @@ export const Modal = ({ title, content, triggerElement, onClose }) => {
   const titleId = `modal-title-${Date.now()}`;
 
   overlay.className = "modal-overlay";
+  if (centered) overlay.classList.add("modal-overlay--centered");
   dialog.className = "modal";
   dialog.setAttribute("role", "dialog");
   dialog.setAttribute("aria-modal", "true");

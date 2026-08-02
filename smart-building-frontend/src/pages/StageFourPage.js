@@ -1,6 +1,7 @@
 import { sessionStore } from "../app/sessionStore.js";
 import {
   clearNavigationGuard,
+  createUnsavedChangesGuard,
   setNavigationGuard,
 } from "../app/navigationGuard.js";
 import { StageFourForm } from "../components/StageFourForm.js";
@@ -164,8 +165,8 @@ export const StageFourPage = ({ pilotId }) => {
         disabled: !editable,
         onChange: () => {
           status.textContent = "تغییرات ذخیره‌نشده";
-          setNavigationGuard(() =>
-            window.confirm(
+          setNavigationGuard(
+            createUnsavedChangesGuard(
               "تغییرات ذخیره نشده‌اند. از صفحه خارج می‌شوید؟",
             ),
           );

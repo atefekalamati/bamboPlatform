@@ -1,5 +1,9 @@
 import { sessionStore } from "../app/sessionStore.js";
-import { clearNavigationGuard, setNavigationGuard } from "../app/navigationGuard.js";
+import {
+  clearNavigationGuard,
+  createUnsavedChangesGuard,
+  setNavigationGuard,
+} from "../app/navigationGuard.js";
 import {
   StageReviewPanel,
   StageSnapshots,
@@ -316,8 +320,8 @@ export const StageFivePage = ({ pilotId }) => {
             experts,
             floors,
             onChange: () =>
-              setNavigationGuard(() =>
-                window.confirm(
+              setNavigationGuard(
+                createUnsavedChangesGuard(
                   "اطلاعات مأموریت ذخیره نشده‌اند. از صفحه خارج می‌شوید؟",
                 ),
               ),
