@@ -38,8 +38,9 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
     node("h1", "page-heading__title", "مرکز اعلان‌ها"),
     node("p", "page-heading__description", "اعلان‌های مراحل، مأموریت‌ها، رخدادها و پیگیری‌های پروژه را اینجا مشاهده کنید."),
   );
+  const tabs = node("div", "notification-tabs");
+  tabs.setAttribute("role", "tablist");
   const toolbar = node("div", "notification-toolbar card");
-  const status = selectField("وضعیت", [["", "همه"], ["unread", "خوانده‌نشده"], ["read", "خوانده‌شده"]]);
   const category = selectField("دسته", [["", "همه دسته‌ها"], ...Object.entries(notificationLabels.categories).map(([value, label]) => [value, label])]);
   const priority = selectField("اولویت", [["", "همه اولویت‌ها"], ...Object.entries(notificationLabels.priorities).map(([value, label]) => [value, label])]);
   const refresh = node("button", "button button--ghost", "به‌روزرسانی");
@@ -48,11 +49,11 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
   settings.href = "#/settings/notifications";
   refresh.type = readAll.type = "button";
   readAll.hidden = !permissions.includes("notifications.mark_read");
-  toolbar.append(status.label, category.label, priority.label, refresh, readAll, settings);
+  toolbar.append(category.label, priority.label, refresh, readAll, settings);
   const summary = node("div", "notification-summary");
   const detail = node("section", "notification-detail card");
   detail.hidden = !notificationId;
-  const content = node("section", "notification-list");
+  const content = node("section", "notification-list notification-glass-panel");
   const deliverySection = node("section", "notification-deliveries card");
   deliverySection.hidden = !permissions.includes("notifications.delivery_logs.read");
   if (!deliverySection.hidden) {
@@ -73,8 +74,27 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
     });
     deliverySection.append(deliveryButton);
   }
-  page.append(heading, toolbar, detail, summary, content, deliverySection);
+  page.append(heading, tabs, toolbar, detail, summary, content, deliverySection);
   let activePage = 1;
+  let statusFilter = "unread";
+
+  const renderTabs = () => {
+    tabs.replaceChildren();
+    [["unread", "خوانده‌نشده"], ["read", "خوانده‌شده"], ["", "همه اعلان‌ها"]].forEach(([value, label]) => {
+      const button = node("button", `notification-tabs__button${statusFilter === value ? " is-active" : ""}`, label);
+      button.type = "button";
+      button.setAttribute("role", "tab");
+      button.setAttribute("aria-selected", String(statusFilter === value));
+      button.addEventListener("click", () => {
+        statusFilter = value;
+        activePage = 1;
+        readAll.hidden = !permissions.includes("notifications.mark_read") || statusFilter === "read";
+        renderTabs();
+        load();
+      });
+      tabs.append(button);
+    });
+  };
 
   const loadDetail = async () => {
     if (!notificationId) return;
@@ -88,16 +108,20 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
   };
 
   const openItem = async (item) => {
-    if (permissions.includes("notifications.mark_read")) await notificationStore.markAsRead(item.id).catch(() => null);
     const route = safeNotificationRoute(item.action_url);
-    if (route) window.location.hash = route;
+    window.location.hash = route ?? `#/notifications/${encodeURIComponent(item.id)}`;
+  };
+
+  const markItemRead = async (item) => {
+    await notificationStore.markAsRead(item.id);
+    await load();
   };
 
   const load = async () => {
     content.replaceChildren(node("p", "loading-state", "در حال دریافت اعلان‌ها…"));
     try {
       const response = await notificationService.getNotifications({
-        page: activePage, page_size: 20, status: status.select.value,
+        page: activePage, page_size: 20, status: statusFilter,
         category: category.select.value, priority: priority.select.value,
       });
       summary.replaceChildren(
@@ -106,7 +130,11 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
       );
       const fragment = document.createDocumentFragment();
       if (!response.items.length) fragment.append(node("p", "notification-empty card", "اعلانی با این فیلتر پیدا نشد."));
-      response.items.forEach((item) => fragment.append(createNotificationItem({ item, onOpen: openItem })));
+      response.items.forEach((item) => fragment.append(createNotificationItem({
+        item,
+        onOpen: openItem,
+        onMarkRead: permissions.includes("notifications.mark_read") ? markItemRead : null,
+      })));
       if (response.total_pages > 1) fragment.append(Pagination({ activePage, totalPages: response.total_pages, onPageChange: (next) => { activePage = next; load(); } }));
       content.replaceChildren(fragment);
       notificationStore.sync().catch(() => null);
@@ -117,10 +145,11 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
       content.replaceChildren(node("p", "error-state__message", error.message ?? "دریافت اعلان‌ها انجام نشد."), retry);
     }
   };
-  [status.select, category.select, priority.select].forEach((control) => control.addEventListener("change", () => { activePage = 1; load(); }));
+  [category.select, priority.select].forEach((control) => control.addEventListener("change", () => { activePage = 1; load(); }));
   refresh.addEventListener("click", load);
   readAll.addEventListener("click", async () => { readAll.disabled = true; try { await notificationStore.markAllAsRead(); await load(); } finally { readAll.disabled = false; } });
   loadDetail();
+  renderTabs();
   load();
   return page;
 };

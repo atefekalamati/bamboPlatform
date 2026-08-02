@@ -3,6 +3,7 @@ import { LoginPage } from "../pages/LoginPage.js";
 import { authService } from "../services/authService.js";
 import { preferenceService } from "../services/preferenceService.js";
 import { startPersianDigitLocalization } from "../utils/persianDigits.js";
+import { startJalaliDateTimeInputs } from "../utils/jalaliDateTime.js";
 import {
   markApiErrorFields,
   onApiError,
@@ -16,6 +17,7 @@ import { notificationStore } from "./notificationStore.js";
 const APP_ROOT_ID = "app";
 
 startPersianDigitLocalization();
+startJalaliDateTimeInputs();
 
 const renderAuthenticatedApp = (appRoot) => {
   appRoot.replaceChildren();
