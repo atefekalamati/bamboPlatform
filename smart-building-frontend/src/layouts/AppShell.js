@@ -3,6 +3,29 @@ import { themeStore } from "../app/themeStore.js";
 import { PRIMARY_NAVIGATION } from "../constants/routes.js";
 import { authService } from "../services/authService.js";
 
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+const createLogoutIcon = () => {
+  const icon = document.createElementNS(SVG_NAMESPACE, "svg");
+  const paths = [
+    "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",
+    "m16 17 5-5-5-5",
+    "M21 12H9",
+  ];
+
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  icon.setAttribute("focusable", "false");
+
+  paths.forEach((pathData) => {
+    const path = document.createElementNS(SVG_NAMESPACE, "path");
+    path.setAttribute("d", pathData);
+    icon.append(path);
+  });
+
+  return icon;
+};
+
 const createNavigation = (currentRoute) => {
   const navigation = document.createElement("nav");
   const list = document.createElement("ul");
@@ -78,9 +101,11 @@ const createHeader = () => {
   title.textContent = "مدیریت پایلوت";
   account.className = "app-header__account";
   userName.textContent = user?.display_name ?? "";
-  logout.className = "button button--ghost";
+  logout.className = "button button--ghost app-header__logout";
   logout.type = "button";
-  logout.textContent = "خروج";
+  logout.title = "خروج";
+  logout.setAttribute("aria-label", "خروج");
+  logout.append(createLogoutIcon());
   logout.addEventListener("click", async () => {
     logout.disabled = true;
     await authService.logout();

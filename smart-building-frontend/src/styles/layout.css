@@ -43,7 +43,6 @@
   /* background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent); */
   background: linear-gradient(135deg, var(--brand-green) 0%, var(--brand-teal) 100%);
   color: #fff;
-  color: var(--color-brand-primary-strong);
 }
 
 .sidebar__link--disabled {
@@ -74,6 +73,23 @@
 
 .app-header__title {
   font-weight: 700;
+}
+
+.app-header__logout {
+  width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.app-header__logout svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .main-content {
