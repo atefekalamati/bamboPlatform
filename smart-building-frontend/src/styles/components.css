@@ -186,6 +186,35 @@
   font-size: var(--font-size-lg);
 }
 
+.app-dialog {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+
+.app-dialog__message {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: 1.9;
+}
+
+.app-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.app-dialog__actions .button {
+  min-width: 7rem;
+}
+
+@media (max-width: 30rem) {
+  .app-dialog__actions .button {
+    width: 100%;
+  }
+}
+
 .user-form {
   display: grid;
   gap: var(--space-4);

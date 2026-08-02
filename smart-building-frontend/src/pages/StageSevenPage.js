@@ -1,6 +1,7 @@
 import { sessionStore } from "../app/sessionStore.js";
 import {
   clearNavigationGuard,
+  createUnsavedChangesGuard,
   setNavigationGuard,
 } from "../app/navigationGuard.js";
 import {
@@ -284,8 +285,8 @@ export const StageSevenPage = ({ pilotId }) => {
               state,
               disabled: !editable,
               onChange: () =>
-                setNavigationGuard(() =>
-                  window.confirm(
+                setNavigationGuard(
+                  createUnsavedChangesGuard(
                     "تغییرات برداشت ذخیره نشده‌اند. از صفحه خارج می‌شوید؟",
                   ),
                 ),

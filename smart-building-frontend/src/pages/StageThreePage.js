@@ -1,5 +1,5 @@
 import { sessionStore } from "../app/sessionStore.js";
-import { Modal } from "../components/Modal.js";
+import { confirmDialog } from "../components/AppDialog.js";
 import { dwgService } from "../services/dwgService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -19,43 +19,6 @@ const element = (tag, className, text = "") => {
   node.textContent = text;
   return node;
 };
-
-const confirmDwgReference = ({ message, triggerElement }) =>
-  new Promise((resolve) => {
-    const content = element("div", "dwg-confirmation");
-    const description = element("p", "dwg-confirmation__message", message);
-    const actions = element("div", "dwg-confirmation__actions");
-    const cancel = element("button", "button button--ghost", "لغو");
-    const confirm = element("button", "button button--primary", "تأیید");
-    let settled = false;
-    let modal;
-
-    const finish = (accepted) => {
-      if (settled) return;
-      settled = true;
-      modal.close();
-      resolve(accepted);
-    };
-
-    cancel.type = "button";
-    confirm.type = "button";
-    cancel.addEventListener("click", () => finish(false));
-    confirm.addEventListener("click", () => finish(true));
-    actions.append(cancel, confirm);
-    content.append(description, actions);
-
-    modal = Modal({
-      title: "تأیید وجود فایل DWG",
-      content,
-      triggerElement,
-      centered: true,
-      onClose: () => {
-        if (settled) return;
-        settled = true;
-        resolve(false);
-      },
-    });
-  });
 
 const formatSize = (bytes) => {
   if (bytes < 1024) return `${bytes} بایت`;
@@ -200,9 +163,13 @@ const floorCard = ({
         ? ` و ${versions.length} نسخه DWG آن`
         : "";
       if (
-        !window.confirm(
-          `طبقه ${floor.code}${detail} برای همیشه حذف شود؟ این عملیات قابل بازگشت نیست.`,
-        )
+        !(await confirmDialog({
+          title: "حذف طبقه",
+          message: `طبقه ${floor.code}${detail} برای همیشه حذف شود؟ این عملیات قابل بازگشت نیست.`,
+          confirmLabel: "حذف طبقه",
+          confirmClassName: "button button--danger",
+          triggerElement: remove,
+        }))
       ) {
         return;
       }
@@ -244,7 +211,8 @@ const floorCard = ({
     const confirmed = referenceCheckbox.checked;
     if (
       confirmed &&
-      !(await confirmDwgReference({
+      !(await confirmDialog({
+        title: "تأیید وجود فایل DWG",
         message: `تأیید می‌کنید فایل DWG طبقه ${floor.code} در مرجع اصلی وجود دارد یا در اختیار شما نیست؟`,
         triggerElement: referenceCheckbox,
       }))
@@ -495,7 +463,8 @@ export const StageThreePage = ({ pilotId }) => {
         const confirmed = referenceRequirementInput.checked;
         if (
           confirmed &&
-          !(await confirmDwgReference({
+          !(await confirmDialog({
+            title: "تأیید وجود فایل DWG",
             message:
               "تأیید می‌کنید فایل DWG تمام طبقات ثبت‌شده‌ای که فایل ندارند در مرجع اصلی وجود دارد یا در اختیار شما نیست؟",
             triggerElement: referenceRequirementInput,

@@ -1,3 +1,4 @@
+import { confirmDialog } from "../components/AppDialog.js";
 import { roleService } from "../services/roleService.js";
 
 const node = (tag, className, text = "") => {
@@ -218,9 +219,13 @@ export const RolesPage = () => {
     save.disabled = true;
     remove.addEventListener("click", async () => {
       if (
-        !window.confirm(
-          `نقش «${activeRole.displayName}» برای همیشه حذف شود؟ نقش دارای کاربر قابل حذف نیست.`,
-        )
+        !(await confirmDialog({
+          title: "حذف نقش",
+          message: `نقش «${activeRole.displayName}» برای همیشه حذف شود؟ نقش دارای کاربر قابل حذف نیست.`,
+          confirmLabel: "حذف نقش",
+          confirmClassName: "button button--danger",
+          triggerElement: remove,
+        }))
       ) {
         return;
       }
@@ -243,7 +248,12 @@ export const RolesPage = () => {
       );
       const confirmed =
         !changedSensitive ||
-        window.confirm("دسترسی حساس تغییر کرده است. این تغییر را تأیید می‌کنید؟");
+        (await confirmDialog({
+          title: "تأیید تغییر دسترسی حساس",
+          message: "دسترسی حساس تغییر کرده است. این تغییر را تأیید می‌کنید؟",
+          confirmLabel: "تأیید تغییر",
+          triggerElement: save,
+        }));
       if (!confirmed) return;
 
       save.disabled = true;
