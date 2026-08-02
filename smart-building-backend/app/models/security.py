@@ -53,6 +53,12 @@ class User(Base):
 
     roles = relationship("Role", secondary=user_roles, back_populates="users")
     sessions = relationship("AuthSession", back_populates="user", cascade="all, delete-orphan")
+    preferences = relationship(
+        "UserPreference",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class Role(Base):
@@ -118,6 +124,29 @@ class AuthSession(Base):
     user = relationship("User", back_populates="sessions")
 
 
+class UserPreference(Base):
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    language = Column(String(16), nullable=False, default="fa")
+    theme = Column(String(16), nullable=False, default="light")
+    timezone = Column(String(64), nullable=False, default="Asia/Tehran")
+    calendar = Column(String(16), nullable=False, default="jalali")
+    page_size = Column(Integer, nullable=False, default=20)
+    default_page = Column(String(120), nullable=True)
+    last_page = Column(String(120), nullable=True)
+    visible_columns = Column(JSON_TYPE, nullable=False, default=dict)
+    column_order = Column(JSON_TYPE, nullable=False, default=dict)
+    saved_filters = Column(JSON_TYPE, nullable=False, default=dict)
+    notification_preferences = Column(JSON_TYPE, nullable=False, default=dict)
+    dashboard_preferences = Column(JSON_TYPE, nullable=False, default=dict)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
+    updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = relationship("User", back_populates="preferences")
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
@@ -126,9 +155,12 @@ class AuditLog(Base):
     action = Column(String(120), nullable=False, index=True)
     entity_type = Column(String(80), nullable=False, index=True)
     entity_id = Column(String(80), nullable=True)
+    pilot_id = Column(Integer, ForeignKey("pilots.id"), nullable=True, index=True)
     old_data = Column(JSON_TYPE, nullable=True)
     new_data = Column(JSON_TYPE, nullable=True)
     reason = Column(Text, nullable=True)
+    request_id = Column(String(64), nullable=True, index=True)
     ip_address = Column(String(64), nullable=True)
+    user_agent = Column(String(500), nullable=True)
     session_id = Column(Integer, ForeignKey("auth_sessions.id"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now, index=True)

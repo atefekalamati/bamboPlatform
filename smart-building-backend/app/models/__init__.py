@@ -29,6 +29,7 @@ from app.models.security import (
     Permission,
     Role,
     User,
+    UserPreference,
     role_permissions,
     user_roles,
 )
@@ -78,6 +79,7 @@ __all__ = [
     "StageApproval",
     "StageSubmission",
     "User",
+    "UserPreference",
     "role_permissions",
     "user_roles",
 ]

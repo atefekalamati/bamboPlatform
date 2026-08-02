@@ -2,6 +2,7 @@ import { sessionStore } from "../app/sessionStore.js";
 import { themeStore } from "../app/themeStore.js";
 import { PRIMARY_NAVIGATION } from "../constants/routes.js";
 import { authService } from "../services/authService.js";
+import { preferenceService } from "../services/preferenceService.js";
 
 const createNavigation = (currentRoute) => {
   const navigation = document.createElement("nav");
@@ -57,9 +58,10 @@ const createThemeToggle = () => {
     toggle.setAttribute("aria-pressed", String(isDark));
   };
 
-  toggle.addEventListener("click", () => {
-    themeStore.toggle();
+  toggle.addEventListener("click", async () => {
+    const theme = themeStore.toggle();
     syncState();
+    await preferenceService.updatePreferences({ theme }).catch(() => null);
   });
 
   syncState();

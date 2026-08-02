@@ -1,4 +1,5 @@
 import { StageStepper } from "../components/StageStepper.js";
+import { PilotFormsPanel } from "../components/PilotFormsPanel.js";
 import { pilotService } from "../services/pilotService.js";
 import { formatPersianDate } from "../utils/dateFormatter.js";
 
@@ -69,6 +70,7 @@ const renderDetails = (container, pilot) => {
       currentStage: pilot.currentStage,
       pilotId: pilot.id,
     }),
+    PilotFormsPanel({ pilotId: pilot.id }),
   );
 };
 

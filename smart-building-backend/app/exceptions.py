@@ -14,12 +14,21 @@ class WorkflowError(Exception):
     errors: list[dict[str, Any]]
 
     def response_body(self) -> dict[str, Any]:
+        trace_id = str(uuid4())
         return {
             "code": self.code,
             "message": self.message,
             "stage": self.stage,
             "errors": self.errors,
-            "trace_id": str(uuid4()),
+            "trace_id": trace_id,
+            "success": False,
+            "error": {
+                "code": self.code,
+                "message": self.message,
+                "stage": self.stage,
+                "details": self.errors,
+                "request_id": trace_id,
+            },
         }
 
 
@@ -32,11 +41,19 @@ class SecurityError(Exception):
     retry_after: int | None = None
 
     def response_body(self) -> dict[str, Any]:
+        trace_id = str(uuid4())
         body = {
             "code": self.code,
             "message": self.message,
             "errors": self.errors,
-            "trace_id": str(uuid4()),
+            "trace_id": trace_id,
+            "success": False,
+            "error": {
+                "code": self.code,
+                "message": self.message,
+                "details": self.errors,
+                "request_id": trace_id,
+            },
         }
         if self.retry_after is not None:
             body["retry_after"] = self.retry_after

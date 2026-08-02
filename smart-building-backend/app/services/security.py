@@ -75,10 +75,13 @@ def add_audit_log(
     entity_type: str,
     entity_id: str | int | None,
     actor_user_id: int | None = None,
+    pilot_id: int | None = None,
     old_data: dict | None = None,
     new_data: dict | None = None,
     reason: str | None = None,
+    request_id: str | None = None,
     ip_address: str | None = None,
+    user_agent: str | None = None,
     session_id: int | None = None,
 ) -> AuditLog:
     log = AuditLog(
@@ -86,10 +89,13 @@ def add_audit_log(
         action=action,
         entity_type=entity_type,
         entity_id=str(entity_id) if entity_id is not None else None,
+        pilot_id=pilot_id,
         old_data=old_data,
         new_data=new_data,
         reason=reason,
+        request_id=request_id,
         ip_address=ip_address,
+        user_agent=user_agent,
         session_id=session_id,
     )
     db.add(log)

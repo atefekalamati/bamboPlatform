@@ -69,6 +69,37 @@ class AuthToken(BaseModel):
     user: UserRead
 
 
+class UserPreferenceRead(BaseModel):
+    language: str
+    theme: str
+    timezone: str
+    calendar: str
+    page_size: int
+    default_page: str | None
+    last_page: str | None
+    visible_columns: dict
+    column_order: dict
+    saved_filters: dict
+    notification_preferences: dict
+    dashboard_preferences: dict
+    updated_at: datetime
+
+
+class UserPreferencePatch(BaseModel):
+    language: str | None = Field(default=None, min_length=2, max_length=16)
+    theme: str | None = Field(default=None, pattern="^(light|dark)$")
+    timezone: str | None = Field(default=None, min_length=2, max_length=64)
+    calendar: str | None = Field(default=None, pattern="^(jalali|gregorian)$")
+    page_size: int | None = Field(default=None, ge=5, le=200)
+    default_page: str | None = Field(default=None, max_length=120)
+    last_page: str | None = Field(default=None, max_length=120)
+    visible_columns: dict | None = None
+    column_order: dict | None = None
+    saved_filters: dict | None = None
+    notification_preferences: dict | None = None
+    dashboard_preferences: dict | None = None
+
+
 class UserCreate(BaseModel):
     mobile: str
     display_name: str = Field(min_length=2, max_length=120)
@@ -126,9 +157,12 @@ class AuditLogRead(BaseModel):
     action: str
     entity_type: str
     entity_id: str | None
+    pilot_id: int | None
     old_data: dict | None
     new_data: dict | None
     reason: str | None
+    request_id: str | None
     ip_address: str | None
+    user_agent: str | None
     session_id: int | None
     created_at: datetime

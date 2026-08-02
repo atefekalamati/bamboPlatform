@@ -15,6 +15,48 @@ def test_otp_login_masks_mobile_and_logout_revokes_session(client):
     assert client.get("/auth/me", headers=headers).status_code == 401
 
 
+def test_user_preferences_are_persisted_and_audited(client, super_admin_headers):
+    defaults = client.get("/auth/preferences", headers=super_admin_headers)
+    assert defaults.status_code == 200
+    assert defaults.json()["theme"] == "light"
+    assert defaults.json()["timezone"] == "Asia/Tehran"
+    assert defaults.json()["calendar"] == "jalali"
+
+    updated = client.patch(
+        "/auth/preferences",
+        json={
+            "theme": "dark",
+            "calendar": "jalali",
+            "page_size": 50,
+            "last_page": "#/pilots/1/stages/10",
+        },
+        headers=super_admin_headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["theme"] == "dark"
+    assert updated.json()["page_size"] == 50
+
+    reread = client.get("/auth/preferences", headers=super_admin_headers)
+    assert reread.status_code == 200
+    assert reread.json()["theme"] == "dark"
+    assert reread.json()["last_page"] == "#/pilots/1/stages/10"
+
+    invalid = client.patch(
+        "/auth/preferences",
+        json={"calendar": "lunar"},
+        headers=super_admin_headers,
+    )
+    assert invalid.status_code == 422
+
+    audit = client.get(
+        "/audit",
+        params={"action": "users.preferences_updated"},
+        headers=super_admin_headers,
+    )
+    assert audit.status_code == 200
+    assert audit.json()[0]["entity_type"] == "UserPreference"
+
+
 def test_parallel_session_policy_and_session_isolation(client, monkeypatch):
     monkeypatch.setenv("OTP_RESEND_COOLDOWN_SECONDS", "0")
 

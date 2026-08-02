@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.exceptions import SecurityError
-from app.models import AuditLog, Permission, Role, User
+from app.models import AuditLog, Permission, Role, User, UserPreference
 from app.rbac import ALL_PERMISSION_CODES
 from app.schemas.security import (
     AuditLogRead,
@@ -21,6 +21,8 @@ from app.schemas.security import (
     RoleRead,
     RoleSummary,
     UserCreate,
+    UserPreferencePatch,
+    UserPreferenceRead,
     UserRead,
     UserRolesUpdate,
     UserStatusUpdate,
@@ -61,6 +63,33 @@ def user_read(user: User) -> UserRead:
         ],
         permissions=sorted(effective_permissions(user)),
     )
+
+
+def _preference_read(preference: UserPreference) -> UserPreferenceRead:
+    return UserPreferenceRead(
+        language=preference.language,
+        theme=preference.theme,
+        timezone=preference.timezone,
+        calendar=preference.calendar,
+        page_size=preference.page_size,
+        default_page=preference.default_page,
+        last_page=preference.last_page,
+        visible_columns=preference.visible_columns,
+        column_order=preference.column_order,
+        saved_filters=preference.saved_filters,
+        notification_preferences=preference.notification_preferences,
+        dashboard_preferences=preference.dashboard_preferences,
+        updated_at=preference.updated_at,
+    )
+
+
+def _get_or_create_preferences(db: Session, user: User) -> UserPreference:
+    preference = user.preferences
+    if preference is None:
+        preference = UserPreference(user=user)
+        db.add(preference)
+        db.flush()
+    return preference
 
 
 def role_read(role: Role) -> RoleRead:
@@ -120,6 +149,43 @@ def logout(
     db: Session = Depends(get_db),
 ) -> None:
     revoke_session(db, context)
+
+
+@auth_router.get("/preferences", response_model=UserPreferenceRead)
+def get_preferences(
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> UserPreferenceRead:
+    preference = _get_or_create_preferences(db, context.user)
+    db.commit()
+    db.refresh(preference)
+    return _preference_read(preference)
+
+
+@auth_router.patch("/preferences", response_model=UserPreferenceRead)
+def patch_preferences(
+    payload: UserPreferencePatch,
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> UserPreferenceRead:
+    preference = _get_or_create_preferences(db, context.user)
+    changes = payload.model_dump(exclude_unset=True)
+    old_data = {field: getattr(preference, field) for field in changes}
+    for field, value in changes.items():
+        setattr(preference, field, value)
+    add_audit_log(
+        db,
+        action="users.preferences_updated",
+        entity_type="UserPreference",
+        entity_id=preference.id,
+        actor_user_id=context.user.id,
+        old_data=old_data,
+        new_data=changes,
+        session_id=context.session.id,
+    )
+    db.commit()
+    db.refresh(preference)
+    return _preference_read(preference)
 
 
 @users_router.get("", response_model=list[UserRead])

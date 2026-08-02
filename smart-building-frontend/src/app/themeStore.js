@@ -29,6 +29,11 @@ export const themeStore = Object.freeze({
     applyTheme(theme);
     window.localStorage.setItem(THEME_KEY, theme);
   },
+  syncFromServer: (theme) => {
+    if (theme === DARK_THEME || theme === LIGHT_THEME) {
+      themeStore.setTheme(theme);
+    }
+  },
   toggle: () => {
     const next =
       themeStore.getTheme() === DARK_THEME ? LIGHT_THEME : DARK_THEME;
