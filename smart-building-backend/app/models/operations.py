@@ -169,8 +169,18 @@ class Notification(Base):
     mission_id = Column(Integer, ForeignKey("missions.id"), nullable=True, index=True)
     pilot_id = Column(Integer, ForeignKey("pilots.id"), nullable=True, index=True)
     recipient_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     recipient_mobile = Column(String(20), nullable=False)
-    channel = Column(String(16), nullable=False, default="sms")
+    channel = Column(String(16), nullable=False, default="SMS")
+    notification_type = Column(String(80), nullable=False, default="system.notification", index=True)
+    category = Column(String(32), nullable=False, default="SYSTEM", index=True)
+    priority = Column(String(16), nullable=False, default="NORMAL", index=True)
+    title = Column(String(160), nullable=False, default="")
+    body = Column(Text, nullable=False, default="")
+    short_body = Column(String(255), nullable=True)
+    entity_type = Column(String(80), nullable=True, index=True)
+    entity_id = Column(String(80), nullable=True, index=True)
+    action_url = Column(String(500), nullable=True)
     template = Column(String(80), nullable=False, index=True)
     payload = Column(JSON_TYPE, nullable=False, default=dict)
     status = Column(String(24), nullable=False, index=True)
@@ -178,6 +188,11 @@ class Notification(Base):
     attempts = Column(Integer, nullable=False, default=0)
     last_error = Column(String(500), nullable=True)
     alternate_contact_method = Column(String(500), nullable=True)
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    read_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True, index=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
+    deduplication_key = Column(String(160), nullable=True, index=True)
     sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now, index=True)
     updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
@@ -187,8 +202,60 @@ class Notification(Base):
             "status IN ('pending', 'delivered', 'failed')",
             name="ck_notification_status",
         ),
+        CheckConstraint(
+            "priority IN ('LOW', 'NORMAL', 'HIGH', 'CRITICAL')",
+            name="ck_notification_priority",
+        ),
+        CheckConstraint(
+            "category IN ('AUTH', 'PILOT', 'STAGE', 'MISSION', 'INCIDENT', "
+            "'SLA', 'COMMERCIAL', 'SYSTEM')",
+            name="ck_notification_category",
+        ),
     )
 
     mission = relationship("Mission", back_populates="notifications")
     pilot = relationship("Pilot", back_populates="notifications")
     recipient_user = relationship("User", foreign_keys=[recipient_user_id])
+    actor_user = relationship("User", foreign_keys=[actor_user_id])
+    deliveries = relationship(
+        "NotificationDelivery",
+        back_populates="notification",
+        cascade="all, delete-orphan",
+        order_by="NotificationDelivery.id",
+    )
+
+
+class NotificationDelivery(Base):
+    __tablename__ = "notification_deliveries"
+
+    id = Column(Integer, primary_key=True)
+    notification_id = Column(Integer, ForeignKey("notifications.id"), nullable=False, index=True)
+    channel = Column(String(16), nullable=False, index=True)
+    recipient_address = Column(String(160), nullable=False)
+    provider = Column(String(80), nullable=False)
+    template_code = Column(String(80), nullable=False, index=True)
+    status = Column(String(24), nullable=False, default="PENDING", index=True)
+    provider_message_id = Column(String(120), nullable=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    next_retry_at = Column(DateTime, nullable=True, index=True)
+    sent_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    failed_at = Column(DateTime, nullable=True)
+    failure_code = Column(String(80), nullable=True)
+    failure_reason = Column(String(500), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utc_now, index=True)
+    updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
+
+    __table_args__ = (
+        CheckConstraint(
+            "channel IN ('IN_APP', 'SMS')",
+            name="ck_notification_delivery_channel",
+        ),
+        CheckConstraint(
+            "status IN ('PENDING', 'QUEUED', 'SENDING', 'SENT', 'DELIVERED', "
+            "'FAILED', 'CANCELLED', 'SKIPPED')",
+            name="ck_notification_delivery_status",
+        ),
+    )
+
+    notification = relationship("Notification", back_populates="deliveries")

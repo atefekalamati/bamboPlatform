@@ -1,11 +1,9 @@
 """Commercial proposal, customer follow-up, and final outcome rules."""
 
 from datetime import timedelta
-from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.config import get_app_env
 from app.exceptions import SecurityError
 from app.models import (
     CommercialProposal,
@@ -22,6 +20,7 @@ from app.schemas.commercial import (
     FollowUpSlot,
 )
 from app.services.security import add_audit_log, mask_mobile, utc_now
+from app.services.notifications import create_notification
 from app.services.workflow import invalidate_from_stage
 
 FOLLOW_UP_SLOT_ORDER = ("day_0", "day_2", "day_5", "day_7_10")
@@ -69,35 +68,26 @@ def _dispatch_follow_up_notification(
     recipient: User,
     follow_up_at,
 ) -> Notification:
-    now = utc_now()
-    if get_app_env() in {"development", "test"}:
-        status = "delivered"
-        provider_status = "accepted:console"
-        last_error = None
-        sent_at = now
-    else:
-        status = "failed"
-        provider_status = "unconfigured"
-        last_error = "SMS provider is not configured"
-        sent_at = None
-    notification = Notification(
-        public_id=str(uuid4()),
-        pilot=pilot,
-        recipient_user_id=recipient.id,
-        recipient_mobile=recipient.mobile,
-        template="commercial_follow_up_due",
+    return create_notification(
+        db,
+        recipient_user=recipient,
+        notification_type="commercial.followup_due",
+        category="COMMERCIAL",
+        priority="NORMAL",
+        title="موعد پیگیری فروش",
+        body=f"پیگیری پیشنهاد تجاری پرونده {pilot.code} باید انجام شود.",
+        short_body=f"پیگیری فروش {pilot.code}",
+        entity_type="CommercialProposal",
+        entity_id=pilot.commercial_proposal.id if pilot.commercial_proposal else None,
+        pilot_id=pilot.id,
+        action_url=f"/pilots/{pilot.id}/stages/18",
+        template_code="commercial_follow_up_due",
         payload={
             "pilot_code": pilot.code,
             "follow_up_at": follow_up_at.isoformat(),
         },
-        status=status,
-        provider_status=provider_status,
-        attempts=1,
-        last_error=last_error,
-        sent_at=sent_at,
+        deduplication_key=f"commercial.followup_due:{pilot.id}:{follow_up_at.isoformat()}",
     )
-    db.add(notification)
-    return notification
 
 
 def update_commercial_proposal(

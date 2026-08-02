@@ -1,13 +1,11 @@
 """Mission scheduling, F03 state, Floor operations, and notification services."""
 
 from datetime import timedelta
-from uuid import uuid4
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import get_app_env
 from app.exceptions import SecurityError
 from app.models import (
     Floor,
@@ -25,6 +23,7 @@ from app.schemas.operations import (
     MissionReschedule,
 )
 from app.services.security import add_audit_log, utc_now
+from app.services.notifications import create_notification
 from app.services.workflow import invalidate_from_stage
 
 
@@ -124,38 +123,30 @@ def _dispatch_mission_notification(
     *,
     template: str,
 ) -> Notification:
-    now = utc_now()
-    if get_app_env() in {"development", "test"}:
-        status = "delivered"
-        provider_status = "accepted:console"
-        last_error = None
-        sent_at = now
-    else:
-        # The PRD leaves the SMS provider and its API limits unanswered. Keep
-        # the mission transaction successful while recording the delivery gap.
-        status = "failed"
-        provider_status = "unconfigured"
-        last_error = "SMS provider is not configured"
-        sent_at = None
-    notification = Notification(
-        public_id=str(uuid4()),
-        mission=mission,
-        recipient_user_id=mission.expert_user_id,
-        recipient_mobile=mission.expert.mobile,
-        template=template,
+    event_type = "mission.assigned" if template == "mission_created" else "mission.rescheduled"
+    title = "مأموریت جدید" if template == "mission_created" else "زمان مأموریت تغییر کرد"
+    return create_notification(
+        db,
+        recipient_user=mission.expert,
+        notification_type=event_type,
+        category="MISSION",
+        priority="HIGH",
+        title=title,
+        body=f"{title} برای پرونده {mission.pilot.code}: {mission.code}",
+        short_body=f"{title}: {mission.code}",
+        entity_type="Mission",
+        entity_id=mission.id,
+        pilot_id=mission.pilot_id,
+        mission_id=mission.id,
+        action_url=f"/pilots/{mission.pilot_id}/stages/5",
+        template_code=template,
         payload={
             "mission_code": mission.code,
             "scheduled_start": mission.scheduled_start.isoformat(),
             "scheduled_end": mission.scheduled_end.isoformat(),
         },
-        status=status,
-        provider_status=provider_status,
-        attempts=1,
-        last_error=last_error,
-        sent_at=sent_at,
+        deduplication_key=f"{event_type}:{mission.id}:{mission.updated_at.isoformat()}",
     )
-    db.add(notification)
-    return notification
 
 
 def create_mission(

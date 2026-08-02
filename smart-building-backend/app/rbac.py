@@ -27,6 +27,22 @@ PERMISSIONS = (
         False,
     ),
     ("notifications.manage", "Notifications", "ثبت و پیگیری اعلان‌های عملیاتی", False),
+    ("notifications.read", "Notifications", "مشاهده اعلان‌های کاربر", False),
+    ("notifications.mark_read", "Notifications", "خوانده‌شدن یا حذف اعلان‌های کاربر", False),
+    ("notifications.manage_preferences", "Notifications", "مدیریت تنظیمات اعلان", False),
+    ("notifications.send_manual", "Notifications", "ارسال دستی اعلان", True),
+    (
+        "notifications.delivery_logs.read",
+        "Notifications",
+        "مشاهده لاگ ارسال اعلان‌ها",
+        True,
+    ),
+    (
+        "notifications.templates.manage",
+        "Notifications",
+        "مدیریت Template اعلان‌ها",
+        True,
+    ),
     ("preferences.manage", "Preferences", "مدیریت تنظیمات کاربر", False),
     ("checklists.manage", "Checklists", "ثبت چک‌لیست و ارسال مرحله", False),
     ("gate_approval.approve", "Gate Approval", "تأیید Gate و مرحله", True),
@@ -205,3 +221,21 @@ SYSTEM_ROLES = {
         },
     ),
 }
+
+NOTIFICATION_SELF_PERMISSIONS = {
+    "notifications.read",
+    "notifications.mark_read",
+    "notifications.manage_preferences",
+}
+
+for role_name, (_, permission_codes) in SYSTEM_ROLES.items():
+    if role_name != "super_admin":
+        permission_codes.update(NOTIFICATION_SELF_PERMISSIONS)
+
+SYSTEM_ROLES["admin"][1].update(
+    {
+        "notifications.send_manual",
+        "notifications.delivery_logs.read",
+        "notifications.templates.manage",
+    }
+)

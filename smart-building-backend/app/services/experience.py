@@ -1,13 +1,11 @@
 """External platform status, customer experience, evidence, and incident services."""
 
 from datetime import timedelta
-from uuid import uuid4
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import get_app_env
 from app.exceptions import SecurityError
 from app.models import (
     ExternalEvidenceCheck,
@@ -30,6 +28,7 @@ from app.schemas.experience import (
     IncidentPatch,
     OutputNotificationCreate,
 )
+from app.services.notifications import create_notification
 from app.services.security import add_audit_log, mask_mobile, utc_now
 from app.services.workflow import invalidate_from_stage
 
@@ -382,31 +381,26 @@ def create_main_output_notification(
             [],
         )
     recipient_mobile = payload.recipient_mobile or pilot.project.owner.primary_mobile
-    now = utc_now()
-    if get_app_env() in {"development", "test"}:
-        status = "delivered"
-        provider_status = "accepted:console"
-        last_error = None
-        sent_at = now
-    else:
-        status = "failed"
-        provider_status = "unconfigured"
-        last_error = "SMS provider is not configured"
-        sent_at = None
-    notification = Notification(
-        public_id=str(uuid4()),
-        pilot=pilot,
+    notification = create_notification(
+        db,
+        recipient_user=None,
         recipient_mobile=recipient_mobile,
-        template="main_output_ready",
+        actor_user_id=actor_user_id,
+        notification_type="pilot.main_output_ready",
+        category="PILOT",
+        priority="NORMAL",
+        title="خروجی پایلوت آماده شد",
+        body=f"خروجی پرونده {pilot.code} آماده مشاهده است.",
+        short_body=f"خروجی {pilot.code} آماده شد",
+        entity_type="Pilot",
+        entity_id=pilot.id,
+        pilot_id=pilot.id,
+        action_url=f"/pilots/{pilot.id}/stages/11",
+        template_code="main_output_ready",
         payload={"pilot_code": pilot.code},
-        status=status,
-        provider_status=provider_status,
-        attempts=1,
-        last_error=last_error,
         alternate_contact_method=payload.alternate_contact_method,
-        sent_at=sent_at,
+        deduplication_key=f"pilot.main_output_ready:{pilot.id}:{pilot.current_stage}",
     )
-    db.add(notification)
     invalidate_from_stage(
         db,
         pilot,
@@ -422,8 +416,8 @@ def create_main_output_notification(
         actor_user_id=actor_user_id,
         new_data={
             "recipient": mask_mobile(recipient_mobile),
-            "status": status,
-            "provider_status": provider_status,
+            "status": notification.status,
+            "provider_status": notification.provider_status,
             "alternate_contact_registered": bool(payload.alternate_contact_method),
         },
         session_id=session_id,
@@ -519,6 +513,38 @@ def create_incident(
             13,
             actor_user_id=actor_user_id,
             reason=f"Critical incident {incident.code} opened",
+        )
+    if incident.owner is not None:
+        create_notification(
+            db,
+            recipient_user=incident.owner,
+            actor_user_id=actor_user_id,
+            notification_type=(
+                "incident.critical_created"
+                if incident.severity == "critical"
+                else "incident.created"
+            ),
+            category="INCIDENT",
+            priority="CRITICAL" if incident.severity == "critical" else "HIGH",
+            title=(
+                "رخداد بحرانی جدید"
+                if incident.severity == "critical"
+                else "رخداد جدید به شما تخصیص داده شد"
+            ),
+            body=f"رخداد {incident.code} برای پرونده {pilot.code} نیازمند اقدام است.",
+            short_body=f"رخداد {incident.code}",
+            entity_type="Incident",
+            entity_id=incident.id,
+            pilot_id=pilot.id,
+            mission_id=incident.mission_id,
+            action_url=f"/pilots/{pilot.id}/stages/{incident.stage_number}",
+            template_code="incident_created",
+            payload={
+                "incident_code": incident.code,
+                "severity": incident.severity,
+                "response_due_at": incident.response_due_at.isoformat(),
+            },
+            deduplication_key=f"incident.created:{incident.id}:{incident.owner_user_id}",
         )
     add_audit_log(
         db,

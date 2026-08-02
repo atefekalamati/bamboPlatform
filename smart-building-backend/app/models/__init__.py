@@ -13,7 +13,7 @@ from app.models.product import (
     Owner,
     Project,
 )
-from app.models.operations import FormF03, Mission, MissionFloor, Notification
+from app.models.operations import FormF03, Mission, MissionFloor, Notification, NotificationDelivery
 from app.models.experience import (
     ExternalEvidenceCheck,
     ExternalPlatformReference,
@@ -75,6 +75,7 @@ __all__ = [
     "Mission",
     "MissionFloor",
     "Notification",
+    "NotificationDelivery",
     "Sensor",
     "StageApproval",
     "StageSubmission",
