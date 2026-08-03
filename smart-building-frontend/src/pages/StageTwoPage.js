@@ -8,6 +8,7 @@ import { StageTwoForm } from "../components/StageTwoForm.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDate } from "../utils/dateFormatter.js";
+import { translateDisplayValue } from "../utils/displayText.js";
 
 const LABELS = {
   open: "باز",
@@ -141,7 +142,7 @@ export const StageTwoPage = ({ pilotId }) => {
       const status = element(
         "span",
         "status-badge stage-workspace__status",
-        `${LABELS[stage.status] ?? stage.status} — G1: ${gate?.status ?? "locked"}`,
+        `${LABELS[stage.status] ?? translateDisplayValue(stage.status, "وضعیت نامشخص")} — گیت ۱: ${translateDisplayValue(gate?.status ?? "locked", "وضعیت نامشخص")}`,
       );
       const feedback = element("p", "stage-actions__feedback", notice);
       const form = StageTwoForm({
@@ -177,7 +178,7 @@ export const StageTwoPage = ({ pilotId }) => {
           await stageService.saveF01(pilot.id, form.getData());
           clearNavigationGuard();
           feedback.textContent = "اطلاعات Stage 2 در F01 ذخیره شد.";
-          status.textContent = `${LABELS[stage.status]} — G1: ${gate?.status}`;
+          status.textContent = `${LABELS[stage.status] ?? translateDisplayValue(stage.status, "وضعیت نامشخص")} — گیت ۱: ${translateDisplayValue(gate?.status, "وضعیت نامشخص")}`;
           save.disabled = false;
         };
         save.addEventListener("click", async () => {

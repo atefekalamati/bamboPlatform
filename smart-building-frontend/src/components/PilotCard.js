@@ -1,4 +1,5 @@
 import { formatPersianDate } from "../utils/dateFormatter.js";
+import { translateDisplayValue } from "../utils/displayText.js";
 
 const STATUS_LABELS = Object.freeze({
   candidate: "نامزد پایلوت",
@@ -50,7 +51,7 @@ export const PilotCard = ({ pilot }) => {
     element(
       "span",
       "status-badge",
-      STATUS_LABELS[pilot.status] ?? pilot.status,
+      STATUS_LABELS[pilot.status] ?? translateDisplayValue(pilot.status, "وضعیت نامشخص"),
     ),
   );
   progressBar.className = "pilot-card__progress-bar";

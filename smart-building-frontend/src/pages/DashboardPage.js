@@ -107,7 +107,16 @@ export const DashboardPage = () => {
       content.append(kpis, filtersArea, pilotsArea, operational, widgets);
       if (has(permissions, "notifications.read")) {
         const notifications = node("section", "dashboard-panel dashboard-widget"); notifications.append(node("h2", "dashboard-panel__title", "اعلان‌های اخیر"));
-        notificationService.getNotifications({ page: 1, page_size: 5 }).then((response) => notifications.append(SummaryWidget({ title: "", items: response.items ?? [], keyName: "title", valueName: "priority" }).querySelector(".dashboard-widget__list") ?? node("p", "dashboard-state", "اعلانی وجود ندارد."))).catch(() => notifications.append(node("p", "dashboard-state", "دریافت اعلان‌ها انجام نشد."))); widgets.append(notifications);
+        notificationService.getNotifications({ page: 1, page_size: 5 }).then((response) => {
+          const items = response.items ?? [];
+          if (!items.length) {
+            notifications.append(node("p", "dashboard-state", "اعلانی وجود ندارد."));
+            return;
+          }
+          const list = SummaryWidget({ title: "", items, keyName: "title", valueName: "priority" })
+            .querySelector(".dashboard-widget__list");
+          if (list) notifications.append(list);
+        }).catch(() => notifications.append(node("p", "dashboard-state", "دریافت اعلان‌ها انجام نشد."))); widgets.append(notifications);
       }
       const powerBI = PowerBIReport({ service: dashboardService, enabled: has(permissions, "reports.powerbi") }); powerBI.id = "powerbi-report"; content.append(powerBI);
       renderPilots(pilotsArea);

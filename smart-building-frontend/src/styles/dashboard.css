@@ -22,16 +22,18 @@
 .dashboard-filter__control { width: 100%; min-height: 2.75rem; padding: var(--space-2) var(--space-3); color: var(--color-text-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); font: inherit; }
 .dashboard-operational { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-4); }
 .dashboard-widgets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
-.dashboard-table-wrap { overflow-x: auto; }
+.dashboard-table-wrap { max-block-size: 40rem; overflow: auto; scrollbar-gutter: stable; }
 .dashboard-table { width: 100%; min-width: 64rem; border-collapse: collapse; font-size: var(--font-size-sm); }
 .dashboard-table th, .dashboard-table td { padding: var(--space-3); text-align: right; vertical-align: middle; border-bottom: 1px solid var(--color-border); }
-.dashboard-table th { color: var(--color-text-secondary); font-weight: 600; }
+.dashboard-table th { position: sticky; z-index: 1; inset-block-start: 0; color: var(--color-text-secondary); background: var(--color-surface); font-weight: 600; }
 .dashboard-table td small, .dashboard-table td a { display: block; }
 .dashboard-table__link { color: var(--color-brand-secondary); font-weight: 700; }
 .dashboard-table progress { width: 7rem; accent-color: var(--color-brand-primary); }
 .dashboard-danger { color: var(--color-danger); font-weight: 700; }
 .dashboard-pagination { justify-content: center; margin-top: var(--space-4); }
 .dashboard-action-list, .dashboard-widget__list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.dashboard-action-list { max-block-size: 24rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-inline-end: var(--space-1); }
+.dashboard-widget__list { max-block-size: 18rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-inline-end: var(--space-1); }
 .dashboard-action { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border-inline-start: .2rem solid var(--color-border); background: var(--color-background); border-radius: var(--radius-sm); }
 .dashboard-action--critical, .dashboard-action--high { border-inline-start-color: var(--color-danger); }
 .dashboard-action__link { color: var(--color-text-primary); font-weight: 650; }
@@ -55,5 +57,9 @@
   .dashboard-table td { display: grid; grid-template-columns: minmax(7rem, 35%) minmax(0, 1fr); gap: var(--space-3); padding: var(--space-2); border: 0; }
   .dashboard-table td::before { content: attr(data-label); color: var(--color-text-secondary); font-weight: 600; }
   .dashboard-table progress { width: 100%; }
+}
+@media (max-width: 48rem) {
+  .dashboard-table-wrap { max-block-size: 34rem; }
+  .dashboard-action-list, .dashboard-widget__list { max-block-size: 22rem; }
 }
 @media (prefers-reduced-motion: reduce) { .dashboard-skeleton__item { animation: none; } }

@@ -3,6 +3,7 @@ import { sessionStore } from "../app/sessionStore.js";
 import { createNotificationItem, notificationLabels, safeNotificationRoute } from "../components/NotificationCenter.js";
 import { Pagination } from "../components/Pagination.js";
 import { notificationService } from "../services/notificationService.js";
+import { translateDisplayValue } from "../utils/displayText.js";
 
 const node = (tag, className = "", text = "") => {
   const item = document.createElement(tag);
@@ -67,7 +68,7 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
         const table = node("table", "notification-delivery-table");
         const head = document.createElement("thead"); head.innerHTML = "<tr><th>کانال</th><th>گیرنده</th><th>وضعیت</th><th>تعداد تلاش</th></tr>";
         const body = document.createElement("tbody");
-        logs.forEach((log) => { const row = document.createElement("tr"); [log.channel === "SMS" ? "پیامک" : "درون‌برنامه‌ای", log.recipient_address, labels[log.status] ?? log.status, String(log.attempt_count)].forEach((value) => row.append(node("td", "", value))); body.append(row); });
+        logs.forEach((log) => { const row = document.createElement("tr"); [log.channel === "SMS" ? "پیامک" : "درون‌برنامه‌ای", log.recipient_address, labels[log.status] ?? translateDisplayValue(log.status, "وضعیت نامشخص"), String(log.attempt_count)].forEach((value) => row.append(node("td", "", value))); body.append(row); });
         table.append(head, body);
         deliverySection.replaceChildren(node("h2", "section-title", "وضعیت ارسال اعلان‌ها"), logs.length ? table : node("p", "notification-empty", "سابقه ارسالی وجود ندارد."));
       } catch (error) { deliveryButton.disabled = false; deliverySection.append(node("p", "error-state__message", error.message ?? "دریافت وضعیت ارسال انجام نشد.")); }

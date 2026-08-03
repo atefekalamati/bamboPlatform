@@ -1,5 +1,6 @@
 import { notificationStore } from "../app/notificationStore.js";
 import { sessionStore } from "../app/sessionStore.js";
+import { translateActionTitle, translateDisplayValue } from "../utils/displayText.js";
 
 const CATEGORY_LABELS = Object.freeze({
   AUTH: "احراز هویت", PILOT: "پایلوت", STAGE: "مرحله", MISSION: "مأموریت",
@@ -40,14 +41,16 @@ export const createNotificationItem = ({ item, compact = false, onOpen, onMarkRe
   icon.setAttribute("aria-hidden", "true");
   const content = node("div", "notification-item__content");
   const header = node("div", "notification-item__header");
-  const title = node("h3", "notification-item__title", item.title || "اعلان سیستمی");
+  const visibleTitle = translateActionTitle(item.title, "اعلان سیستمی");
+  const title = node("h3", "notification-item__title", visibleTitle);
   const time = node("time", "notification-item__time", relativeNotificationTime(item.created_at));
   time.dateTime = item.created_at;
-  const body = node("p", "notification-item__body", (compact ? (item.short_body || item.body) : item.body) || "جزئیات این اعلان از سوابق عملیاتی قبلی منتقل شده است.");
+  const rawBody = compact ? (item.short_body || item.body) : item.body;
+  const body = node("p", "notification-item__body", translateDisplayValue(rawBody, "جزئیات این اعلان در سوابق عملیاتی ثبت شده است."));
   const meta = node("div", "notification-item__meta");
   meta.append(
-    node("span", "notification-chip", CATEGORY_LABELS[item.category] ?? item.category),
-    node("span", `notification-chip priority-${item.priority.toLowerCase()}`, `اولویت ${PRIORITY_LABELS[item.priority] ?? item.priority}`),
+    node("span", "notification-chip", CATEGORY_LABELS[item.category] ?? translateDisplayValue(item.category, "عمومی")),
+    node("span", `notification-chip priority-${item.priority.toLowerCase()}`, `اولویت ${PRIORITY_LABELS[item.priority] ?? translateDisplayValue(item.priority, "عادی")}`),
   );
   if (!item.is_read) meta.append(node("span", "notification-item__unread", "خوانده‌نشده"));
   header.append(title, time);
@@ -57,7 +60,7 @@ export const createNotificationItem = ({ item, compact = false, onOpen, onMarkRe
   const interactiveTarget = onMarkRead ? content : article;
   interactiveTarget.tabIndex = 0;
   interactiveTarget.setAttribute("role", "button");
-  interactiveTarget.setAttribute("aria-label", `${item.title || "اعلان سیستمی"}، ${item.is_read ? "خوانده‌شده" : "خوانده‌نشده"}`);
+  interactiveTarget.setAttribute("aria-label", `${visibleTitle}، ${item.is_read ? "خوانده‌شده" : "خوانده‌نشده"}`);
   interactiveTarget.addEventListener("click", open);
   interactiveTarget.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -69,7 +72,7 @@ export const createNotificationItem = ({ item, compact = false, onOpen, onMarkRe
     article.classList.add("notification-item--with-action");
     const readButton = node("button", "button button--ghost notification-item__read", "خوانده شد");
     readButton.type = "button";
-    readButton.setAttribute("aria-label", `علامت‌گذاری «${item.title || "اعلان سیستمی"}» به‌عنوان خوانده‌شده`);
+    readButton.setAttribute("aria-label", `علامت‌گذاری «${visibleTitle}» به‌عنوان خوانده‌شده`);
     readButton.addEventListener("click", async () => {
       readButton.disabled = true;
       readButton.textContent = "در حال ثبت…";

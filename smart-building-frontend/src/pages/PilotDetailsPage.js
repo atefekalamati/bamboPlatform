@@ -4,6 +4,7 @@ import { PilotIncidentsPanel } from "../components/PilotIncidentsPanel.js";
 import { sessionStore } from "../app/sessionStore.js";
 import { pilotService } from "../services/pilotService.js";
 import { formatPersianDate } from "../utils/dateFormatter.js";
+import { translateDisplayValue } from "../utils/displayText.js";
 
 const STATUS_LABELS = Object.freeze({
   candidate: "نامزد پایلوت",
@@ -46,7 +47,7 @@ const renderDetails = (container, pilot) => {
     element(
       "span",
       "status-badge",
-      STATUS_LABELS[pilot.status] ?? pilot.status,
+      STATUS_LABELS[pilot.status] ?? translateDisplayValue(pilot.status, "وضعیت نامشخص"),
     ),
   );
   summary.append(
