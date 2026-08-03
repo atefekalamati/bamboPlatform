@@ -89,6 +89,13 @@ def test_overview_pipeline_outcomes_and_pagination(client, super_admin_headers):
     pipeline = client.get("/api/v1/reports/pipeline", headers=super_admin_headers).json()
     counts = {item["key"]: item["count"] for item in pipeline["items"]}
     assert counts["converted"] == 1 and counts["closed"] == 1
+    closed_group = next(item for item in pipeline["items"] if item["key"] == "closed")
+    assert set(closed_group["source_statuses"]) == {"closed", "completed", "rejected", "stopped"}
+    closed_drill_down = client.get(
+        "/api/v1/reports/pilots?pilot_status=closed",
+        headers=super_admin_headers,
+    ).json()
+    assert closed_drill_down["summary"]["total"] == closed_group["count"]
     page = client.get("/api/v1/reports/pilots?page=2&page_size=1", headers=super_admin_headers).json()
     assert page["pagination"] == {"page": 2, "page_size": 1, "total": 2, "total_pages": 2}
     assert len(page["items"]) == 1
@@ -127,6 +134,16 @@ def test_incident_kpi_and_one_page_are_safe(client, super_admin_headers):
     assert incidents["summary"]["critical_open"] == 1
     assert incidents["summary"]["total_open"] == 4
     assert all(len(item["description_short"]) <= 160 for item in incidents["items"])
+    actions = client.get(
+        "/api/v1/reports/actions?priority=critical&due=overdue",
+        headers=super_admin_headers,
+    ).json()
+    assert actions["summary"]["total"] == 1
+    assert actions["items"][0]["entity_type"] == "incident"
+    sla = client.get("/api/v1/reports/sla", headers=super_admin_headers).json()
+    assert sla["state"] == "PARTIAL_DATA"
+    assert sla["summary"]["total_monitored"] == 5
+    assert sla["summary"]["overdue"] == 5
     kpis = client.get("/api/v1/reports/kpis", headers=super_admin_headers).json()
     upload = next(item for item in kpis["items"] if item["key"] == "successful_upload_percent")
     assert upload["value"] is None and upload["status"] == "insufficient_data"
@@ -137,6 +154,22 @@ def test_incident_kpi_and_one_page_are_safe(client, super_admin_headers):
     assert len(report["open_issues"]) == 3
     assert report["recommended_decision"] is None
     assert report["decision_status"] == "requires_manager_decision"
+
+
+def test_gate_report_has_all_management_groups_and_date_filter(client, super_admin_headers):
+    create_pilot(client, super_admin_headers)
+    gates = client.get("/api/v1/reports/gates", headers=super_admin_headers).json()
+    assert set(gates["summary"]) == {"G1", "G2", "G3", "G4", "G5"}
+    assert len(gates["items"]) == 5
+    assert all(group["pending"] == 1 for group in gates["summary"].values())
+
+    future = client.get(
+        "/api/v1/reports/pilots?date_from=2099-01-01T00:00:00Z",
+        headers=super_admin_headers,
+    )
+    assert future.status_code == 200
+    assert future.json()["state"] == "NO_ACCESS"
+    assert future.json()["pagination"]["total"] == 0
 
 
 def test_report_pilot_query_count_does_not_grow_per_row(client, super_admin_headers):
