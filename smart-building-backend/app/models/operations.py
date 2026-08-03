@@ -84,6 +84,11 @@ class Mission(Base):
         uselist=False,
     )
 
+    @property
+    def display_name(self) -> str:
+        """Stable human-readable label without changing the formal mission code."""
+        return f"مأموریت {self.sequence:02d} — {self.pilot.code}"
+
 
 class MissionFloor(Base):
     __tablename__ = "mission_floors"

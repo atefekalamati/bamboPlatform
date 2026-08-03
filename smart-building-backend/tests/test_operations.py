@@ -162,6 +162,7 @@ def test_mission_f03_stages_5_to_9_and_g3(client, super_admin_headers):
     mission = mission_response.json()
     mission_id = mission["id"]
     assert mission["code"] == f"MIS-{pilot['code']}-01"
+    assert mission["display_name"] == f"مأموریت 01 — {pilot['code']}"
     assert mission["notifications"][0]["template"] == "mission_created"
     assert mission["notifications"][0]["status"] == "delivered"
 

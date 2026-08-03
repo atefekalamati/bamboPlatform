@@ -132,8 +132,8 @@ def _dispatch_mission_notification(
         category="MISSION",
         priority="HIGH",
         title=title,
-        body=f"{title} برای پرونده {mission.pilot.code}: {mission.code}",
-        short_body=f"{title}: {mission.code}",
+        body=f"{title}: {mission.display_name}",
+        short_body=mission.display_name,
         entity_type="Mission",
         entity_id=mission.id,
         pilot_id=mission.pilot_id,
@@ -142,6 +142,7 @@ def _dispatch_mission_notification(
         template_code=template,
         payload={
             "mission_code": mission.code,
+            "mission_display_name": mission.display_name,
             "scheduled_start": mission.scheduled_start.isoformat(),
             "scheduled_end": mission.scheduled_end.isoformat(),
         },

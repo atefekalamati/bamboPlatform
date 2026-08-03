@@ -269,6 +269,7 @@ class MissionRead(BaseModel):
     pilot_id: int
     sequence: int
     code: str
+    display_name: str
     expert_user_id: int
     scheduled_start: datetime
     scheduled_end: datetime
