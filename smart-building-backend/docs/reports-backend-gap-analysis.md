@@ -5,7 +5,7 @@
 | گزارش موردنیاز | داده منبع | Endpoint فعلی | وضعیت فعلی | نقص | تغییر لازم | Permission | تست موردنیاز | وضعیت نهایی |
 |---|---|---|---|---|---|---|---|---|
 | نمای کلی | Pilot/Stage/Outcome/Incident/SLA | dashboard/summary | جزئی | Outcome و Action ناقص | reports/overview | reports.read | شمارش و Scope | تکمیل |
-| قیف | Pilot.status/FinalOutcome | ندارد | فاقد قرارداد | Mapping مرکزی ندارد | reports/pipeline | reports.read | Drill-down | تکمیل |
+| قیف | Pilot.status/FinalOutcome | ندارد | فاقد قرارداد | Mapping مرکزی و Drill-down چندوضعیتی نداشت | reports/pipeline با source_statuses | reports.read | Drill-down و تطبیق شمارش | تکمیل |
 | پیشرفت ۱۹ مرحله | PilotStage | dashboard/pilots | نادرست | از current_stage محاسبه می‌شد | reports/pilots و اصلاح Dashboard | reports.read | Approved-only | تکمیل |
 | Gateها | PilotGate/StageApproval/Incident | dashboard/gates | Aggregate ساده | Reviewer/Blocker ندارد | reports/gates | reports.read | G1-G5 | تکمیل |
 | اقدامات | Stage/Mission/Incident | dashboard/my-actions | محدود | فیلتر و دلیل/مسئول ناقص | reports/actions | reports.read | overdue/owner | تکمیل MVP |
