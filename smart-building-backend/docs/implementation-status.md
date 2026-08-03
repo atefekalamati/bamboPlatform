@@ -70,3 +70,15 @@ Authoritative source:
 
 An item is moved to implemented only when its relevant PRD acceptance criteria
 are covered by executable tests.
+# Production readiness update (2026-08-03)
+
+Backend اکنون دارای Production config fail-fast، Dockerfile مستقل non-root،
+Migration job نمونه، Connection Pool قابل تنظیم، Trusted Host/CORS محدود، Security
+headers، structured request logging و endpointهای `/health/live` و `/health/ready`
+است. انتشار همچنان **No-Go** است تا SMS Adapter مصوب، Storage مشترک/پایدار،
+Restore drill و Monitoring سازمانی تکمیل شوند. جزئیات در
+`docs/backend-production-readiness-audit.md` ثبت شده است.
+
+Dependencyهای Production با `requirements.lock` تولیدشده روی Python 3.13 و
+hashهای اجباری نصب می‌شوند. `pytest 9.1.1` و `WeasyPrint 69.0` جایگزین نسخه‌های
+دارای Advisory شدند و اسکن محلی `pip-audit` آسیب‌پذیری شناخته‌شده‌ای گزارش نکرد.
