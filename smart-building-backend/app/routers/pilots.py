@@ -3,7 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth.policies import active_role_names, can_review_stage
 from app.database import get_db
+from app.exceptions import SecurityError
 from app.models import ImmutableSnapshot, Pilot
 from app.schemas.workflow import (
     PilotCreate,
@@ -19,6 +21,21 @@ from app.services.workflow import approve_stage, create_pilot, reject_stage, sub
 from app.services.security import AuthContext, require_permission
 
 router = APIRouter(prefix="/pilots", tags=["pilots"])
+
+
+def _require_stage_reviewer(context: AuthContext, stage_number: int, action: str) -> None:
+    if not can_review_stage(active_role_names(context.user), stage_number, action):
+        raise SecurityError(
+            code="STAGE_REVIEWER_DENIED",
+            message="این کاربر تأییدکننده مجاز این مرحله نیست.",
+            status_code=403,
+            errors=[
+                {
+                    "field": "stage_number",
+                    "reason": "reviewer_role_not_allowed",
+                }
+            ],
+        )
 
 
 @router.post("", response_model=PilotDetail, status_code=status.HTTP_201_CREATED)
@@ -77,6 +94,7 @@ def approve_stage_endpoint(
     context: AuthContext = Depends(require_permission("gate_approval.approve")),
     db: Session = Depends(get_db),
 ) -> StageActionResult:
+    _require_stage_reviewer(context, stage_number, "approve")
     stage, submission, snapshot = approve_stage(
         db,
         pilot_id,
@@ -96,6 +114,7 @@ def reject_stage_endpoint(
     context: AuthContext = Depends(require_permission("gate_approval.reject")),
     db: Session = Depends(get_db),
 ) -> StageActionResult:
+    _require_stage_reviewer(context, stage_number, "reject")
     stage, submission = reject_stage(
         db,
         pilot_id,

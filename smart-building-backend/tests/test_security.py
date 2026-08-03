@@ -1,4 +1,14 @@
 from conftest import BOOTSTRAP_MOBILE, login_with_otp, sample_pilot_payload
+from app.auth.policies import can_review_stage
+
+
+def test_stage_reviewer_policy_allows_general_manager_as_substitute():
+    assert can_review_stage({"super_admin"}, 6, "approve") is True
+    assert can_review_stage({"super_admin"}, 9, "reject") is True
+    assert can_review_stage({"operations"}, 6, "approve") is True
+    assert can_review_stage({"capture_expert"}, 6, "approve") is False
+    assert can_review_stage({"operations"}, 1, "approve") is False
+    assert can_review_stage({"super_admin"}, 20, "approve") is False
 
 
 def test_otp_login_masks_mobile_and_logout_revokes_session(client):
