@@ -75,6 +75,7 @@ const followUpForm = ({ form, disabled, currentUserId }) => {
   const otherUsers = control("textarea");
   const moreTrainingNeeded = document.createElement("input");
   const issueDescription = control("textarea");
+  const otherIssueDescription = control("textarea");
   const issueCategory = control("select");
   const issueRoute = control();
   const issueDueAt = control();
@@ -95,7 +96,7 @@ const followUpForm = ({ form, disabled, currentUserId }) => {
     issueCategory.add(new Option(label, value)),
   );
   issueRoute.readOnly = true;
-  issueDescription.rows = mostUsefulPart.rows = missingPart.rows = otherUsers.rows = 3;
+  issueDescription.rows = otherIssueDescription.rows = mostUsefulPart.rows = missingPart.rows = otherUsers.rows = 3;
 
   ownerLoggedIn.type = projectOpened.type = mainTourViewed.type =
     moreTrainingNeeded.type = "checkbox";
@@ -114,6 +115,10 @@ const followUpForm = ({ form, disabled, currentUserId }) => {
   otherUsers.value = form?.other_users ?? "";
   moreTrainingNeeded.checked = Boolean(form?.more_training_needed);
   issueDescription.value = form?.issue_description ?? "";
+  otherIssueDescription.value = form?.other_issue_description ?? "";
+  otherIssueDescription.name = "other_issue_description";
+  otherIssueDescription.maxLength = 4000;
+  otherIssueDescription.placeholder = "اگر مشکل در گزینه‌های موجود نیست، توضیح آن را اینجا بنویسید.";
   issueCategory.value = form?.issue_category ?? "";
   issueDueAt.value = toDateTimeLocal(form?.issue_due_at);
 
@@ -162,6 +167,7 @@ const followUpForm = ({ form, disabled, currentUserId }) => {
     field("نوع بازخورد", issueCategory),
     field("واحد ارجاع", issueRoute),
     field("موعد پاسخ یا اصلاح", issueDueAt),
+    field("سایر مشکلات (اختیاری)", otherIssueDescription),
   );
   section.append(
     element("h2", "stage-form__legend", "پیگیری اول"),
@@ -178,7 +184,7 @@ const followUpForm = ({ form, disabled, currentUserId }) => {
     ownerLoggedIn, projectOpened, mainTourViewed, firstFollowUpAt,
     viewingResult, secondFollowUpAt, useful, coverageScore, qualityScore,
     satisfactionScore, mostUsefulPart, missingPart, otherUsers,
-    issueDescription, issueCategory, issueDueAt,
+    issueDescription, issueCategory, issueDueAt, otherIssueDescription,
   ].forEach((input) => { input.disabled = disabled; });
 
   const getData = () => {
@@ -199,6 +205,8 @@ const followUpForm = ({ form, disabled, currentUserId }) => {
       otherUsers: otherUsers.value.trim(),
       moreTrainingNeeded: moreTrainingNeeded.checked,
       issueDescription: issueDescription.value.trim(),
+      otherIssueDescription: otherIssueDescription.value.trim(),
+      otherIssueDescriptionSupported: Object.prototype.hasOwnProperty.call(form ?? {}, "other_issue_description"),
       issueCategory: issueCategory.value,
       issueRoute: route?.[1] ?? "",
       issueOwnerUserId: issueDescription.value.trim() ? currentUserId : null,
