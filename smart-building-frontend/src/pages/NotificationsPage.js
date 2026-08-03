@@ -66,7 +66,15 @@ export const NotificationsPage = ({ notificationId = null } = {}) => {
         const labels = { PENDING: "در انتظار", QUEUED: "در صف ارسال", SENDING: "در حال ارسال", SENT: "ارسال شد", DELIVERED: "تحویل شد", FAILED: "ناموفق", CANCELLED: "لغو شد", SKIPPED: "طبق تنظیمات کاربر ارسال نشد" };
         const logs = await notificationService.getDeliveryLogs();
         const table = node("table", "notification-delivery-table");
-        const head = document.createElement("thead"); head.innerHTML = "<tr><th>کانال</th><th>گیرنده</th><th>وضعیت</th><th>تعداد تلاش</th></tr>";
+        const head = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        ["کانال", "گیرنده", "وضعیت", "تعداد تلاش"].forEach((label) => {
+          const header = document.createElement("th");
+          header.scope = "col";
+          header.textContent = label;
+          headerRow.append(header);
+        });
+        head.append(headerRow);
         const body = document.createElement("tbody");
         logs.forEach((log) => { const row = document.createElement("tr"); [log.channel === "SMS" ? "پیامک" : "درون‌برنامه‌ای", log.recipient_address, labels[log.status] ?? translateDisplayValue(log.status, "وضعیت نامشخص"), String(log.attempt_count)].forEach((value) => row.append(node("td", "", value))); body.append(row); });
         table.append(head, body);

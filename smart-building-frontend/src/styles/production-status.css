@@ -1,0 +1,3 @@
+.connection-status { position: sticky; z-index: 1000; inset-block-start: 0; padding: var(--space-2) var(--space-4); color: #fff; background: var(--color-danger); text-align: center; }
+.connection-status.is-online { background: var(--color-brand-primary-strong); }
+.fatal-error { display: grid; place-items: center; gap: var(--space-4); min-height: 70vh; padding: var(--space-6); text-align: center; }

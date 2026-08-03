@@ -13,11 +13,13 @@ import { sessionStore } from "./sessionStore.js";
 import { startRouter } from "./router.js";
 import { themeStore } from "./themeStore.js";
 import { notificationStore } from "./notificationStore.js";
+import { startConnectionStatus } from "../components/ConnectionStatus.js";
 
 const APP_ROOT_ID = "app";
 
 startPersianDigitLocalization();
 startPersianDatePickers();
+startConnectionStatus();
 
 const renderAuthenticatedApp = (appRoot) => {
   appRoot.replaceChildren();
@@ -64,5 +66,29 @@ const bootstrap = async () => {
   }
 };
 
-bootstrap();
+const renderFatalError = () => {
+  const appRoot = document.getElementById(APP_ROOT_ID);
+  if (!appRoot) return;
+  const container = document.createElement("main");
+  const heading = document.createElement("h1");
+  const message = document.createElement("p");
+  const retry = document.createElement("button");
+  container.className = "fatal-error";
+  heading.textContent = "اجرای سامانه با مشکل روبه‌رو شد";
+  message.textContent = "صفحه را دوباره بارگذاری کنید. اگر مشکل ادامه داشت با پشتیبانی تماس بگیرید.";
+  retry.className = "button button--primary";
+  retry.type = "button";
+  retry.textContent = "بارگذاری مجدد";
+  retry.addEventListener("click", () => window.location.reload());
+  container.append(heading, message, retry);
+  appRoot.replaceChildren(container);
+};
+
+window.addEventListener("error", () => renderFatalError());
+window.addEventListener("unhandledrejection", (event) => {
+  event.preventDefault();
+  renderFatalError();
+});
+
+bootstrap().catch(() => renderFatalError());
 

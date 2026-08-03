@@ -1,0 +1,11 @@
+{
+  "name": "smart-building-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check src/app/bootstrap.js && node --check src/app/router.js",
+    "build:production": "powershell -ExecutionPolicy Bypass -File scripts/build-production.ps1"
+  }
+}

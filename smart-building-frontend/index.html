@@ -9,23 +9,10 @@
     />
     <title>BAMBO Pilot</title>
     <link rel="icon" href="./src/assets/images/Logo Sign.svg" type="image/svg+xml" />
+    <link rel="preload" href="./src/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./src/styles/index.css" />
-
-    <script>
-      (function () {
-        var THEME_KEY = "bambo_theme";
-        var stored = localStorage.getItem(THEME_KEY);
-        var theme =
-          stored === "dark" || stored === "light"
-            ? stored
-            : window.matchMedia &&
-                window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light";
-        document.documentElement.setAttribute("data-theme", theme);
-      })();
-    </script>
-
+    <script src="./runtime-config.js"></script>
+    <script src="./src/app/themeInit.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">رفتن به محتوای اصلی</a>

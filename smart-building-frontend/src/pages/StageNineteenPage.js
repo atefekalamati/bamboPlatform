@@ -23,10 +23,10 @@ const localDateTime = (value) => {
 
 export const StageNineteenPage = ({ pilotId }) => {
   const page = element("div", "stage-workspace"); const currentUser = sessionStore.getCurrentUser();
-  const permissions = currentUser?.permissions ?? []; const roleNames = (currentUser?.roles ?? []).map(({ name }) => name);
+  const permissions = currentUser?.permissions ?? [];
   const canRead = permissions.includes("pilots.read"); const canManage = permissions.includes("commercial.manage");
   const canSubmit = permissions.includes("checklists.manage"); const canApprove = permissions.includes("gate_approval.approve");
-  const canReject = permissions.includes("gate_approval.reject"); const canApproveOutcome = canApprove && roleNames.some((name) => ["pilot_manager", "super_admin"].includes(name));
+  const canReject = permissions.includes("gate_approval.reject"); const canApproveOutcome = canApprove;
   const renderError = (message) => {
     const state = element("div", "error-state"); const retry = element("button", "button button--primary", "تلاش مجدد");
     retry.type = "button"; retry.addEventListener("click", () => load()); state.append(element("p", "error-state__message", message), retry); page.replaceChildren(state);

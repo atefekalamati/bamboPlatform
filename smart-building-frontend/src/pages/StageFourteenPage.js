@@ -246,10 +246,9 @@ export const StageFourteenPage = ({ pilotId }) => {
   const page = element("div", "stage-workspace");
   const user = sessionStore.getCurrentUser();
   const permissions = user?.permissions ?? [];
-  const roleNames = (user?.roles ?? []).map(({ name }) => name);
   const canRead = permissions.includes("pilots.read");
   const canManage = permissions.includes("missions.manage");
-  const canCoordinate = roleNames.some((name) => ["super_admin", "operations"].includes(name));
+  const canCoordinate = permissions.includes("missions.manage");
   const canSubmit = permissions.includes("checklists.manage");
   const canApprove = permissions.includes("gate_approval.approve");
   const canReject = permissions.includes("gate_approval.reject");

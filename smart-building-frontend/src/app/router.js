@@ -42,6 +42,23 @@ import {
   clearNavigationGuard,
   hasNavigationGuard,
 } from "./navigationGuard.js";
+import { sessionStore } from "./sessionStore.js";
+import { canAccessRoute, requiredPermissionForRoute } from "./routePermissions.js";
+
+const accessDeniedPage = (route) => {
+  const page = document.createElement("main");
+  const heading = document.createElement("h1");
+  const message = document.createElement("p");
+  const back = document.createElement("a");
+  page.className = "page error-state";
+  heading.textContent = "دسترسی به این صفحه امکان‌پذیر نیست";
+  message.textContent = `مجوز لازم برای این مسیر (${requiredPermissionForRoute(route) ?? "نامشخص"}) در حساب شما وجود ندارد.`;
+  back.className = "button button--primary";
+  back.href = ROUTES.dashboard;
+  back.textContent = "بازگشت به نمای کلی";
+  page.append(heading, message, back);
+  return page;
+};
 
 const ROUTE_FACTORIES = Object.freeze({
   [ROUTES.dashboard]: DashboardPage,
@@ -61,6 +78,10 @@ const ROUTE_FACTORIES = Object.freeze({
 const getCurrentRoute = () => window.location.hash || ROUTES.dashboard;
 
 const resolveRoute = (currentRoute) => {
+  const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
+  if (!canAccessRoute(currentRoute, permissions)) {
+    return { page: accessDeniedPage(currentRoute), navigationRoute: "" };
+  }
   const routePath = currentRoute.split("?")[0];
   const exactPageFactory = ROUTE_FACTORIES[routePath];
 

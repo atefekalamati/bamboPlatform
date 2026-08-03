@@ -88,7 +88,11 @@ const createBellIcon = () => {
   const holder = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   holder.setAttribute("viewBox", "0 0 24 24");
   holder.setAttribute("aria-hidden", "true");
-  holder.innerHTML = '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path>';
+  ["M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9", "M10 21h4"].forEach((data) => {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", data);
+    holder.append(path);
+  });
   return holder;
 };
 
