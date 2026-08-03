@@ -462,10 +462,14 @@
 
 @media (max-width: 47.99rem) {
   .official-form {
-    min-width: 40rem;
+    width: 100%;
+    min-width: 0;
     min-height: auto;
-    padding: 1.5rem;
+    padding: var(--space-4);
   }
+
+  .official-form__header { grid-template-columns: 1fr; }
+  .official-form__meta { min-width: 0; }
 
   .official-form__fields {
     grid-template-columns: 1fr;

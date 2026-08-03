@@ -13,6 +13,14 @@ const mapIncident = (item) => ({
   createdAt: item.created_at, updatedAt: item.updated_at,
 });
 
+export const mapIncidentListResponse = (response) => {
+  if (Array.isArray(response)) return response.map(mapIncident);
+  if (!response || !Array.isArray(response.items)) {
+    throw new TypeError("پاسخ فهرست رخدادها با قرارداد بک‌اند مطابقت ندارد.");
+  }
+  return response.items.map(mapIncident);
+};
+
 const createPayload = (values) => ({
   mission_id: values.missionId ? Number(values.missionId) : null,
   occurred_at: new Date(values.occurredAt).toISOString(),
@@ -25,7 +33,9 @@ const createPayload = (values) => ({
 });
 
 export const incidentService = Object.freeze({
-  getPilotIncidents: async (pilotId) => (await request(`/pilots/${pilotId}/incidents`)).map(mapIncident),
+  getPilotIncidents: async (pilotId) => mapIncidentListResponse(
+    await request(`/pilots/${pilotId}/incidents?page=1&page_size=200`),
+  ),
   createIncident: async (pilotId, values) => mapIncident(await request(`/pilots/${pilotId}/incidents`, { method: "POST", body: JSON.stringify(createPayload(values)) })),
   getIncident: async (incidentId) => mapIncident(await request(`/incidents/${incidentId}`)),
   updateIncident: async (incidentId, values) => mapIncident(await request(`/incidents/${incidentId}`, { method: "PATCH", body: JSON.stringify(values) })),

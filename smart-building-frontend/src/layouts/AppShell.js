@@ -95,14 +95,36 @@ const createThemeToggle = () => {
   return toggle;
 };
 
-const createHeader = () => {
+const createMenuIcon = () => {
+  const icon = document.createElementNS(SVG_NAMESPACE, "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  ["M4 6h16", "M4 12h16", "M4 18h16"].forEach((value) => {
+    const path = document.createElementNS(SVG_NAMESPACE, "path");
+    path.setAttribute("d", value);
+    icon.append(path);
+  });
+  return icon;
+};
+
+const createHeader = ({ onMenuToggle }) => {
   const header = document.createElement("header");
+  const primary = document.createElement("div");
+  const menu = document.createElement("button");
   const title = document.createElement("span");
   const account = document.createElement("div");
   const userName = document.createElement("span");
   const logout = document.createElement("button");
   const user = sessionStore.getCurrentUser();
   header.className = "app-header";
+  primary.className = "app-header__primary";
+  menu.className = "button button--ghost app-header__menu";
+  menu.type = "button";
+  menu.setAttribute("aria-label", "بازکردن منوی اصلی");
+  menu.setAttribute("aria-expanded", "false");
+  menu.setAttribute("aria-controls", "primary-sidebar");
+  menu.append(createMenuIcon());
+  menu.addEventListener("click", () => onMenuToggle(menu));
   title.className = "app-header__title";
   title.textContent = "مدیریت پایلوت";
   account.className = "app-header__account";
@@ -121,7 +143,8 @@ const createHeader = () => {
   const permissions = user?.permissions ?? [];
   if (permissions.includes("notifications.read")) account.append(NotificationCenter());
   account.append(userName, createThemeToggle(), logout);
-  header.append(title, account);
+  primary.append(menu, title);
+  header.append(primary, account);
   return header;
 };
 
@@ -129,13 +152,42 @@ export const AppShell = ({ content, currentRoute }) => {
   const shell = document.createElement("div");
   const workspace = document.createElement("div");
   const main = document.createElement("main");
+  const sidebar = createSidebar(currentRoute);
+  const backdrop = document.createElement("button");
+  let menuButton = null;
+
+  const setMenuOpen = (isOpen) => {
+    shell.classList.toggle("app-shell--menu-open", isOpen);
+    menuButton?.setAttribute("aria-expanded", String(isOpen));
+    menuButton?.setAttribute("aria-label", isOpen ? "بستن منوی اصلی" : "بازکردن منوی اصلی");
+    if (isOpen) sidebar.querySelector("a:not([aria-disabled='true'])")?.focus();
+    else menuButton?.focus();
+  };
+
   shell.className = "app-shell";
+  sidebar.id = "primary-sidebar";
+  backdrop.className = "sidebar-backdrop";
+  backdrop.type = "button";
+  backdrop.tabIndex = -1;
+  backdrop.setAttribute("aria-label", "بستن منوی اصلی");
+  backdrop.addEventListener("click", () => setMenuOpen(false));
+  sidebar.addEventListener("click", (event) => {
+    if (event.target.closest("a")) setMenuOpen(false);
+  });
+  shell.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && shell.classList.contains("app-shell--menu-open")) setMenuOpen(false);
+  });
   workspace.className = "app-workspace";
   main.id = "main-content";
   main.className = "main-content";
   main.tabIndex = -1;
   main.append(content);
-  workspace.append(createHeader(), main);
-  shell.append(createSidebar(currentRoute), workspace);
+  const header = createHeader({ onMenuToggle: (button) => {
+    menuButton = button;
+    setMenuOpen(!shell.classList.contains("app-shell--menu-open"));
+  } });
+  menuButton = header.querySelector(".app-header__menu");
+  workspace.append(header, main);
+  shell.append(sidebar, backdrop, workspace);
   return shell;
 };

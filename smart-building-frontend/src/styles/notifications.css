@@ -38,11 +38,21 @@
 .notification-item__unread { font-size: var(--font-size-xs); font-weight: 700; }
 .notification-item__read { align-self: center; white-space: nowrap; }
 .notification-empty, .notification-skeleton { margin: 0; padding: var(--space-6); color: var(--color-text-secondary); text-align: center; }
-.notification-toolbar { display: grid; gap: var(--space-3); align-items: end; padding: var(--space-4); }
+.notification-toolbar {
+    display: grid;
+    gap: var(--space-3);
+    align-items: end;
+    padding: var(--space-4);
+    border-radius: calc(var(--radius-md) + .35rem);
+}
 .notification-filter { display: grid; gap: var(--space-2); }
 .notification-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); }
 .notification-list { display: grid; gap: var(--space-3); }
-.notification-deliveries { padding: var(--space-4); overflow-x: auto; }
+.notification-deliveries {
+    padding: var(--space-4);
+    overflow-x: auto;
+    border-radius: calc(var(--radius-md) + .35rem);
+}
 .notification-delivery-table { width: 100%; margin-block-start: var(--space-3); border-collapse: collapse; }
 .notification-delivery-table th, .notification-delivery-table td { padding: var(--space-3); border-block-end: .0625rem solid var(--color-border); text-align: right; }
 .notification-settings { padding: var(--space-5); }

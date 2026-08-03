@@ -1,0 +1,129 @@
+/* Cross-page responsive hardening. This file is loaded last and changes layout only. */
+:where(.app-shell, .app-workspace, .main-content, .page, .card, .modal, .stage-workspace,
+  .stage-form, .stage-form__section, .checklist, .floor-workspace, .floor-card,
+  .pilot-details, .pilot-card, .project-forms, .forms-preview, .roles-content,
+  .role-panel, .role-workspace, .permission-group, .notifications-page,
+  .notification-list, .incidents-page, .incident-card, .incident-detail,
+  .dashboard-content, .dashboard-panel, .grid-item, .flex-item) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:where(h1, h2, h3, h4, h5, h6, p, li, dt, dd, label, legend, code, small, span, a) {
+  overflow-wrap: anywhere;
+}
+
+:where(fieldset, form, table) { min-width: 0; max-width: 100%; }
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { width: 100%; min-width: 0; }
+input[type="file"] { max-width: 100%; }
+
+.modal-overlay { max-width: 100%; overscroll-behavior: contain; }
+.modal { max-width: calc(100% - 2 * var(--space-3)); max-height: calc(100dvh - 2 * var(--space-3)); }
+.modal__header, .app-dialog, .user-form { min-width: 0; }
+.modal__title { min-width: 0; }
+
+.project-forms,
+.forms-preview,
+.official-form__table-wrap,
+.notification-deliveries,
+.dashboard-table-wrap {
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+}
+
+.project-forms__table,
+.forms-preview__table,
+.notification-delivery-table {
+  table-layout: fixed;
+}
+
+:where(.project-forms__table, .forms-preview__table, .notification-delivery-table) :where(th, td) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 71.99rem) {
+  body:has(.app-shell--menu-open) { overflow: hidden; }
+  .sidebar__logo { margin-inline: auto; }
+  .main-content { padding: var(--space-5) var(--space-4); }
+  .page { gap: var(--space-6); }
+  .stage-section__layout, .roles-content { grid-template-columns: minmax(0, 1fr); }
+  .role-panel, .stage-detail { position: static; }
+}
+
+@media (max-width: 47.99rem) {
+  .main-content { padding: var(--space-4) var(--space-3); }
+  .page { gap: var(--space-5); }
+  .page-heading__title { font-size: clamp(var(--font-size-lg), 7vw, var(--font-size-xl)); }
+  .page-heading__description { font-size: var(--font-size-sm); }
+
+  .stage-form__section,
+  .checklist,
+  .stage-review,
+  .stage-snapshots,
+  .floor-workspace,
+  .stage-detail,
+  .pilot-card,
+  .notification-settings,
+  .incident-form-shell,
+  .incident-detail__header,
+  .incident-cycle,
+  .incident-overview,
+  .incident-detail__actions,
+  .incident-timeline {
+    padding: var(--space-4);
+  }
+
+  .stage-actions { position: static; padding: var(--space-3); }
+  .stage-actions .button, .form-actions .button, .incident-form__actions .button,
+  .incident-detail__actions .button { flex: 1 1 12rem; }
+  .floor-card__controls, .dwg-upload, .dwg-version { align-items: stretch; flex-direction: column; }
+  .floor-card__controls > *, .dwg-upload > *, .dwg-version > * { width: 100%; }
+  .floor-card__controls .dwg-upload { flex-basis: auto; }
+
+  .forms-preview__header, .notification-summary, .pilot-incidents__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .forms-preview__grid { grid-template-columns: minmax(0, 1fr); }
+  .forms-preview__grid dt { padding-block-end: 0; border-bottom: 0; }
+  .official-form__table { table-layout: fixed; font-size: .65rem; }
+  .official-form__table th, .official-form__table td { min-width: 0; padding: .25rem; overflow-wrap: anywhere; }
+
+  .notification-toolbar, .notification-quiet-hours, .notification-category-settings,
+  .incident-filters, .incident-form__grid, .role-tools, .permission-group__items,
+  .access-preview { grid-template-columns: minmax(0, 1fr); }
+  .notification-toolbar .button { width: 100%; }
+  .notification-delivery-table { font-size: var(--font-size-xs); }
+  .notification-delivery-table th, .notification-delivery-table td { padding: var(--space-2); }
+
+  .permission-group__actions, .role-composer__actions { width: 100%; }
+  .permission-group__actions > *, .role-composer__actions > * { flex: 1 1 10rem; }
+  .role-workspace__actions { position: static; }
+
+  .auth-brand, .auth-panel { padding: var(--space-5) var(--space-4); }
+  .auth-brand { min-height: auto; }
+  .auth-card { padding: var(--space-5) var(--space-4); }
+}
+
+@media (max-width: 35.99rem) {
+  .app-header { min-height: 4rem; }
+  .app-header__account { gap: var(--space-1); }
+  .app-header__account > span, .app-header__title { display: none; }
+  .theme-toggle, .app-header__logout, .app-header__menu { width: 2.5rem; min-height: 2.5rem; height: 2.5rem; }
+  .page-toolbar, .pilot-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .page-toolbar > .button, .pilot-toolbar > .button { width: 100%; }
+  .pilot-summary, .pilot-card__metadata, .incident-summary, .incident-card__meta,
+  .incident-info, .incident-cycle__steps { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-kpi { padding: var(--space-3); }
+  .dashboard-table td { grid-template-columns: minmax(6.5rem, 42%) minmax(0, 1fr); }
+  .dashboard-action { align-items: stretch; flex-direction: column; }
+  .role-workspace__actions .button { flex-basis: 100%; }
+  .pagination { flex-wrap: wrap; }
+}
+
+@media print {
+  .sidebar, .sidebar-backdrop, .app-header__menu { display: none !important; }
+  .app-shell { display: block; }
+  .main-content { width: 100%; max-width: none; padding: 0; }
+}

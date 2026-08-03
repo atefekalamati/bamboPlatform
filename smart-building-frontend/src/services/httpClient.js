@@ -49,6 +49,9 @@ const handleApiError = (error, { hadToken }) => {
 
 const executeRequest = async (path, options = {}) => {
   const controller = new AbortController();
+  const externalSignal = options.signal;
+  const abortFromCaller = () => controller.abort();
+  externalSignal?.addEventListener("abort", abortFromCaller, { once: true });
   let didTimeout = false;
   const timeoutId = window.setTimeout(() => {
     didTimeout = true;
@@ -70,10 +73,12 @@ const executeRequest = async (path, options = {}) => {
     });
   } catch (cause) {
     if (cause instanceof ApiError) throw cause;
+    if (externalSignal?.aborted) throw cause;
     if (didTimeout || cause.name === "AbortError") throw timeoutApiError(cause);
     if (cause instanceof TypeError) throw networkApiError(cause);
     throw cause;
   } finally {
+    externalSignal?.removeEventListener("abort", abortFromCaller);
     window.clearTimeout(timeoutId);
   }
 };
@@ -85,6 +90,7 @@ export const request = async (path, options = {}) => {
     const response = await executeRequest(path, options);
     return await parseResponse(response);
   } catch (error) {
+    if (error?.name === "AbortError") throw error;
     const apiError =
       error instanceof ApiError ? error : networkApiError(error);
     return handleApiError(apiError, { hadToken });
