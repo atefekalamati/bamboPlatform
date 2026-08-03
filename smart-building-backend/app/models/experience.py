@@ -66,6 +66,7 @@ class FormF04(Base):
     training_completed = Column(Boolean, nullable=False, default=False)
     viewing_result = Column(Text, nullable=True)
     issue_description = Column(Text, nullable=True)
+    other_issue_description = Column(Text, nullable=True)
     issue_category = Column(String(32), nullable=True)
     issue_route = Column(String(32), nullable=True)
     issue_owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)

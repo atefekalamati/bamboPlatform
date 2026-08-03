@@ -51,8 +51,11 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0015_incident_lifecycle_hardening"
+            == "0016_form_f04_other_issue_description"
         )
+    assert {
+        column["name"] for column in inspector.get_columns("form_f04")
+    } >= {"other_issue_description"}
     engine.dispose()
 
     command.check(config)
@@ -79,6 +82,7 @@ def test_initial_migration_compiles_for_postgresql(monkeypatch):
     assert "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)" in sql
     assert "ALTER TABLE incidents DROP CONSTRAINT incidents_code_key" in sql
     assert "ck_commercial_proposal_file_metadata" in sql
+    assert "other_issue_description" in sql
 
 
 def test_stage_title_alignment_migration_preserves_and_restores_existing_data(

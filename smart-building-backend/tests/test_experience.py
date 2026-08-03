@@ -1,6 +1,8 @@
 """Stage 10-13, G4, external evidence, notification, and F05 tests."""
 
+import sys
 from datetime import datetime
+from types import SimpleNamespace
 
 from conftest import (
     login_with_otp,
@@ -8,6 +10,8 @@ from conftest import (
     submit_and_approve_stage,
 )
 from app.main import app
+from app.database import get_session
+from app.models import Incident
 
 
 def _create_expert(client, headers, mobile: str = "09156666666") -> dict:
@@ -162,6 +166,161 @@ def test_experience_openapi_contract():
         "FinalOutcomeApprove",
     ):
         assert name in schema["components"]["schemas"]
+    assert "other_issue_description" in schema["components"]["schemas"][
+        "FormF04Patch"
+    ]["properties"]
+    assert "other_issue_description" in schema["components"]["schemas"][
+        "FormF04Read"
+    ]["properties"]
+
+
+def test_f04_optional_other_issue_contract_and_official_outputs(
+    client,
+    super_admin_headers,
+    monkeypatch,
+):
+    pilot, _ = _prepare_pilot_through_g3(
+        client,
+        super_admin_headers,
+        expert_mobile="09150001313",
+    )
+    pilot_id = pilot["id"]
+    platform_response = client.put(
+        f"/pilots/{pilot_id}/external-platform",
+        json=_external_platform_payload(),
+        headers=super_admin_headers,
+    )
+    assert platform_response.status_code == 200, platform_response.json()
+    submit_and_approve_stage(client, pilot_id, 10, super_admin_headers)
+
+    with get_session() as db:
+        incident_count = db.query(Incident).filter(Incident.pilot_id == pilot_id).count()
+
+    description = "مشکلی که در دسته‌بندی‌های موجود قرار نمی‌گیرد."
+    saved = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"other_issue_description": f"  {description}  "},
+        headers=super_admin_headers,
+    )
+    assert saved.status_code == 200, saved.json()
+    assert saved.json()["other_issue_description"] == description
+    assert saved.json()["issue_category"] is None
+    assert saved.json()["issue_route"] is None
+
+    reread = client.get(
+        f"/pilots/{pilot_id}/forms/f04",
+        headers=super_admin_headers,
+    )
+    assert reread.status_code == 200, reread.json()
+    assert reread.json()["other_issue_description"] == description
+    with get_session() as db:
+        assert (
+            db.query(Incident).filter(Incident.pilot_id == pilot_id).count()
+            == incident_count
+        )
+
+    audit = client.get(
+        "/audit",
+        params={"action": "forms.f04_saved", "entity_type": "Pilot", "entity_id": pilot_id},
+        headers=super_admin_headers,
+    )
+    assert audit.status_code == 200, audit.json()
+    assert "other_issue_description" in audit.json()[0]["new_data"]["changed_fields"]
+
+    preview = client.get(
+        f"/pilots/{pilot_id}/forms/f04/preview",
+        headers=super_admin_headers,
+    )
+    assert preview.status_code == 200, preview.json()
+    assert preview.json()["data"]["بخش الف: پیگیری ۲۴ ساعت اول"]["سایر مشکلات"] == description
+    assert all(
+        item["field"] != "other_issue_description"
+        for item in preview.json()["missing_fields"]
+    )
+    printable = client.get(
+        f"/pilots/{pilot_id}/forms/f04/print",
+        headers=super_admin_headers,
+    )
+    assert printable.status_code == 200
+    assert description in printable.text
+    rendered_html: dict[str, str] = {}
+
+    class FakeHTML:
+        def __init__(self, *, string: str):
+            rendered_html["value"] = string
+
+        def write_pdf(self) -> bytes:
+            return b"%PDF-1.7 test"
+
+    monkeypatch.setitem(sys.modules, "weasyprint", SimpleNamespace(HTML=FakeHTML))
+    pdf = client.get(
+        f"/pilots/{pilot_id}/forms/f04/pdf",
+        headers=super_admin_headers,
+    )
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"] == "application/pdf"
+    assert description in rendered_html["value"]
+
+    whitespace = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"other_issue_description": " \t\n "},
+        headers=super_admin_headers,
+    )
+    assert whitespace.status_code == 200, whitespace.json()
+    assert whitespace.json()["other_issue_description"] is None
+
+    restored = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"other_issue_description": description},
+        headers=super_admin_headers,
+    )
+    assert restored.status_code == 200, restored.json()
+    cleared = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"other_issue_description": None},
+        headers=super_admin_headers,
+    )
+    assert cleared.status_code == 200, cleared.json()
+    assert cleared.json()["other_issue_description"] is None
+
+    too_long = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"other_issue_description": "x" * 4001},
+        headers=super_admin_headers,
+    )
+    assert too_long.status_code == 422
+    assert too_long.json()["detail"][0]["loc"][-1] == "other_issue_description"
+
+    routing_required = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"issue_description": "مشکل اصلی نیازمند ارجاع است."},
+        headers=super_admin_headers,
+    )
+    assert routing_required.status_code == 422
+    assert routing_required.json()["code"] == "F04_ISSUE_ROUTING_REQUIRED"
+
+
+def test_f04_other_issue_change_invalidates_from_stage_13(
+    client,
+    super_admin_headers,
+):
+    pilot, _ = _prepare_pilot_through_g4(
+        client,
+        super_admin_headers,
+        expert_mobile="09150002313",
+    )
+    pilot_id = pilot["id"]
+    changed = client.patch(
+        f"/pilots/{pilot_id}/forms/f04",
+        json={"other_issue_description": "شرح مستقل پس از تأیید مرحله سیزده"},
+        headers=super_admin_headers,
+    )
+    assert changed.status_code == 200, changed.json()
+    detail = client.get(f"/pilots/{pilot_id}", headers=super_admin_headers)
+    assert detail.status_code == 200, detail.json()
+    assert detail.json()["current_stage"] == 13
+    stage_13 = next(stage for stage in detail.json()["stages"] if stage["number"] == 13)
+    assert stage_13["status"] == "needs_revision"
 
 
 def test_stage_10_platform_status_and_incident_sla(

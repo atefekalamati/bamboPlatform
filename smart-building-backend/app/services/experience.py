@@ -382,6 +382,7 @@ def patch_f04(
         "main_tour_viewed",
         "viewing_result",
         "issue_description",
+        "other_issue_description",
         "issue_category",
         "issue_route",
         "issue_owner_user_id",
