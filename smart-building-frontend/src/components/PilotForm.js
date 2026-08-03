@@ -12,7 +12,7 @@ const field = ({ id, label, type = "text", optional = false }) => {
   wrapper.className = "form-field";
   labelNode.className = "form-field__label";
   labelNode.htmlFor = id;
-  labelNode.textContent = `${label}${optional ? " (اختیاری)" : ""}`;
+  labelNode.textContent = `${label}`;
   control.id = id;
   control.className = "form-field__input";
   error.className = "form-field__error";

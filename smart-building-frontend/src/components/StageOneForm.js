@@ -116,7 +116,7 @@ export const StageOneForm = ({ initialData, project, disabled, onChange }) => {
   checklist.append(resultLabel);
   prdSection.className = "stage-form__section";
   prdLegend.className = "stage-form__legend";
-  prdLegend.textContent = "کنترل‌های تکمیلی PRD";
+  prdLegend.textContent = "کنترل‌های تکمیلی";
   imagingValue.addEventListener("change", onChange);
   notDemoOnly.addEventListener("change", onChange);
   const imagingField = prdField(
