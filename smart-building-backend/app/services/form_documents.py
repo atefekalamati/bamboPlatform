@@ -335,7 +335,7 @@ def build_f02(db: Session, pilot_id: int) -> FormDocument:
             "پروژه آماده برداشت شد": form.ready_for_capture if form else None,
             "ابهام، نقص یا توضیحات": form.ambiguity if form else None,
             "تاریخ و ساعت آماده‌شدن": _jalali(form.configured_at) if form else None,
-            "ارجاع به هماهنگ‌کننده عملیات": _jalali(form.referred_at) if form else None,
+            "تاریخ و ساعت ارجاع": _jalali(form.referred_at) if form else None,
             "تنظیم‌کننده پروژه": users.get(form.configured_by_user_id) if form else None,
             "کنترل‌کننده نمایش در اپ": users.get(form.controlled_by_user_id) if form else None,
         },
