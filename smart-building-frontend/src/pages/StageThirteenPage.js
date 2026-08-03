@@ -5,6 +5,7 @@ import {
   stageElement as element,
 } from "../components/StageShared.js";
 import { experienceService } from "../services/experienceService.js";
+import { incidentService } from "../services/incidentService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDate } from "../utils/dateFormatter.js";
@@ -236,7 +237,7 @@ const incidentCard = ({ incident, canManage, onClosed }) => {
     fieldValue("شدت", incident.severity),
     fieldValue("وضعیت", incident.status),
     fieldValue("شرح", incident.description),
-    fieldValue("مهلت پاسخ", formatPersianDate(incident.response_due_at)),
+    fieldValue("مهلت پاسخ", formatPersianDate(incident.responseDueAt)),
   );
   card.append(element("h2", "stage-form__legend", "رخداد بحرانی باز"), details);
   if (canManage) {
@@ -266,7 +267,7 @@ const incidentCard = ({ incident, canManage, onClosed }) => {
       if (required.some((input) => !input.value.trim())) return;
       close.disabled = true;
       try {
-        await experienceService.closeIncident(incident.id, {
+        await incidentService.closeIncident(incident.id, {
           rootCause: rootCause.value.trim(),
           correctiveAction: correctiveAction.value.trim(),
           result: result.value.trim(),
@@ -322,7 +323,7 @@ export const StageThirteenPage = ({ pilotId }) => {
       const [pilot, formF04, incidents, snapshots] = await Promise.all([
         pilotService.getPilotById(pilotId),
         experienceService.getF04(pilotId),
-        experienceService.getIncidents(pilotId),
+        incidentService.getPilotIncidents(pilotId),
         stageService.getSnapshots(pilotId, 13),
       ]);
       const stage = pilot.stages.find(({ number }) => number === 13);
