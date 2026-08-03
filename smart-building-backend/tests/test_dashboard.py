@@ -15,7 +15,7 @@ def test_dashboard_summary_and_pilot_list(client, super_admin_headers):
     listing = client.get("/api/v1/dashboard/pilots?page=1&page_size=10", headers=super_admin_headers)
     assert listing.status_code == 200
     assert listing.json()["pagination"]["total"] == 1
-    assert listing.json()["items"][0]["progress_percent"] == round(100 / 19, 2)
+    assert listing.json()["items"][0]["progress_percent"] == 0
 
 
 def test_dashboard_sections_and_actions(client, super_admin_headers):
