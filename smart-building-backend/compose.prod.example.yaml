@@ -1,0 +1,65 @@
+name: bambo-production-example
+
+services:
+  migrate:
+    image: ${BACKEND_IMAGE:?immutable backend image is required}
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    env_file: [.env.production]
+    networks: [internal]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    image: ${BACKEND_IMAGE:?immutable backend image is required}
+    env_file: [.env.production]
+    ports: ["127.0.0.1:8000:8000"]
+    networks: [internal]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    volumes:
+      - dwg_data:/data/dwg
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?required}
+      POSTGRES_USER: ${POSTGRES_USER:?required}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    networks: [internal]
+    restart: unless-stopped
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  internal:
+    internal: true
+
+volumes:
+  postgres_data:
+  dwg_data:
+
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE:?secret file path is required}
