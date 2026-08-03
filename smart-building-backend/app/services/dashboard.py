@@ -13,6 +13,7 @@ from app.models import (
     AuditLog,
     CommercialProposal,
     CustomerFollowUp,
+    ExternalEvidenceCheck,
     FinalOutcome,
     Incident,
     Mission,
@@ -21,7 +22,7 @@ from app.models import (
     Project,
     User,
 )
-from app.models.workflow import PilotGate, PilotStage
+from app.models.workflow import PilotGate, PilotStage, StageSubmission
 from app.services.security import AuthContext, effective_permissions
 from app.schemas.dashboard import ActionItem, DashboardResponse, Pagination, PilotDashboardItem
 
@@ -68,14 +69,20 @@ def _scope_query(db: Session, context: AuthContext):
 def _load_pilots(query):
     return query.options(
         selectinload(Pilot.project).selectinload(Project.owner),
-        selectinload(Pilot.stages).selectinload(PilotStage.submissions),
+        selectinload(Pilot.stages).selectinload(PilotStage.submissions).selectinload(StageSubmission.review),
         selectinload(Pilot.gates),
         selectinload(Pilot.missions).selectinload(Mission.form_f03),
-        selectinload(Pilot.incidents),
-        selectinload(Pilot.customer_follow_ups),
-        selectinload(Pilot.form_f04),
-        selectinload(Pilot.commercial_proposal),
+        selectinload(Pilot.missions).selectinload(Mission.expert),
+        selectinload(Pilot.missions).selectinload(Mission.floor_states),
+        selectinload(Pilot.incidents).selectinload(Incident.owner),
+        selectinload(Pilot.customer_follow_ups).selectinload(CustomerFollowUp.owner),
+        selectinload(Pilot.form_f04).selectinload(FormF04.responsible),
+        selectinload(Pilot.form_f04).selectinload(FormF04.pilot_manager_user),
+        selectinload(Pilot.commercial_proposal).selectinload(CommercialProposal.responsible),
         selectinload(Pilot.final_outcome),
+        selectinload(Pilot.evaluation),
+        selectinload(Pilot.external_evidence_checks).selectinload(ExternalEvidenceCheck.checked_by),
+        selectinload(Pilot.notifications),
         selectinload(Pilot.form_f01),
         selectinload(Pilot.form_f02),
     )
@@ -113,7 +120,10 @@ def _pilot_item(pilot: Pilot, now: datetime) -> PilotDashboardItem:
         current_stage=pilot.current_stage,
         pilot_status=pilot.status,
         stage_status=stage.status if stage else None,
-        progress_percent=round(min(100.0, pilot.current_stage / stage_count * 100), 2),
+        progress_percent=round(
+            min(100.0, sum(stage.status == "approved" for stage in pilot.stages) / stage_count * 100),
+            2,
+        ),
         current_assignee=assignee,
         next_action=("review" if stage and stage.status == "submitted" else "complete_stage" if stage and stage.status in {"open", "needs_revision"} else None),
         due_at=due_at,
