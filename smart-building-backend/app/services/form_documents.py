@@ -452,6 +452,7 @@ def build_f04(db: Session, pilot_id: int) -> FormDocument:
             "هنوز مشاهده نکرده": form.viewing_result == "هنوز مشاهده نکرده" if form else None,
             "عدم پاسخ": form.viewing_result == "عدم پاسخ" if form else None,
             "نوع مشکل یا ارجاع به": form.issue_category if form else None,
+            "سایر مشکلات": form.other_issue_description if form else None,
             "مسئول و موعد حل": (
                 f"{users.get(form.issue_owner_user_id, '')} - {_jalali(form.issue_due_at)}"
                 if form and form.issue_owner_user_id

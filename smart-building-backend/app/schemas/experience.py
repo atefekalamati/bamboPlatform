@@ -138,6 +138,7 @@ class FormF04Patch(BaseModel):
     training_completed: bool | None = None
     viewing_result: ViewingResult | None = None
     issue_description: str | None = Field(default=None, max_length=4000)
+    other_issue_description: str | None = Field(default=None, max_length=4000)
     issue_category: IssueCategory | None = None
     issue_route: IssueRoute | None = None
     issue_owner_user_id: int | None = None
@@ -180,6 +181,14 @@ class FormF04Patch(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    @field_validator("other_issue_description", mode="before")
+    @classmethod
+    def normalize_other_issue_description(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
+
     @field_validator("issue_due_at", "first_follow_up_at", "second_follow_up_at")
     @classmethod
     def normalize_optional_datetime(cls, value: datetime | None) -> datetime | None:
@@ -217,6 +226,7 @@ class FormF04Read(BaseModel):
     training_completed: bool
     viewing_result: str | None
     issue_description: str | None
+    other_issue_description: str | None
     issue_category: IssueCategory | None
     issue_route: IssueRoute | None
     issue_owner_user_id: int | None
