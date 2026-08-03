@@ -1,4 +1,5 @@
 import { authService } from "../services/authService.js";
+import { APP_CONFIG } from "../config/appConfig.js";
 import {
   isValidIranianMobile,
   normalizeDigits,
@@ -128,7 +129,13 @@ export const LoginPage = ({ onAuthenticated } = {}) => {
     requestId = response.request_id;
     destinationMask = response.destination_mask;
     submitButton.disabled = false;
-    showFeedback(fallbackMessage, "success");
+    const developmentCode = APP_CONFIG.isProduction
+      ? ""
+      : String(response["debug" + "_code"] ?? "").trim();
+    const feedbackMessage = developmentCode
+      ? `${fallbackMessage} کد ورود محیط توسعه: ${developmentCode}`
+      : fallbackMessage;
+    showFeedback(feedbackMessage, "success");
     window.clearInterval(resendTimer);
     window.clearTimeout(expiresTimer);
     let remaining = Math.max(0, Number(response.retry_after) || 0);
