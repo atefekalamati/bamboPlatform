@@ -1,6 +1,9 @@
 import pytest
 
 from conftest import login_with_otp, sample_pilot_payload, save_valid_f01
+from app.database import get_session
+from app.models import PilotStage
+from app.schemas.product import FormF01Update
 
 STAGE_1_CHECKLIST = {
     "project_active": True,
@@ -28,6 +31,140 @@ def create_pilot(client, headers):
     )
     assert response.status_code == 201
     return response.json()
+
+
+def test_stage_2_f01_update_preserves_stage_1_approval_and_snapshot(
+    client,
+    super_admin_headers,
+):
+    pilot = create_pilot(client, super_admin_headers)
+    pilot_id = pilot["id"]
+    saved_f01 = save_valid_f01(client, pilot_id, super_admin_headers)
+    stage_1_submit = client.post(
+        f"/pilots/{pilot_id}/stages/1/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert stage_1_submit.status_code == 200, stage_1_submit.json()
+    stage_1_reject = client.post(
+        f"/pilots/{pilot_id}/stages/1/reject",
+        json={"correction_items": ["بازبینی کنترل مرحله یک"]},
+        headers=super_admin_headers,
+    )
+    assert stage_1_reject.status_code == 200, stage_1_reject.json()
+    stage_1_resubmit = client.post(
+        f"/pilots/{pilot_id}/stages/1/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert stage_1_resubmit.status_code == 200, stage_1_resubmit.json()
+    assert stage_1_resubmit.json()["submission"]["version"] == 2
+    stage_1_approve = client.post(
+        f"/pilots/{pilot_id}/stages/1/approve",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert stage_1_approve.status_code == 200, stage_1_approve.json()
+
+    with get_session() as db:
+        stage_1 = (
+            db.query(PilotStage)
+            .filter(PilotStage.pilot_id == pilot_id, PilotStage.number == 1)
+            .one()
+        )
+        approval = stage_1.submissions[-1].review
+        snapshot = approval.snapshot
+        approval_fingerprint = (
+            approval.id,
+            approval.submission_id,
+            approval.reviewer,
+            approval.reviewed_at,
+            snapshot.id,
+            snapshot.content_hash,
+        )
+
+    stage_2_payload = {
+        field: saved_f01[field] for field in FormF01Update.model_fields
+    }
+    stage_2_payload["coordinator_name"] = "هماهنگ‌کننده اصلاح‌شده مرحله دو"
+    saved_stage_2 = client.put(
+        f"/pilots/{pilot_id}/forms/f01",
+        json=stage_2_payload,
+        headers=super_admin_headers,
+    )
+    assert saved_stage_2.status_code == 200, saved_stage_2.json()
+
+    after_save = client.get(
+        f"/pilots/{pilot_id}", headers=super_admin_headers
+    ).json()
+    assert after_save["current_stage"] == 2
+    assert after_save["stages"][0]["status"] == "approved"
+    assert after_save["stages"][1]["status"] == "open"
+
+    stage_2_submit = client.post(
+        f"/pilots/{pilot_id}/stages/2/submit",
+        json={"form_data": {}, "checklist": {}},
+        headers=super_admin_headers,
+    )
+    assert stage_2_submit.status_code == 200, stage_2_submit.json()
+    assert stage_2_submit.json()["stage"]["number"] == 2
+    assert stage_2_submit.json()["stage"]["status"] == "submitted"
+
+    refreshed = client.get(
+        f"/pilots/{pilot_id}", headers=super_admin_headers
+    ).json()
+    assert refreshed["current_stage"] == 2
+    assert refreshed["stages"][0]["status"] == "approved"
+    assert refreshed["stages"][1]["status"] == "submitted"
+    assert refreshed["stages"][2]["status"] == "locked"
+
+    with get_session() as db:
+        stage_1 = (
+            db.query(PilotStage)
+            .filter(PilotStage.pilot_id == pilot_id, PilotStage.number == 1)
+            .one()
+        )
+        approval = stage_1.submissions[-1].review
+        snapshot = approval.snapshot
+        assert (
+            approval.id,
+            approval.submission_id,
+            approval.reviewer,
+            approval.reviewed_at,
+            snapshot.id,
+            snapshot.content_hash,
+        ) == approval_fingerprint
+
+    stage_1_payload = dict(stage_2_payload)
+    stage_1_payload["imaging_value"] = False
+    changed_stage_1 = client.put(
+        f"/pilots/{pilot_id}/forms/f01",
+        json=stage_1_payload,
+        headers=super_admin_headers,
+    )
+    assert changed_stage_1.status_code == 200, changed_stage_1.json()
+    reopened = client.get(
+        f"/pilots/{pilot_id}", headers=super_admin_headers
+    ).json()
+    assert reopened["current_stage"] == 1
+    assert reopened["stages"][0]["status"] == "needs_revision"
+    assert reopened["stages"][1]["status"] == "locked"
+    assert reopened["stages"][2]["status"] == "locked"
+
+
+def test_stage_2_submit_is_rejected_until_stage_1_is_approved(
+    client,
+    super_admin_headers,
+):
+    pilot = create_pilot(client, super_admin_headers)
+    response = client.post(
+        f"/pilots/{pilot['id']}/stages/2/submit",
+        json={"form_data": {}, "checklist": {}},
+        headers=super_admin_headers,
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "STAGE_LOCKED"
+    assert response.json()["stage"] == 2
 
 
 def test_stage_decision_is_single_use_and_requires_permission(

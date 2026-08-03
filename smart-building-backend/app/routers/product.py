@@ -40,6 +40,17 @@ from app.storage.dwg import (
 
 router = APIRouter(tags=["project-data"])
 
+F01_STAGE_1_FIELDS = {
+    "project_active",
+    "imaging_value",
+    "remote_viewing_need",
+    "access_possible",
+    "dwg_available",
+    "continued_capacity",
+    "not_demo_only",
+    "result",
+}
+
 
 def get_pilot(db: Session, pilot_id: int) -> Pilot:
     pilot = db.get(Pilot, pilot_id)
@@ -84,8 +95,12 @@ def upsert_f01(
     form = pilot.form_f01
     was_existing = form is not None
     values = payload.model_dump()
-    changed = form is None or any(
-        getattr(form, field) != value for field, value in values.items()
+    changed_fields = (
+        set(values)
+        if form is None
+        else {
+            field for field, value in values.items() if getattr(form, field) != value
+        }
     )
     if form is None:
         form = FormF01(pilot=pilot, case_owner_user_id=context.user.id, **values)
@@ -111,11 +126,12 @@ def upsert_f01(
             coordinator.name = payload.coordinator_name
             coordinator.mobile = payload.coordinator_mobile
 
-    if was_existing and changed:
+    if was_existing and changed_fields:
+        invalidation_stage = 1 if changed_fields & F01_STAGE_1_FIELDS else 2
         invalidate_from_stage(
             db,
             pilot,
-            1,
+            invalidation_stage,
             actor_user_id=context.user.id,
             reason="F01 updated",
         )
@@ -125,7 +141,10 @@ def upsert_f01(
         entity_type="Pilot",
         entity_id=pilot.id,
         actor_user_id=context.user.id,
-        new_data={"result": payload.result},
+        new_data={
+            "result": payload.result,
+            "changed_fields": sorted(changed_fields),
+        },
         session_id=context.session.id,
     )
     db.commit()
