@@ -1,4 +1,5 @@
 import { formatPersianDate } from "../utils/dateFormatter.js";
+import { translateDisplayValue } from "../utils/displayText.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -33,7 +34,7 @@ const renderDetails = (container, stage) => {
     row(
       "Gate مرتبط",
       stage.gate
-        ? `${stage.gate.code} — ${stage.gate.title} (${stage.gate.status})`
+        ? `${translateDisplayValue(stage.gate.code)} — ${stage.gate.title} (${translateDisplayValue(stage.gate.status, "وضعیت نامشخص")})`
         : "ندارد",
     ),
   );
@@ -46,7 +47,7 @@ const renderDetails = (container, stage) => {
     element(
       "span",
       `stage-status stage-status--${stage.status}`,
-      STATUS_LABELS[stage.status] ?? stage.status,
+      STATUS_LABELS[stage.status] ?? translateDisplayValue(stage.status, "وضعیت نامشخص"),
     ),
     metadata,
   );
@@ -89,7 +90,7 @@ export const StageStepper = ({ stages, currentStage, pilotId }) => {
         element(
           "span",
           "stage-stepper__status",
-          STATUS_LABELS[stage.status] ?? stage.status,
+          STATUS_LABELS[stage.status] ?? translateDisplayValue(stage.status, "وضعیت نامشخص"),
         ),
       );
       button.append(

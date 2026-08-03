@@ -13,6 +13,7 @@ import { dwgService } from "../services/dwgService.js";
 import { missionService } from "../services/missionService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
+import { translateDisplayValue } from "../utils/displayText.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -304,7 +305,7 @@ export const StageNinePage = ({ pilotId }) => {
         element(
           "span",
           "status-badge stage-workspace__status",
-          `${STATUS_LABELS[stage.status] ?? stage.status} — G3: ${gate?.status ?? "locked"}`,
+          `${STATUS_LABELS[stage.status] ?? translateDisplayValue(stage.status, "وضعیت نامشخص")} — گیت ۳: ${translateDisplayValue(gate?.status ?? "locked", "وضعیت نامشخص")}`,
         ),
       );
       page.replaceChildren(

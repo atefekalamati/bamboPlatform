@@ -1,14 +1,8 @@
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
+import { translateActionTitle, translateAuditAction, translateDisplayValue } from "../utils/displayText.js";
 
 const node = (tag, className = "", text = "") => { const item = document.createElement(tag); item.className = className; item.textContent = text; return item; };
-const LABELS = {
-  open: "باز", submitted: "ارسال‌شده", approved: "تأییدشده", needs_revision: "نیازمند اصلاح",
-  on_track: "در مسیر", at_risk: "نزدیک SLA", overdue: "معوق", not_applicable: "بدون SLA",
-  scheduled: "برنامه‌ریزی‌شده", assigned: "تخصیص‌یافته", ready: "آماده", in_progress: "در حال انجام", completed: "تکمیل‌شده", cancelled: "لغوشده",
-  normal: "عادی", important: "مهم", critical: "بحرانی", contract: "قرارداد", ready_on_date: "آماده در تاریخ", negotiation: "مذاکره", rejected: "ردشده", closed: "بسته‌شده",
-  review: "بازبینی مرحله", complete_stage: "تکمیل مرحله",
-};
-export const label = (value) => LABELS[value] ?? value ?? "—";
+export const label = (value) => translateDisplayValue(value);
 
 export const DashboardKpiCard = ({ label: title, value, tone = "default" }) => {
   const card = node("article", `dashboard-kpi dashboard-kpi--${tone}`);
@@ -46,7 +40,7 @@ export const PilotList = ({ response, onPage }) => {
     const row = document.createElement("tr"); const pilot = node("td"); const link = node("a", "dashboard-table__link", item.pilot_code); link.href = `#/pilots/${item.id}`; pilot.append(link, node("small", "", `${item.project}${item.owner_company ? ` · ${item.owner_company}` : ""}`));
     const progress = node("td"); const meter = document.createElement("progress"); meter.max = 100; meter.value = item.progress_percent; progress.append(meter, node("small", "", `${item.progress_percent}٪`));
     const incident = item.critical_incidents ? `${item.open_incidents} باز · ${item.critical_incidents} بحرانی` : `${item.open_incidents} باز`;
-    const cells = [pilot, node("td", "", `${item.current_stage} از ۱۹ · ${label(item.stage_status)}`), progress, node("td", "", item.current_assignee ?? "تخصیص‌نیافته"), node("td", "", label(item.next_action)), node("td", `dashboard-badge dashboard-badge--${item.sla_status}`, `${label(item.sla_status)}${item.due_at ? ` · ${formatPersianDateTime(item.due_at)}` : ""}`), node("td", item.critical_incidents ? "dashboard-danger" : "", incident), node("td", "", item.current_gate ?? "—"), node("td", "", label(item.final_outcome ?? item.commercial_status)), node("td", "", formatPersianDateTime(item.last_updated_at))];
+    const cells = [pilot, node("td", "", `${item.current_stage} از ۱۹ · ${label(item.stage_status)}`), progress, node("td", "", item.current_assignee ?? "تخصیص‌نیافته"), node("td", "", label(item.next_action)), node("td", `dashboard-badge dashboard-badge--${item.sla_status}`, `${label(item.sla_status)}${item.due_at ? ` · ${formatPersianDateTime(item.due_at)}` : ""}`), node("td", item.critical_incidents ? "dashboard-danger" : "", incident), node("td", "", translateDisplayValue(item.current_gate)), node("td", "", label(item.final_outcome ?? item.commercial_status)), node("td", "", formatPersianDateTime(item.last_updated_at))];
     ["پرونده و پروژه", "مرحله", "پیشرفت", "مسئول", "اقدام بعدی", "SLA", "رخداد", "Gate", "نتیجه", "آخرین تغییر"].forEach((title, index) => { cells[index].dataset.label = title; row.append(cells[index]); }); body.append(row);
   }); table.append(head, body); viewport.append(table); section.append(viewport);
   const p = response.pagination; if (p?.total_pages > 1) { const nav = node("nav", "dashboard-pagination"); const prev = node("button", "button button--ghost", "قبلی"); const next = node("button", "button button--ghost", "بعدی"); prev.disabled = p.page <= 1; next.disabled = p.page >= p.total_pages; prev.onclick = () => onPage(p.page - 1); next.onclick = () => onPage(p.page + 1); nav.append(prev, node("span", "", `صفحه ${p.page} از ${p.total_pages}`), next); section.append(nav); }
@@ -56,12 +50,12 @@ export const PilotList = ({ response, onPage }) => {
 export const MyActions = ({ response }) => {
   const section = node("section", "dashboard-panel dashboard-actions"); section.append(node("h2", "dashboard-panel__title", "اقدامات موردنیاز من"));
   if (!response.items.length) { section.append(node("p", "dashboard-state", "در حال حاضر اقدام بازی برای شما ثبت نشده است.")); return section; }
-  const list = node("ul", "dashboard-action-list"); response.items.slice(0, 8).forEach((item) => { const li = node("li", `dashboard-action dashboard-action--${item.priority.toLowerCase()}`); const link = node("a", "dashboard-action__link", item.title); const target = item.entity_type === "incident" ? `#/incidents/${item.entity_id}` : item.entity_type === "stage" ? `#/pilots/${item.pilot_id}/stages/${item.action_url?.split("/").at(-1)}` : `#/pilots/${item.pilot_id}`; link.href = target; li.append(link, node("span", "", `${item.priority}${item.due_at ? ` · ${formatPersianDateTime(item.due_at)}` : ""}`)); list.append(li); }); section.append(list); return section;
+  const list = node("ul", "dashboard-action-list"); response.items.slice(0, 8).forEach((item) => { const li = node("li", `dashboard-action dashboard-action--${item.priority.toLowerCase()}`); const link = node("a", "dashboard-action__link", translateActionTitle(item.title)); const target = item.entity_type === "incident" ? `#/incidents/${item.entity_id}` : item.entity_type === "stage" ? `#/pilots/${item.pilot_id}/stages/${item.action_url?.split("/").at(-1)}` : `#/pilots/${item.pilot_id}`; link.href = target; li.append(link, node("span", "", `${translateDisplayValue(item.priority, "عادی")}${item.due_at ? ` · ${formatPersianDateTime(item.due_at)}` : ""}`)); list.append(li); }); section.append(list); return section;
 };
 
 export const SummaryWidget = ({ title, items, keyName, valueName = "count" }) => {
   const section = node("section", "dashboard-panel dashboard-widget"); section.append(node("h2", "dashboard-panel__title", title));
-  const list = node("dl", "dashboard-widget__list"); items.forEach((item) => { const row = node("div", "dashboard-widget__row"); row.append(node("dt", "", label(item[keyName])), node("dd", "", String(item[valueName] ?? item.total ?? 0))); list.append(row); }); section.append(list); return section;
+  const list = node("dl", "dashboard-widget__list"); items.forEach((item) => { const row = node("div", "dashboard-widget__row"); const rawValue = item[valueName] ?? item.total ?? 0; row.append(node("dt", "", label(item[keyName])), node("dd", "", typeof rawValue === "string" ? translateDisplayValue(rawValue, "ثبت‌شده") : String(rawValue))); list.append(row); }); section.append(list); return section;
 };
 
-export const RecentActivities = ({ response }) => SummaryWidget({ title: "فعالیت‌های اخیر", items: response.items.slice(0, 8).map((item) => ({ ...item, action: `${label(item.action)} · ${formatPersianDateTime(item.created_at)}` })), keyName: "action", valueName: "pilot_id" });
+export const RecentActivities = ({ response }) => SummaryWidget({ title: "فعالیت‌های اخیر", items: response.items.slice(0, 8).map((item) => ({ ...item, action: `${translateAuditAction(item.action)} · ${formatPersianDateTime(item.created_at)}` })), keyName: "action", valueName: "pilot_id" });
