@@ -97,6 +97,47 @@ def test_official_forms_are_aggregated_and_read_only(client, super_admin_headers
     assert record_counts() == before
 
 
+def test_f02_print_includes_referral_date_time(client, super_admin_headers):
+    pilot, _ = prepare_pilot_through_g2(client, super_admin_headers)
+
+    update = client.put(
+        f"/pilots/{pilot['id']}/forms/f02",
+        json={
+            "information_package": "بسته اطلاعاتی کامل",
+            "contacts_summary": "مالک و هماهنگ‌کننده",
+            "progress_status": "آماده برداشت",
+            "main_project_registered": True,
+            "floor_order_confirmed": True,
+            "typical_floors_identified": True,
+            "plan_connections_registered": True,
+            "start_point_registered": True,
+            "expert_access_tested": True,
+            "main_app_display_tested": True,
+            "ready_for_capture": True,
+            "referred_at": "2026-03-21T00:00:00+00:00",
+        },
+        headers=super_admin_headers,
+    )
+    assert update.status_code == 200, update.json()
+    assert update.json()["referred_at"] is not None
+
+    preview = client.get(
+        f"/pilots/{pilot['id']}/forms/f02/preview",
+        headers=super_admin_headers,
+    )
+    assert preview.status_code == 200, preview.json()
+    control_section = preview.json()["data"]["بخش ج: کنترل راه‌اندازی در سامانه"]
+    assert control_section["تاریخ و ساعت ارجاع"]
+    assert "ارجاع به هماهنگ‌کننده عملیات" not in control_section
+
+    printable = client.get(
+        f"/pilots/{pilot['id']}/forms/f02/print",
+        headers=super_admin_headers,
+    )
+    assert printable.status_code == 200
+    assert "تاریخ و ساعت ارجاع" in printable.text
+
+
 def test_form_endpoints_require_permissions(client):
     response = client.get("/pilots/1/forms")
     assert response.status_code in {401, 403}
