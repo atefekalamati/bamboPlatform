@@ -1,12 +1,13 @@
 """Database engine and session management for the BAMBO backend."""
 
+import os
 from typing import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.config import get_database_url, is_sqlite_url
+from app.config import get_app_env, get_database_url, get_int_setting, is_sqlite_url
 
 engine = None
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, future=True, bind=None)
@@ -27,6 +28,23 @@ def get_engine():
             engine_kwargs["connect_args"] = {"check_same_thread": False}
             if database_url == "sqlite:///:memory:":
                 engine_kwargs["poolclass"] = StaticPool
+        else:
+            engine_kwargs.update(
+                pool_size=get_int_setting("DB_POOL_SIZE", 10),
+                max_overflow=get_int_setting("DB_MAX_OVERFLOW", 10),
+                pool_timeout=get_int_setting("DB_POOL_TIMEOUT_SECONDS", 30),
+                pool_recycle=get_int_setting("DB_POOL_RECYCLE_SECONDS", 1800),
+                connect_args={
+                    "application_name": "bambo-backend",
+                    "options": (
+                        f"-c statement_timeout={get_int_setting('DB_STATEMENT_TIMEOUT_MS', 15000)} "
+                        "-c timezone=UTC"
+                    ),
+                },
+            )
+            sslmode = os.getenv("DB_SSLMODE")
+            if sslmode:
+                engine_kwargs["connect_args"]["sslmode"] = sslmode
 
         engine = create_engine(database_url, **engine_kwargs)
         SessionLocal.configure(bind=engine)
@@ -49,6 +67,8 @@ def init_db() -> None:
 
 def ensure_schema() -> None:
     """Keep SQLite test/dev startup convenient without bypassing production migrations."""
+    if get_app_env() == "production" and is_sqlite_url():
+        raise RuntimeError("SQLite is forbidden in production")
     if is_sqlite_url():
         init_db()
 
