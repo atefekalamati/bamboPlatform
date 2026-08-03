@@ -15,13 +15,14 @@ export const ROUTES = Object.freeze({
 });
 
 export const PRIMARY_NAVIGATION = Object.freeze([
-  { label: "نمای کلی", href: ROUTES.dashboard, isAvailable: true },
-  { label: "پرونده‌های پایلوت", href: ROUTES.pilots, isAvailable: true },
-  { label: "کاربران", href: ROUTES.users, isAvailable: true },
+  { label: "نمای کلی", href: ROUTES.dashboard, isAvailable: true, permission: "dashboard.read" },
+  { label: "پرونده‌های پایلوت", href: ROUTES.pilots, isAvailable: true, permission: "pilots.read" },
+  { label: "کاربران", href: ROUTES.users, isAvailable: true, permission: "users.read" },
   {
     label: "نقش‌ها و دسترسی‌ها",
     href: ROUTES.roles,
     isAvailable: true,
+    permission: "roles.read",
   },
   { label: "رخدادها", href: ROUTES.incidents, isAvailable: true, permission: "incidents.read" },
   { label: "گزارش‌ها", href: ROUTES.reports, isAvailable: true, permission: "reports.read" },

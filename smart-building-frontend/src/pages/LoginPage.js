@@ -69,6 +69,8 @@ export const LoginPage = ({ onAuthenticated } = {}) => {
   let phoneNumber = "";
   let requestId = "";
   let destinationMask = "";
+  let resendTimer = null;
+  let expiresTimer = null;
 
   form.className = "auth-form";
   form.noValidate = true;
@@ -106,6 +108,9 @@ export const LoginPage = ({ onAuthenticated } = {}) => {
   const showPhoneStep = () => {
     step = "phone";
     requestId = "";
+    window.clearInterval(resendTimer);
+    window.clearTimeout(expiresTimer);
+    submitButton.disabled = false;
     destinationMask = "";
     otpField.wrapper.hidden = true;
     phoneField.wrapper.hidden = false;
@@ -122,12 +127,27 @@ export const LoginPage = ({ onAuthenticated } = {}) => {
   const displayOtpResponse = (response, fallbackMessage) => {
     requestId = response.request_id;
     destinationMask = response.destination_mask;
-    showFeedback(
-      response.debug_code
-        ? `${fallbackMessage} کد محیط توسعه: ${response.debug_code}`
-        : fallbackMessage,
-      "success",
-    );
+    submitButton.disabled = false;
+    showFeedback(fallbackMessage, "success");
+    window.clearInterval(resendTimer);
+    window.clearTimeout(expiresTimer);
+    let remaining = Math.max(0, Number(response.retry_after) || 0);
+    const updateCooldown = () => {
+      resendButton.textContent = remaining > 0
+        ? `ارسال مجدد تا ${remaining} ثانیه`
+        : resendButton.dataset.label;
+      resendButton.disabled = remaining > 0;
+      if (remaining <= 0) window.clearInterval(resendTimer);
+      remaining -= 1;
+    };
+    updateCooldown();
+    resendTimer = window.setInterval(updateCooldown, 1000);
+    expiresTimer = window.setTimeout(() => {
+      requestId = "";
+      otpField.input.value = "";
+      submitButton.disabled = true;
+      showFeedback("زمان اعتبار کد پایان یافت؛ کد جدید دریافت کنید.", "error");
+    }, Math.max(1, Number(response.expires_in) || 300) * 1000);
   };
 
   const requestOtp = async () => {
@@ -165,6 +185,10 @@ export const LoginPage = ({ onAuthenticated } = {}) => {
     setBusy(submitButton, true, "در حال بررسی...");
     try {
       await authService.verifyOtp({ requestId, code });
+      window.clearInterval(resendTimer);
+      window.clearTimeout(expiresTimer);
+      otpField.input.value = "";
+      requestId = "";
       showFeedback("ورود با موفقیت انجام شد.", "success");
       await onAuthenticated?.();
     } catch (error) {

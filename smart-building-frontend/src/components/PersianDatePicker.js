@@ -57,7 +57,13 @@ class PersianDatePicker {
     this.trigger.type = "button";
     this.trigger.setAttribute("aria-label", "باز کردن تقویم شمسی");
     this.trigger.setAttribute("aria-haspopup", "dialog");
-    this.trigger.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v4M18 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/></svg>';
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    path.setAttribute("d", "M6 2v4M18 2v4M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z");
+    icon.append(path);
+    this.trigger.append(icon);
     this.wrapper.append(this.trigger);
     this.popover = element("section", "persian-date-picker__popover");
     this.popover.hidden = true;

@@ -1,0 +1,32 @@
+name: Frontend Production Readiness
+on:
+  pull_request:
+    paths: ["smart-building-frontend/**", ".github/workflows/frontend-production.yml"]
+  push:
+    branches: [master, agent/frontend-foundation]
+    paths: ["smart-building-frontend/**", ".github/workflows/frontend-production.yml"]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Syntax and unit tests
+        working-directory: smart-building-frontend
+        run: |
+          npm run check
+          npm test
+      - name: Build allow-listed artifact
+        env: { BAMBO_RELEASE: "${{ github.sha }}" }
+        run: sh smart-building-frontend/scripts/build-production.sh
+      - name: Verify artifact privacy and production values
+        run: |
+          test ! -e smart-building-frontend/dist/tests
+          test ! -e smart-building-frontend/dist/docs
+          test ! -e smart-building-frontend/dist/src/documents
+          ! grep -RIE 'useMockApi[[:space:]]*:[[:space:]]*true|127\.0\.0\.1|localhost|debug_code|console\.log' smart-building-frontend/dist
+      - name: Build production image
+        run: docker build --build-arg BAMBO_RELEASE=${{ github.sha }} -t bambo-frontend:${{ github.sha }} .
+

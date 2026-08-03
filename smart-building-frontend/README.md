@@ -1,98 +1,48 @@
-# BAMBO Pilot
+# BAMBO Pilot Frontend
 
-رابط کاربری سامانه مدیریت فرایند پایلوت BAMBO.
+فرانت سامانه مدیریت فرایند پایلوت BAMBO با HTML، CSS و JavaScript ES Modules، رابط فارسی RTL و ۱۹ مرحله عملیاتی.
 
-## وضعیت
+## توسعه محلی
 
-این مخزن در مرحله User Management قرار دارد. PRD نسخه `0.4` منبع اصلی
-نیازمندی‌های محصول است و در مسیر زیر نگهداری می‌شود:
+فایل `runtime-config.js` را با API محیط توسعه تنظیم و یک Static HTTP Server اجرا کنید. Dev server و `Dockerfile.dev` فقط برای توسعه‌اند و در Image تولید استفاده نمی‌شوند.
 
-`src/documents/BAMBO-Integrated-PRD-Checklist-Pilot-v0.4.md`
-
-## اجرای محلی
-
-پروژه در وضعیت فعلی وابستگی خارجی ندارد و با ES Modules استاندارد نوشته شده
-است. به دلیل محدودیت امنیتی مرورگر، فایل را با یک HTTP server محلی اجرا کنید:
-
-```bash
+```powershell
 python -m http.server 8080
 ```
 
-سپس `http://localhost:8080` را باز کنید.
+OTP، Users، Roles، Pilots، Stageها، Forms، DWG، Mission، Incident، Dashboard و Reports به API واقعی متصل‌اند. Mock اجرایی در Production وجود ندارد و خطای Backend به‌عنوان موفقیت ساختگی نمایش داده نمی‌شود.
 
-## ساختار
+## تست و Artifact
 
-- `src/app`: راه‌اندازی و هماهنگی برنامه
-- `src/components`: اجزای رابط کاربری قابل استفاده مجدد
-- `src/config`: تنظیمات محیط و برنامه
-- `src/constants`: مسیرها و ثابت‌های مشترک
-- `src/layouts`: ساختار صفحات
-- `src/pages`: صفحات سطح Route
-- `src/services`: ارتباط با API
-- `src/styles`: Design Tokenها و Styleهای عمومی
-- `src/utils`: توابع خالص و مشترک
+```powershell
+node --test tests/*.test.mjs
+powershell -ExecutionPolicy Bypass -File scripts/build-production.ps1
+```
 
-## تصمیم‌های باز
+Artifact محدودشده در `dist/` ساخته می‌شود و شامل tests، docs، PRD، dev server یا فایل Mock نیست. Config غیرحساس هنگام Deploy در `runtime-config.js` قرار می‌گیرد؛ Secret در Frontend ممنوع است.
 
-- Server-rendered یا SPA
-- ابزار Build، از جمله Vite
-- فونت رسمی فارسی
-- پالت و Design Tokenهای نهایی برند
-- Base URL و نسخه نهایی API
-- قرارداد نهایی خطا و احراز هویت
+## Docker Production
 
-تا زمان تصمیم تیم، هیچ Framework یا کتابخانه‌ای به پروژه اضافه نشده است.
+از ریشه Repository:
 
-## قابلیت فعلی
+```powershell
+docker build --build-arg BAMBO_RELEASE=<commit-sha> -t bambo-frontend:<commit-sha> .
+docker run --rm -p 8080:8080 bambo-frontend:<commit-sha>
+```
 
-- Shell اصلی و Navigation مبتنی بر Hash
-- فهرست کاربران
-- جست‌وجوی Debounced بر اساس نام، شماره موبایل و نقش
-- وضعیت فعال، غیرفعال و قفل‌شده
-- Pagination مبتنی بر پاسخ Service
-- Loading، Error، Empty State و Retry
-- ایجاد کاربر با Validation اولیه
-- ویرایش نام، شماره موبایل، نقش و وضعیت کاربر
-- Modal دسترس‌پذیر با Focus Trap و پشتیبانی Escape
-- فهرست پرونده‌های پایلوت
-- جست‌وجو و فیلتر وضعیت پرونده
-- نمایش مرحله جاری از ۱۹ مرحله
-- نمایش مسئول، موعد شمسی و وضعیت SLA
-- صفحه جزئیات هر پرونده
-- Stepper تعاملی تمام ۱۹ مرحله
-- نمایش وضعیت، مسئول، موعد، Gate و Snapshot هر مرحله
-- فضای کاری مرحله ۱ و بخش اولیه F01
-- چک‌لیست هفت‌گانه انتخاب پروژه مناسب
-- ذخیره پیش‌نویس مرحله در Mock
-- Validation Summary و تشخیص آمادگی اولیه
-- هشدار خروج هنگام وجود تغییرات ذخیره‌نشده
+Image تولیدی از Nginx غیر Root، Healthcheck، Compression، Cache policy و Security Header استفاده می‌کند. مسیر `/backend/` به سرویس Backend reverse proxy می‌شود. TLS باید در Ingress یا Load Balancer سازمان فعال باشد.
 
-## احراز هویت موقتاً غیرفعال
+## احراز هویت
 
-رابط OTP پیاده‌سازی شده اما تا زمان آماده‌شدن سرویس واقعی از Bootstrap برنامه
-خارج شده است. فایل‌های زیر برای فعال‌سازی آینده نگهداری می‌شوند:
+قرارداد فعلی Backend از Bearer Token استفاده می‌کند؛ Token فقط در `sessionStorage` نشست قرار دارد و در Logout یا 401 پاک می‌شود. مهاجرت به HttpOnly Secure Cookie بدون پشتیبانی Backend و CSRF انجام نشده است.
 
-- ورود شماره موبایل
-- دریافت کد OTP
-- تأیید کد
-- ارسال مجدد کد
-- اصلاح شماره موبایل
-- Validation اولیه، Loading و Error State
+## اسناد انتشار
 
-در حال حاضر `useMockApi` در `src/config/appConfig.js` فعال است. Mockهای Auth و
-User فقط برای توسعه رابط کاربری هستند و پس از نهایی‌شدن OpenAPI باید
-غیرفعال شوند.
+- `docs/frontend-production-readiness-audit.md`
+- `docs/frontend-api-contract-status.md`
+- `docs/frontend-route-permission-matrix.md`
+- `docs/frontend-deployment-runbook.md`
+- `docs/frontend-deployment-rollback.md`
+- `docs/frontend-release-checklist.md`
 
-Endpoint ویرایش کاربر در PRD فعلی تعریف نشده است. این عملیات فعلاً فقط در
-Mock فعال است و پیش از اتصال واقعی باید قرارداد آن با تیم Backend مشخص شود.
-
-قرارداد دریافت و ذخیره Draft مرحله نیز در API سطح بالای PRD تعریف نشده است.
-Stage Workspace فعلاً از Mock استفاده می‌کند و Submit، Gate، Snapshot و
-Transition واقعی را تغییر نمی‌دهد.
-
-## یادآوری پیش از توسعه پرونده‌ها
-
-پیش از شروع صفحات اصلی پرونده‌های پایلوت باید این دو مورد دوباره بررسی شوند:
-
-1. نهایی‌سازی Design System، پالت و فونت رسمی
-2. اتصال پوشه محلی و حساب Codex به مخزن GitHub
+تا پاس‌شدن E2E تمام ۱۹ Stage/پنج Gate، OTP Provider، Browser Matrix و Performance در Staging، توصیه Release برابر **No-Go** است.
