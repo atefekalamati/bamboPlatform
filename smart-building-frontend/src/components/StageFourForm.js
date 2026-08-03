@@ -49,6 +49,14 @@ const field = ({ id, label, value = "", disabled, type = "textarea" }) => {
   return { wrapper, control };
 };
 
+const toDateTimeLocalValue = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+};
+
 export const StageFourForm = ({ initialData, disabled, onChange }) => {
   const values = initialData ?? {};
   const form = document.createElement("form");
@@ -86,6 +94,13 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
     value: values.ambiguity,
     disabled,
   });
+  const referredAt = field({
+    id: "stage4-referred-at",
+    label: "تاریخ و ساعت ارجاع",
+    value: toDateTimeLocalValue(values.referredAt),
+    disabled,
+    type: "input",
+  });
   const checklist = document.createElement("fieldset");
   const checklistLegend = document.createElement("legend");
   const checklistItems = new Map();
@@ -101,13 +116,16 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
     progressStatus,
     limitation,
     ambiguity,
+    referredAt,
   ].forEach(({ control }) => control.addEventListener("input", onChange));
+  referredAt.control.type = "datetime-local";
   grid.append(
     informationPackage.wrapper,
     contactsSummary.wrapper,
     progressStatus.wrapper,
     limitation.wrapper,
     ambiguity.wrapper,
+    referredAt.wrapper,
   );
   information.append(informationLegend, grid);
 
@@ -141,6 +159,7 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
     progressStatus: progressStatus.control.value.trim(),
     limitation: limitation.control.value.trim(),
     ambiguity: ambiguity.control.value.trim(),
+    referredAt: referredAt.control.value || null,
     ...Object.fromEntries(
       [...checklistItems].map(([key, { checkbox }]) => [
         key,
