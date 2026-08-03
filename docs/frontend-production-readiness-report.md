@@ -27,7 +27,7 @@ Image دو مرحله‌ای با `nginx-unprivileged`، Healthcheck، gzip، Ca
 ## ۷. تست‌ها
 
 - Frontend: ۳۸ تست پاس، صفر Fail/Skip.
-- Backend security/reports: ۲۲ تست پاس، صفر Fail؛ یک هشدار deprecation کتابخانه.
+- Backend production/security/reports: ۲۶ تست پاس، صفر Fail؛ یک هشدار deprecation کتابخانه.
 - Syntax همه فایل‌های JS پاس.
 - Artifact PowerShell و Docker build پاس.
 - Smoke Container: `/` و `/healthz` برابر ۲۰۰؛ Security Headerها حاضر.
