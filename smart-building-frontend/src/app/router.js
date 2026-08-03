@@ -30,6 +30,14 @@ import { IncidentsPage } from "../pages/IncidentsPage.js";
 import { IncidentCreatePage } from "../pages/IncidentCreatePage.js";
 import { IncidentDetailPage } from "../pages/IncidentDetailPage.js";
 import {
+  ReportsOverviewPage,
+  PilotProgressReportPage,
+  ActionsReportPage,
+  KpiReportPage,
+  IncidentReportPage,
+  PilotOnePageReportPage,
+} from "../pages/ReportsPage.js";
+import {
   canLeaveCurrentPage,
   clearNavigationGuard,
   hasNavigationGuard,
@@ -43,21 +51,32 @@ const ROUTE_FACTORIES = Object.freeze({
   [ROUTES.notifications]: NotificationsPage,
   [ROUTES.notificationSettings]: NotificationPreferencesPage,
   [ROUTES.incidents]: IncidentsPage,
+  [ROUTES.reports]: ReportsOverviewPage,
+  [ROUTES.reportPilots]: PilotProgressReportPage,
+  [ROUTES.reportActions]: ActionsReportPage,
+  [ROUTES.reportKpis]: KpiReportPage,
+  [ROUTES.reportIncidents]: IncidentReportPage,
 });
 
 const getCurrentRoute = () => window.location.hash || ROUTES.dashboard;
 
 const resolveRoute = (currentRoute) => {
-  const exactPageFactory = ROUTE_FACTORIES[currentRoute];
+  const routePath = currentRoute.split("?")[0];
+  const exactPageFactory = ROUTE_FACTORIES[routePath];
 
   if (exactPageFactory) {
     return {
       page: exactPageFactory(),
-      navigationRoute: currentRoute,
+      navigationRoute: routePath.startsWith("#/reports") ? ROUTES.reports : routePath,
     };
   }
 
-  const pilotDetailsMatch = currentRoute.match(/^#\/pilots\/([^/]+)$/);
+  const reportPilotMatch = routePath.match(/^#\/reports\/pilots\/([^/?#]+)$/);
+  if (reportPilotMatch) {
+    return { page: PilotOnePageReportPage({ pilotId: reportPilotMatch[1] }), navigationRoute: ROUTES.reports };
+  }
+
+  const pilotDetailsMatch = routePath.match(/^#\/pilots\/([^/]+)$/);
   const incidentCreateMatch = currentRoute.match(/^#\/pilots\/([^/]+)\/incidents\/new$/);
   const incidentDetailMatch = currentRoute.match(/^#\/incidents\/([^/?#]+)$/);
   const notificationDetailsMatch = currentRoute.match(/^#\/notifications\/([^/?#]+)$/);

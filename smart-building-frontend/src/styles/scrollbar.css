@@ -1,0 +1,159 @@
+/* =========================================
+   BAMBO – TAPERED NEON SCROLLBAR
+   ========================================= */
+
+:root {
+  --brand-green: #6cb66f;
+  --brand-teal: #589394;
+
+  --page-background: #172523;
+  --scrollbar-size: 10px;
+  --scrollbar-track: rgba(46, 57, 57, 0.48);
+}
+
+/* Firefox — نسخه ساده‌تر به‌دلیل محدودیت مرورگر */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-green) var(--scrollbar-track);
+}
+
+/* Chrome, Edge, Safari */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+/* مسیر اسکرول */
+*::-webkit-scrollbar-track {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(46, 57, 57, 0.58) 0%,
+      rgba(23, 37, 35, 0.35) 50%,
+      rgba(46, 57, 57, 0.58) 100%
+    );
+
+  border: 1px solid rgba(108, 182, 111, 0.08);
+  border-radius: 999px;
+
+  box-shadow:
+    inset 0 0 5px rgba(0, 0, 0, 0.3),
+    inset 0 0 8px rgba(88, 147, 148, 0.06);
+}
+
+/* دستگیره اسکرول */
+*::-webkit-scrollbar-thumb {
+  min-height: 55px;
+  min-width: 55px;
+
+  /*
+   * لایه اول: درخشش مرکزی
+   * لایه دوم: محوشدن تدریجی ابتدا و انتها
+   * لایه سوم: گرادیان اصلی برند
+   */
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.32) 0%,
+      rgba(255, 255, 255, 0.08) 38%,
+      transparent 72%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(108, 182, 111, 0.12) 0%,
+      rgba(108, 182, 111, 0.72) 14%,
+      rgba(88, 147, 148, 1) 50%,
+      rgba(108, 182, 111, 0.72) 86%,
+      rgba(88, 147, 148, 0.12) 100%
+    ),
+    linear-gradient(
+      135deg,
+      var(--brand-green) 0%,
+      var(--brand-teal) 100%
+    );
+
+  background-blend-mode: screen, normal, normal;
+  background-clip: padding-box;
+
+  /* ایجاد فاصله از Track و باریک‌تر دیده‌شدن دو سر */
+  border: 2px solid transparent;
+  border-radius: 999px;
+
+  box-shadow:
+    0 0 4px rgba(108, 182, 111, 0.95),
+    0 0 9px rgba(108, 182, 111, 0.7),
+    0 0 16px rgba(88, 147, 148, 0.48),
+    inset 0 0 5px rgba(255, 255, 255, 0.3);
+
+  /*
+   * محوشدن ابتدا و انتهای Thumb
+   * در مرورگرهای مبتنی بر Chromium و Safari
+   */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.35) 5%,
+    #000 17%,
+    #000 83%,
+    rgba(0, 0, 0, 0.35) 95%,
+    transparent 100%
+  );
+
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.35) 5%,
+    #000 17%,
+    #000 83%,
+    rgba(0, 0, 0, 0.35) 95%,
+    transparent 100%
+  );
+}
+
+/* نور بیشتر هنگام Hover */
+*::-webkit-scrollbar-thumb:hover {
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.5) 0%,
+      transparent 68%
+    ),
+    linear-gradient(
+      135deg,
+      var(--brand-green) 0%,
+      var(--brand-teal) 100%
+    );
+
+  background-blend-mode: screen, normal;
+  background-clip: padding-box;
+
+  box-shadow:
+    0 0 5px rgba(108, 182, 111, 1),
+    0 0 12px rgba(108, 182, 111, 0.9),
+    0 0 22px rgba(88, 147, 148, 0.7),
+    0 0 32px rgba(88, 147, 148, 0.32),
+    inset 0 0 6px rgba(255, 255, 255, 0.38);
+}
+
+/* حالت کلیک و Drag */
+*::-webkit-scrollbar-thumb:active {
+  background:
+    linear-gradient(
+      135deg,
+      #8ee391 0%,
+      #64c5c7 100%
+    );
+
+  background-clip: padding-box;
+
+  box-shadow:
+    0 0 7px rgba(108, 182, 111, 1),
+    0 0 17px rgba(108, 182, 111, 0.95),
+    0 0 28px rgba(88, 147, 148, 0.78),
+    inset 0 0 6px rgba(255, 255, 255, 0.45);
+}
+
+/* محل برخورد اسکرول افقی و عمودی */
+*::-webkit-scrollbar-corner {
+  background: var(--page-background);
+}
