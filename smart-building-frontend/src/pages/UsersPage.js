@@ -5,6 +5,10 @@ import { Modal } from "../components/Modal.js";
 import { Pagination } from "../components/Pagination.js";
 import { UserCard } from "../components/UserCard.js";
 import { UserForm } from "../components/UserForm.js";
+import {
+  matchesUserStatus,
+  USER_STATUS_FILTERS,
+} from "../features/users/userFilters.js";
 import { roleService } from "../services/roleService.js";
 import { userService } from "../services/userService.js";
 import { debounce } from "../utils/debounce.js";
@@ -47,6 +51,7 @@ export const UsersPage = () => {
   const toolbar = element("div", "page-toolbar");
   const searchLabel = element("label", "search-box__label", "جست‌وجوی کاربران");
   const search = document.createElement("input");
+  const statusFilter = element("div", "user-status-filter");
   const create = element("button", "button button--primary", "ایجاد کاربر");
   const region = element("section", "users-region");
   const canManage = sessionStore
@@ -54,6 +59,8 @@ export const UsersPage = () => {
     ?.permissions.includes("users.manage");
   let users = [];
   let currentPage = 1;
+  let activeStatusFilter = "all";
+  const statusButtons = new Map();
 
   searchLabel.htmlFor = "user-search";
   search.id = "user-search";
@@ -63,8 +70,27 @@ export const UsersPage = () => {
   search.autocomplete = "off";
   create.type = "button";
   create.hidden = !canManage;
+  statusFilter.setAttribute("role", "group");
+  statusFilter.setAttribute("aria-label", "فیلتر کاربران بر اساس وضعیت");
+  Object.entries(USER_STATUS_FILTERS).forEach(([value, label]) => {
+    const button = element("button", "user-status-filter__button", label);
+    button.type = "button";
+    button.dataset.status = value;
+    button.setAttribute("aria-pressed", String(value === activeStatusFilter));
+    button.addEventListener("click", () => {
+      if (activeStatusFilter === value) return;
+      activeStatusFilter = value;
+      currentPage = 1;
+      statusButtons.forEach((item, status) =>
+        item.setAttribute("aria-pressed", String(status === activeStatusFilter)),
+      );
+      render();
+    });
+    statusButtons.set(value, button);
+    statusFilter.append(button);
+  });
   region.setAttribute("aria-live", "polite");
-  toolbar.append(searchLabel, search, create);
+  toolbar.append(searchLabel, search, create, statusFilter);
 
   const renderError = (message, retry) => {
     const state = element("div", "error-state");
@@ -76,7 +102,11 @@ export const UsersPage = () => {
   };
 
   const render = () => {
-    const filtered = users.filter((user) => includesQuery(user, search.value));
+    const filtered = users.filter(
+      (user) =>
+        matchesUserStatus(user, activeStatusFilter) &&
+        includesQuery(user, search.value),
+    );
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     currentPage = Math.min(currentPage, totalPages);
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -86,7 +116,7 @@ export const UsersPage = () => {
       region.replaceChildren(
         EmptyState({
           title: "کاربری پیدا نشد",
-          description: "عبارت جست‌وجو را تغییر دهید و دوباره تلاش کنید.",
+          description: "عبارت جست‌وجو یا فیلتر وضعیت را تغییر دهید و دوباره تلاش کنید.",
         }),
       );
       return;
