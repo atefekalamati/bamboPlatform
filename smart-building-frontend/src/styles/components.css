@@ -67,6 +67,51 @@
   color: var(--color-text-primary);
 }
 
+.user-status-filter {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--space-1);
+  gap: var(--space-1);
+  overflow-x: auto;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.user-status-filter__button {
+  min-height: 2.5rem;
+  padding-inline: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.user-status-filter__button:hover {
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+.user-status-filter__button:focus-visible {
+  outline: 0.1875rem solid var(--color-focus);
+  outline-offset: 0.125rem;
+}
+
+.user-status-filter__button[aria-pressed="true"] {
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-primary),
+    var(--color-brand-secondary)
+  );
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
 .users-region {
   display: grid;
   gap: var(--space-4);
@@ -281,6 +326,10 @@
   .page-toolbar > .button {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  .user-status-filter {
+    grid-column: 1 / -1;
   }
 
   .modal-overlay {
