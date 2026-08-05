@@ -145,21 +145,13 @@
 }
 
 .button--primary {
-  background: linear-gradient(
-    90deg,
-    var(--color-background),
-    var(--color-background)
-  );
+  background: var(--color-brand-primary);
   color: var(--color-text-primary);
 }
 
 .button--primary:hover:not(:disabled) {
-  background: linear-gradient(
-    90deg,
-    var(--color-background),
-    var(--color-background)
-  );
-  color: var(--color-text-primary);
+  background: var(--color-brand-primary-strong);
+  color: var(--color-surface);
 }
 
 .button--ghost {
