@@ -10,6 +10,10 @@ import {
   stageElement as element,
 } from "../components/StageShared.js";
 import { dwgService } from "../services/dwgService.js";
+import {
+  canAcceptMissionAssignment,
+  canManageMissionAssignments,
+} from "../features/missions/missionPermissions.js";
 import { missionService } from "../services/missionService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -231,7 +235,7 @@ export const StageFivePage = ({ pilotId }) => {
   const page = element("div", "stage-workspace");
   const user = sessionStore.getCurrentUser();
   const permissions = user?.permissions ?? [];
-  const canCoordinate = permissions.includes("missions.manage");
+  const canCoordinate = canManageMissionAssignments(permissions);
   const canSubmit = permissions.includes("checklists.manage");
   const canApprove = permissions.includes("gate_approval.approve");
   const canReject = permissions.includes("gate_approval.reject");
@@ -353,15 +357,23 @@ export const StageFivePage = ({ pilotId }) => {
       } else {
         page.append(missionSummary(mission, floors, expertName));
         const isAssignedExpert = user?.id === mission.expertUserId;
+        const canAcceptAssignment = canAcceptMissionAssignment({
+          currentUserId: user?.id,
+          expertUserId: mission.expertUserId,
+          permissions,
+        });
+        const isManagerOverride = canAcceptAssignment && !isAssignedExpert;
         if (!mission.formF03.assignment_accepted) {
-          if (isAssignedExpert) {
+          if (canAcceptAssignment) {
             const acceptance = element("section", "checklist");
             const label = element("label", "checklist__item");
             const checkbox = document.createElement("input");
             const accept = element(
               "button",
               "button button--primary",
-              "ثبت پذیرش مأموریت",
+              isManagerOverride
+                ? "تأیید پذیرش از طرف کارشناس"
+                : "ثبت پذیرش مأموریت",
             );
             checkbox.type = "checkbox";
             accept.type = "button";
@@ -374,21 +386,33 @@ export const StageFivePage = ({ pilotId }) => {
               element(
                 "span",
                 "",
-                "زمان، محل و طبقات مأموریت را بررسی کردم و این مأموریت را می‌پذیرم.",
+                isManagerOverride
+                  ? "اطلاعات تخصیص مأموریت بررسی شد و پذیرش آن از طرف کارشناس برداشت تأیید می‌شود. اعلان تخصیص قبلاً برای کارشناس ارسال شده است."
+                  : "زمان، محل و طبقات مأموریت را بررسی کردم و این مأموریت را می‌پذیرم.",
               ),
             );
             accept.addEventListener("click", async () => {
               accept.disabled = true;
               try {
                 await missionService.acceptAssignment(mission);
-                await load("پذیرش مأموریت ثبت شد؛ Stage 5 آماده ارسال است.");
+                await load(
+                  isManagerOverride
+                    ? "پذیرش مأموریت توسط مدیر ثبت شد؛ Stage 5 آماده ارسال است."
+                    : "پذیرش مأموریت ثبت شد؛ Stage 5 آماده ارسال است.",
+                );
               } catch (error) {
                 feedback.textContent = error.message;
                 accept.disabled = false;
               }
             });
             acceptance.append(
-              element("h2", "checklist__legend", "تأیید کارشناس"),
+              element(
+                "h2",
+                "checklist__legend",
+                isManagerOverride
+                  ? "تأیید پذیرش توسط مدیر"
+                  : "تأیید کارشناس",
+              ),
               label,
               accept,
             );
