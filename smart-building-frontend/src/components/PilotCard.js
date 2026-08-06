@@ -1,5 +1,6 @@
 import { formatPersianDate } from "../utils/dateFormatter.js";
 import { translateDisplayValue } from "../utils/displayText.js";
+import { getStageTitle } from "../constants/stageCatalog.js";
 
 const STATUS_LABELS = Object.freeze({
   candidate: "نامزد پایلوت",
@@ -32,7 +33,7 @@ export const PilotCard = ({ pilot }) => {
   const progressText = element(
     "span",
     "pilot-card__progress-label",
-    `مرحله ${pilot.currentStage} از ۱۹`,
+    getStageTitle(pilot.currentStage),
   );
   const progressBar = document.createElement("progress");
   const details = element(

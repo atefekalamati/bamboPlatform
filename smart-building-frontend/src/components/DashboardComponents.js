@@ -1,5 +1,6 @@
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
 import { translateActionTitle, translateAuditAction, translateDisplayValue } from "../utils/displayText.js";
+import { getStageTitle, stageOptions } from "../constants/stageCatalog.js";
 
 const node = (tag, className = "", text = "") => { const item = document.createElement(tag); item.className = className; item.textContent = text; return item; };
 export const label = (value) => translateDisplayValue(value);
@@ -14,7 +15,7 @@ export const DashboardFilters = ({ values, onChange }) => {
   const form = node("form", "dashboard-filters dashboard-panel");
   const controls = [
     ["q", "جست‌وجو", "search", "کد، پروژه یا مالک"], ["status", "وضعیت", "select", [["", "همه وضعیت‌ها"], ["open", "باز"], ["submitted", "ارسال‌شده"], ["approved", "تأییدشده"], ["needs_revision", "نیازمند اصلاح"], ["contract", "قرارداد"]]],
-    ["stage", "مرحله", "select", [["", "همه مراحل"], ...Array.from({ length: 19 }, (_, index) => [String(index + 1), `مرحله ${index + 1}`])]],
+    ["stage", "مرحله", "select", [["", "همه مراحل"], ...stageOptions()]],
     ["sla", "SLA", "select", [["", "همه"], ["on_track", "در مسیر"], ["at_risk", "نزدیک موعد"], ["overdue", "معوق"], ["not_applicable", "بدون SLA"]]],
     ["sort", "مرتب‌سازی", "select", [["updated", "آخرین تغییر"], ["stage", "مرحله"], ["sla", "SLA"], ["code", "کد پرونده"]]],
   ];
@@ -40,7 +41,8 @@ export const PilotList = ({ response, onPage }) => {
     const row = document.createElement("tr"); const pilot = node("td"); const link = node("a", "dashboard-table__link", item.pilot_code); link.href = `#/pilots/${item.id}`; pilot.append(link, node("small", "", `${item.project}${item.owner_company ? ` · ${item.owner_company}` : ""}`));
     const progress = node("td"); const meter = document.createElement("progress"); meter.max = 100; meter.value = item.progress_percent; progress.append(meter, node("small", "", `${item.progress_percent}٪`));
     const incident = item.critical_incidents ? `${item.open_incidents} باز · ${item.critical_incidents} بحرانی` : `${item.open_incidents} باز`;
-    const cells = [pilot, node("td", "", `${item.current_stage} از ۱۹ · ${label(item.stage_status)}`), progress, node("td", "", item.current_assignee ?? "تخصیص‌نیافته"), node("td", "", label(item.next_action)), node("td", `dashboard-badge dashboard-badge--${item.sla_status}`, `${label(item.sla_status)}${item.due_at ? ` · ${formatPersianDateTime(item.due_at)}` : ""}`), node("td", item.critical_incidents ? "dashboard-danger" : "", incident), node("td", "", translateDisplayValue(item.current_gate)), node("td", "", label(item.final_outcome ?? item.commercial_status)), node("td", "", formatPersianDateTime(item.last_updated_at))];
+    const stageTitle = getStageTitle(item.current_stage, item.current_stage_title); const stageCell = node("td", "", stageTitle); stageCell.title = `${stageTitle} · ${label(item.stage_status)}`;
+    const cells = [pilot, stageCell, progress, node("td", "", item.current_assignee ?? "تخصیص‌نیافته"), node("td", "", label(item.next_action)), node("td", `dashboard-badge dashboard-badge--${item.sla_status}`, `${label(item.sla_status)}${item.due_at ? ` · ${formatPersianDateTime(item.due_at)}` : ""}`), node("td", item.critical_incidents ? "dashboard-danger" : "", incident), node("td", "", translateDisplayValue(item.current_gate)), node("td", "", label(item.final_outcome ?? item.commercial_status)), node("td", "", formatPersianDateTime(item.last_updated_at))];
     ["پرونده و پروژه", "مرحله", "پیشرفت", "مسئول", "اقدام بعدی", "SLA", "رخداد", "Gate", "نتیجه", "آخرین تغییر"].forEach((title, index) => { cells[index].dataset.label = title; row.append(cells[index]); }); body.append(row);
   }); table.append(head, body); viewport.append(table); section.append(viewport);
   const p = response.pagination; if (p?.total_pages > 1) { const nav = node("nav", "dashboard-pagination"); const prev = node("button", "button button--ghost", "قبلی"); const next = node("button", "button button--ghost", "بعدی"); prev.disabled = p.page <= 1; next.disabled = p.page >= p.total_pages; prev.onclick = () => onPage(p.page - 1); next.onclick = () => onPage(p.page + 1); nav.append(prev, node("span", "", `صفحه ${p.page} از ${p.total_pages}`), next); section.append(nav); }
