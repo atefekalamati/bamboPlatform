@@ -89,6 +89,33 @@ def update_user_profile(
     return target
 
 
+def update_own_name_edit_permission(
+    db: Session,
+    *,
+    actor: User,
+    target: User,
+    allowed: bool,
+    session_id: int | None,
+) -> User:
+    previous = target.can_edit_own_name
+    if previous == allowed:
+        return target
+    target.can_edit_own_name = allowed
+    add_audit_log(
+        db,
+        action="users.own_name_edit_permission_updated",
+        entity_type="User",
+        entity_id=target.id,
+        actor_user_id=actor.id,
+        old_data={"can_edit_own_name": previous},
+        new_data={"can_edit_own_name": allowed},
+        session_id=session_id,
+    )
+    db.commit()
+    db.refresh(target)
+    return target
+
+
 def _otp_hash(public_id: str, code: str) -> str:
     payload = f"{public_id}:{code}".encode()
     return hmac.new(get_auth_secret().encode(), payload, hashlib.sha256).hexdigest()

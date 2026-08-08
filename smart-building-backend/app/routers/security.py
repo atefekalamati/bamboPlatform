@@ -34,6 +34,7 @@ from app.schemas.security import (
     UserCreate,
     UserPreferencePatch,
     UserPreferenceRead,
+    UserOwnNameEditPermissionPatch,
     UserProfilePatch,
     UserRead,
     UserRolesUpdate,
@@ -50,6 +51,7 @@ from app.services.security import (
     revoke_session,
     utc_now,
     update_user_profile,
+    update_own_name_edit_permission,
     verify_otp,
 )
 
@@ -68,6 +70,7 @@ def user_read(user: User) -> UserRead:
         id=user.id,
         mobile=mask_mobile(user.mobile),
         display_name=user.display_name,
+        can_edit_own_name=user.can_edit_own_name,
         is_active=user.is_active,
         locked_at=user.locked_at,
         roles=[
@@ -178,6 +181,18 @@ def patch_my_profile(
     context: AuthContext = Depends(get_auth_context),
     db: Session = Depends(get_db),
 ) -> UserRead:
+    if (
+        "display_name" in payload.model_fields_set
+        and payload.display_name != context.user.display_name
+        and not context.user.can_edit_own_name
+        and not _is_super_admin(context.user)
+    ):
+        raise SecurityError(
+            code="OWN_NAME_EDIT_NOT_ALLOWED",
+            message="اجازه ویرایش نام حساب برای شما فعال نشده است.",
+            status_code=403,
+            errors=[{"field": "display_name", "reason": "permission_not_granted"}],
+        )
     if "mobile" in payload.model_fields_set and payload.mobile != context.user.mobile:
         raise SecurityError(
             code="PHONE_CHANGE_VERIFICATION_REQUIRED",
@@ -330,6 +345,33 @@ def patch_user_profile(
         actor=context.user,
         target=target,
         payload=payload,
+        session_id=context.session.id,
+    )
+    return user_read(user)
+
+
+@users_router.patch("/{user_id}/own-name-edit-permission", response_model=UserRead)
+def patch_user_own_name_edit_permission(
+    user_id: int,
+    payload: UserOwnNameEditPermissionPatch,
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> UserRead:
+    if not _is_super_admin(context.user):
+        raise SecurityError(
+            code="USER_PERMISSION_UPDATE_DENIED",
+            message="فقط مدیر کل می‌تواند اجازه ویرایش نام حساب را تغییر دهد.",
+            status_code=403,
+            errors=[],
+        )
+    target = db.get(User, user_id)
+    if target is None:
+        raise SecurityError("USER_NOT_FOUND", "کاربر پیدا نشد.", 404, [])
+    user = update_own_name_edit_permission(
+        db,
+        actor=context.user,
+        target=target,
+        allowed=payload.can_edit_own_name,
         session_id=context.session.id,
     )
     return user_read(user)

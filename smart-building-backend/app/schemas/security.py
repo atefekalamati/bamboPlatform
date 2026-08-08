@@ -56,6 +56,7 @@ class UserRead(BaseModel):
     id: int
     mobile: str
     display_name: str
+    can_edit_own_name: bool
     is_active: bool
     locked_at: datetime | None
     roles: list[RoleSummary]
@@ -135,6 +136,12 @@ class UserProfilePatch(BaseModel):
         if any(getattr(self, field) is None for field in self.model_fields_set):
             raise ValueError("editable fields cannot be null")
         return self
+
+    model_config = {"extra": "forbid"}
+
+
+class UserOwnNameEditPermissionPatch(BaseModel):
+    can_edit_own_name: bool
 
     model_config = {"extra": "forbid"}
 

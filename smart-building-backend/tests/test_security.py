@@ -40,6 +40,12 @@ def test_super_admin_updates_user_name_mobile_and_persists(client, super_admin_h
 def test_user_updates_only_own_name_and_phone_change_requires_verification(client, super_admin_headers):
     user = _create_profile_test_user(client, super_admin_headers)
     other = _create_profile_test_user(client, super_admin_headers, "09151234568")
+    granted = client.patch(
+        f"/users/{user['id']}/own-name-edit-permission",
+        json={"can_edit_own_name": True},
+        headers=super_admin_headers,
+    )
+    assert granted.status_code == 200
     headers = login_with_otp(client, "09151234567")
     own = client.patch("/auth/me", json={"display_name": "  نام شخصی  "}, headers=headers)
     assert own.status_code == 200
@@ -51,6 +57,103 @@ def test_user_updates_only_own_name_and_phone_change_requires_verification(clien
     assert blocked_phone.json()["code"] == "PHONE_CHANGE_VERIFICATION_REQUIRED"
     forbidden = client.patch(f"/users/{other['id']}", json={"display_name": "نفوذ"}, headers=headers)
     assert forbidden.status_code == 403
+
+
+def test_own_name_edit_permission_defaults_false_and_is_enforced_immediately(client, super_admin_headers):
+    from app.database import get_session
+    from app.models import AuditLog, User
+
+    user = _create_profile_test_user(client, super_admin_headers)
+    assert user["can_edit_own_name"] is False
+    headers = login_with_otp(client, "09151234567")
+
+    denied = client.patch("/auth/me", json={"display_name": "نام جدید"}, headers=headers)
+    assert denied.status_code == 403
+    assert denied.json()["code"] == "OWN_NAME_EDIT_NOT_ALLOWED"
+    assert denied.json()["errors"] == [
+        {"field": "display_name", "reason": "permission_not_granted"}
+    ]
+    unchanged = client.patch("/auth/me", json={"display_name": "کاربر اولیه"}, headers=headers)
+    assert unchanged.status_code == 200
+
+    granted = client.patch(
+        f"/users/{user['id']}/own-name-edit-permission",
+        json={"can_edit_own_name": True},
+        headers=super_admin_headers,
+    )
+    assert granted.status_code == 200
+    assert granted.json()["can_edit_own_name"] is True
+    changed = client.patch("/auth/me", json={"display_name": "نام مجاز"}, headers=headers)
+    assert changed.status_code == 200
+    assert changed.json()["display_name"] == "نام مجاز"
+
+    revoked = client.patch(
+        f"/users/{user['id']}/own-name-edit-permission",
+        json={"can_edit_own_name": False},
+        headers=super_admin_headers,
+    )
+    assert revoked.status_code == 200
+    assert revoked.json()["can_edit_own_name"] is False
+    denied_after_revoke = client.patch(
+        "/auth/me", json={"display_name": "نام پس از لغو"}, headers=headers
+    )
+    assert denied_after_revoke.status_code == 403
+
+    with get_session() as db:
+        stored = db.get(User, user["id"])
+        assert stored.display_name == "نام مجاز"
+        audits = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.action == "users.own_name_edit_permission_updated",
+                AuditLog.entity_id == str(user["id"]),
+            )
+            .order_by(AuditLog.id)
+            .all()
+        )
+        assert [(item.old_data, item.new_data) for item in audits] == [
+            ({"can_edit_own_name": False}, {"can_edit_own_name": True}),
+            ({"can_edit_own_name": True}, {"can_edit_own_name": False}),
+        ]
+
+
+def test_only_super_admin_can_toggle_own_name_permission_and_schema_forbids_injection(
+    client, super_admin_headers
+):
+    user = _create_profile_test_user(client, super_admin_headers)
+    other = _create_profile_test_user(client, super_admin_headers, "09151234568")
+    headers = login_with_otp(client, "09151234567")
+
+    forbidden = client.patch(
+        f"/users/{other['id']}/own-name-edit-permission",
+        json={"can_edit_own_name": True},
+        headers=headers,
+    )
+    assert forbidden.status_code == 403
+    assert forbidden.json()["code"] == "USER_PERMISSION_UPDATE_DENIED"
+    assert client.patch(
+        f"/users/{user['id']}/own-name-edit-permission",
+        json={"can_edit_own_name": True, "role_ids": [1]},
+        headers=super_admin_headers,
+    ).status_code == 422
+    assert client.patch(
+        "/auth/me",
+        json={"display_name": "نفوذ", "can_edit_own_name": True, "user_id": other["id"]},
+        headers=headers,
+    ).status_code == 422
+
+
+def test_super_admin_name_update_ignores_target_own_name_permission(client, super_admin_headers):
+    user = _create_profile_test_user(client, super_admin_headers)
+    assert user["can_edit_own_name"] is False
+    response = client.patch(
+        f"/users/{user['id']}",
+        json={"display_name": "ویرایش مدیر"},
+        headers=super_admin_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "ویرایش مدیر"
+    assert response.json()["can_edit_own_name"] is False
 
 
 def test_user_profile_validation_duplicate_mass_assignment_and_missing_user(client, super_admin_headers):
