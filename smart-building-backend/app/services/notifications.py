@@ -3,17 +3,28 @@
 from __future__ import annotations
 
 import math
+import os
 from datetime import timedelta
 from uuid import uuid4
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.config import get_app_env, get_bool_setting
 from app.exceptions import SecurityError
 from app.models import Notification, NotificationDelivery, User, UserPreference
 from app.providers.sms import get_sms_provider
+from app.schemas.security import normalize_mobile
 from app.schemas.notifications import NotificationPreferences
 from app.services.security import mask_mobile, utc_now
+
+IN_APP_ACTION_REQUIRED_SMS_BASE = (
+    "یادآوری بامبو:\n"
+    "لطفاً اعلان جدید سامانه را بررسی کرده و اقدام الزامی خود را انجام دهید."
+)
+PLATFORM_CONTRACT_REVIEW_TEMPLATE = "platform_contract_review_reminder"
+PLATFORM_CONTRACT_REVIEW_TITLE = "یادآوری بررسی قرارداد پلتفرم"
+PLATFORM_CONTRACT_REVIEW_SMS_BASE = IN_APP_ACTION_REQUIRED_SMS_BASE
 
 DEFAULT_SMS_CATEGORIES = {
     "AUTH": False,
@@ -25,6 +36,20 @@ DEFAULT_SMS_CATEGORIES = {
     "COMMERCIAL": True,
     "SYSTEM": False,
 }
+
+
+def get_platform_login_url() -> str | None:
+    value = os.getenv("PLATFORM_LOGIN_URL", "").strip()
+    return value or None
+
+
+def build_in_app_action_required_sms() -> str:
+    login_url = get_platform_login_url()
+    return f"{IN_APP_ACTION_REQUIRED_SMS_BASE}\n{login_url}" if login_url else IN_APP_ACTION_REQUIRED_SMS_BASE
+
+
+def build_platform_contract_review_sms() -> str:
+    return build_in_app_action_required_sms()
 
 
 def _preferences_dict(user: User | None) -> dict:
@@ -154,7 +179,7 @@ def create_notification(
         category=category,
         priority=priority,
         template_code=template_code,
-        body=short_body or body,
+        body=build_in_app_action_required_sms() if recipient_user is not None else short_body or body,
         send_sms=send_sms,
     )
     return notification
@@ -176,6 +201,7 @@ def _create_sms_delivery(
     result = None
     failure_code = None
     failure_reason = None
+    normalized_mobile = None
     if not send_sms:
         status = "SKIPPED"
         failure_code = "SMS_DISABLED_FOR_EVENT"
@@ -188,15 +214,26 @@ def _create_sms_delivery(
         status = "SKIPPED"
         failure_code = "SMS_PREFERENCE_DISABLED"
         failure_reason = "SMS is disabled by notification preferences"
+    elif not get_bool_setting("SMS_ENABLED", True):
+        status = "SKIPPED"
+        failure_code = "SMS_PROVIDER_DISABLED"
+        failure_reason = "SMS provider is disabled"
     else:
-        result = get_sms_provider().send_notification(
-            mobile=mobile,
-            template_code=template_code,
-            body=body,
-        )
-        status = "DELIVERED" if result.accepted else "FAILED"
-        failure_code = result.failure_code
-        failure_reason = result.failure_reason
+        try:
+            normalized_mobile = normalize_mobile(mobile)
+        except ValueError:
+            status = "FAILED"
+            failure_code = "SMS_RECIPIENT_INVALID"
+            failure_reason = "Recipient mobile is invalid"
+        if normalized_mobile:
+            result = get_sms_provider().send_notification(
+                mobile=normalized_mobile,
+                template_code=template_code,
+                body=body,
+            )
+            status = "DELIVERED" if result.accepted else "FAILED"
+            failure_code = result.failure_code
+            failure_reason = result.failure_reason
 
     provider = result.provider if result else "bambo"
     provider_status = result.provider_status if result else status.lower()

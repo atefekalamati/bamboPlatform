@@ -10,7 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
-from app.config import get_app_env
+from app.config import get_app_env, get_bool_setting
 
 
 @dataclass(frozen=True)
@@ -163,6 +163,8 @@ class HttpJsonSmsProvider:
 
 
 def get_sms_provider() -> SmsProvider:
+    if not get_bool_setting("SMS_ENABLED", True):
+        return UnconfiguredSmsProvider()
     if get_app_env() in {"development", "test"}:
         return FakeSmsProvider()
     if os.getenv("SMS_PROVIDER", "").strip().lower() == "http_json":
