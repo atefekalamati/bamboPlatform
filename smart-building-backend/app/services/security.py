@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import (
@@ -21,8 +22,10 @@ from app.config import (
 from app.database import get_db
 from app.exceptions import SecurityError
 from app.models import AuditLog, AuthSession, OtpRequest, Permission, Role, User
+from app.providers.sms import get_sms_provider
 from app.rbac import PERMISSIONS, SYSTEM_ROLES
 from app.schemas.security import normalize_mobile
+from app.schemas.security import UserProfilePatch
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -33,6 +36,57 @@ def utc_now() -> datetime:
 
 def mask_mobile(mobile: str) -> str:
     return f"{mobile[:4]}***{mobile[-4:]}"
+
+
+def update_user_profile(
+    db: Session,
+    *,
+    actor: User,
+    target: User,
+    payload: UserProfilePatch,
+    session_id: int | None,
+) -> User:
+    changes = payload.model_dump(exclude_unset=True)
+    old_data: dict[str, object] = {}
+    new_data: dict[str, object] = {}
+    changed_fields: list[str] = []
+    if "display_name" in changes and changes["display_name"] != target.display_name:
+        old_data["display_name"] = target.display_name
+        new_data["display_name"] = changes["display_name"]
+        target.display_name = changes["display_name"]
+        changed_fields.append("display_name")
+    if "mobile" in changes and changes["mobile"] != target.mobile:
+        duplicate = db.query(User.id).filter(User.mobile == changes["mobile"], User.id != target.id).first()
+        if duplicate:
+            raise SecurityError("USER_MOBILE_ALREADY_EXISTS", "این شماره تلفن قبلاً ثبت شده است.", 409, [{"field": "mobile", "reason": "duplicate"}])
+        old_mobile = target.mobile
+        old_data["mobile"] = mask_mobile(old_mobile)
+        new_data["mobile"] = mask_mobile(changes["mobile"])
+        target.mobile = changes["mobile"]
+        changed_fields.append("mobile")
+        db.query(OtpRequest).filter(
+            OtpRequest.mobile == old_mobile,
+            OtpRequest.status == "pending",
+        ).update({OtpRequest.status: "invalidated"}, synchronize_session=False)
+    if not changed_fields:
+        return target
+    add_audit_log(
+        db,
+        action="users.profile_updated",
+        entity_type="User",
+        entity_id=target.id,
+        actor_user_id=actor.id,
+        old_data=old_data,
+        new_data=new_data | {"changed_fields": changed_fields},
+        session_id=session_id,
+    )
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise SecurityError("USER_MOBILE_ALREADY_EXISTS", "این شماره تلفن قبلاً ثبت شده است.", 409, [{"field": "mobile", "reason": "duplicate"}]) from exc
+    db.refresh(target)
+    return target
 
 
 def _otp_hash(public_id: str, code: str) -> str:
@@ -130,17 +184,10 @@ def seed_security_data(db: Session) -> None:
             )
             db.add(role)
             roles_by_name[name] = role
-        elif name == "super_admin":
-            existing = {permission.code for permission in role.permissions}
-            role.permissions.extend(
-                permissions_by_code[code] for code in permission_codes - existing
-            )
-        elif new_permission_codes:
-            existing = {permission.code for permission in role.permissions}
-            role.permissions.extend(
-                permissions_by_code[code]
-                for code in (permission_codes & new_permission_codes) - existing
-            )
+        else:
+            # System roles are code-owned contracts. Keep persisted assignments in
+            # sync after upgrades; custom roles remain untouched.
+            role.permissions = [permissions_by_code[code] for code in permission_codes]
     db.commit()
 
 
@@ -212,19 +259,18 @@ def request_otp(db: Session, mobile: str, ip_address: str | None) -> OtpDispatch
     public_id = str(uuid4())
     code = f"{secrets.randbelow(1_000_000):06d}"
     ttl = get_int_setting("OTP_TTL_SECONDS", 300)
-    if get_app_env() == "production":
-        raise SecurityError(
-            code="OTP_PROVIDER_UNAVAILABLE",
-            message="سرویس ارسال کد موقتاً در دسترس نیست.",
-            status_code=503,
-            errors=[],
-        )
+    delivery = get_sms_provider().send_otp(
+        mobile=mobile,
+        purpose="auth",
+        body=f"کد ورود BAMBO: {code}",
+    )
 
     otp_request = OtpRequest(
         public_id=public_id,
         mobile=mobile,
         code_hash=_otp_hash(public_id, code),
-        provider_status="accepted:console" if get_app_env() != "production" else "accepted",
+        provider_status=delivery.provider_status,
+        provider_message_id=delivery.provider_message_id,
         request_ip=ip_address,
         expires_at=now + timedelta(seconds=ttl),
         max_attempts=get_int_setting("OTP_MAX_ATTEMPTS", 5),
@@ -240,6 +286,15 @@ def request_otp(db: Session, mobile: str, ip_address: str | None) -> OtpDispatch
     )
     db.commit()
     db.refresh(otp_request)
+    if not delivery.accepted:
+        otp_request.status = "failed"
+        db.commit()
+        raise SecurityError(
+            code="OTP_PROVIDER_UNAVAILABLE",
+            message="سرویس ارسال کد موقتاً در دسترس نیست.",
+            status_code=503,
+            errors=[],
+        )
     return OtpDispatch(
         request=otp_request,
         debug_code=code if get_app_env() in {"development", "test"} else None,

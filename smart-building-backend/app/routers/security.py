@@ -34,6 +34,7 @@ from app.schemas.security import (
     UserCreate,
     UserPreferencePatch,
     UserPreferenceRead,
+    UserProfilePatch,
     UserRead,
     UserRolesUpdate,
     UserStatusUpdate,
@@ -48,6 +49,7 @@ from app.services.security import (
     require_permission,
     revoke_session,
     utc_now,
+    update_user_profile,
     verify_otp,
 )
 
@@ -170,6 +172,29 @@ def me(context: AuthContext = Depends(get_auth_context)) -> UserRead:
     return user_read(context.user)
 
 
+@auth_router.patch("/me", response_model=UserRead)
+def patch_my_profile(
+    payload: UserProfilePatch,
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> UserRead:
+    if "mobile" in payload.model_fields_set and payload.mobile != context.user.mobile:
+        raise SecurityError(
+            code="PHONE_CHANGE_VERIFICATION_REQUIRED",
+            message="تغییر شماره حساب نیازمند تأیید OTP شماره جدید است.",
+            status_code=409,
+            errors=[{"field": "mobile", "reason": "otp_verification_required"}],
+        )
+    user = update_user_profile(
+        db,
+        actor=context.user,
+        target=context.user,
+        payload=payload,
+        session_id=context.session.id,
+    )
+    return user_read(user)
+
+
 @auth_router.get("/bootstrap", response_model=AuthBootstrapRead)
 def bootstrap(
     context: AuthContext = Depends(get_auth_context),
@@ -280,6 +305,33 @@ def create_user(
     )
     db.commit()
     db.refresh(user)
+    return user_read(user)
+
+
+@users_router.patch("/{user_id}", response_model=UserRead)
+def patch_user_profile(
+    user_id: int,
+    payload: UserProfilePatch,
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> UserRead:
+    if not _is_super_admin(context.user):
+        raise SecurityError(
+            code="USER_PROFILE_UPDATE_DENIED",
+            message="فقط مدیر کل می‌تواند اطلاعات حساب کاربران دیگر را تغییر دهد.",
+            status_code=403,
+            errors=[],
+        )
+    target = db.get(User, user_id)
+    if target is None:
+        raise SecurityError("USER_NOT_FOUND", "کاربر پیدا نشد.", 404, [])
+    user = update_user_profile(
+        db,
+        actor=context.user,
+        target=target,
+        payload=payload,
+        session_id=context.session.id,
+    )
     return user_read(user)
 
 

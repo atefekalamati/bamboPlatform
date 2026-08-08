@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class Pagination(BaseModel):
@@ -53,14 +53,3 @@ class ActionItem(BaseModel):
     due_at: datetime | None = None
     action_url: str | None = None
     status: str = "open"
-
-
-class EmbedTokenResponse(BaseModel):
-    tenant_id: str
-    workspace_id: str
-    report_id: str
-    dataset_id: str
-    embed_token: str
-    expires_at: datetime
-
-    model_config = ConfigDict(extra="forbid")

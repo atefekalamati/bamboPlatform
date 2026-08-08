@@ -43,8 +43,9 @@ from app.services.experience import (
     upsert_external_evidence,
 )
 from app.services.security import AuthContext, effective_permissions, require_permission
+from app.services.access import enforce_path_pilot_access
 
-router = APIRouter(tags=["customer-experience"])
+router = APIRouter(tags=["customer-experience"], dependencies=[Depends(enforce_path_pilot_access)])
 
 
 @router.get(

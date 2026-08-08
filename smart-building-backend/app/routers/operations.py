@@ -24,8 +24,9 @@ from app.services.operations import (
     update_mission_floor,
 )
 from app.services.security import AuthContext, require_permission
+from app.services.access import enforce_path_pilot_access
 
-router = APIRouter(tags=["missions"])
+router = APIRouter(tags=["missions"], dependencies=[Depends(enforce_path_pilot_access)])
 
 
 def _is_restricted_capture_expert(user: User) -> bool:

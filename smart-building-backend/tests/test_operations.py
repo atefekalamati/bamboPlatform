@@ -179,8 +179,8 @@ def test_mission_f03_stages_5_to_9_and_g3(client, super_admin_headers):
         client.get(
             f"/pilots/{pilot['id']}/missions",
             headers=other_expert_headers,
-        ).json()
-        == []
+        ).status_code
+        == 404
     )
     expert_reschedule = client.patch(
         f"/missions/{mission_id}",

@@ -32,6 +32,13 @@ def can_review_stage(
     return bool(role_names.intersection(allowed_roles))
 
 
+def can_submit_stage(role_names: set[str], stage_number: int) -> bool:
+    if is_super_admin_role_names(role_names):
+        return stage_number in STAGE_MATRIX
+    allowed_roles = STAGE_MATRIX.get(stage_number, {}).get("submit", ())
+    return bool(role_names.intersection(allowed_roles))
+
+
 def scopes_for_roles(role_names: set[str]) -> list[str]:
     if is_super_admin_role_names(role_names):
         return ["ALL"]

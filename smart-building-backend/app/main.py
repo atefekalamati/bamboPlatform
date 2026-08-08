@@ -36,6 +36,7 @@ from app.routers.commercial import router as commercial_router
 from app.routers.security import audit_router, auth_router, roles_router, users_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.reports import router as reports_router
+from app.routers.calls import router as calls_router
 from app.services.security import seed_security_data
 
 
@@ -84,6 +85,7 @@ app.include_router(forms_router)
 app.include_router(notifications_router)
 app.include_router(dashboard_router)
 app.include_router(reports_router)
+app.include_router(calls_router)
 
 
 @app.exception_handler(WorkflowError)

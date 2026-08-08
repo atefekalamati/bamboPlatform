@@ -25,6 +25,7 @@ from app.models import (
 from app.schemas.experience import CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES
 from app.schemas.workflow import PilotCreate, StageReject, StageSubmit
 from app.services.security import add_audit_log
+from app.services.calls import stage_call_requirement_met
 from app.workflow import (
     FINAL_OUTCOMES,
     GATE_DEFINITIONS,
@@ -59,6 +60,7 @@ def create_pilot(db: Session, payload: PilotCreate, actor_user_id: int | None = 
         project_number=project_number,
         project_system_name=system_name,
         display_name=display_name,
+        created_by_user_id=actor_user_id,
     )
     owner = Owner(**payload.owner.model_dump())
     owner.contacts.append(
@@ -95,6 +97,7 @@ def create_pilot(db: Session, payload: PilotCreate, actor_user_id: int | None = 
         entity_type="Pilot",
         entity_id=pilot.id,
         actor_user_id=actor_user_id,
+        pilot_id=pilot.id,
         new_data={"code": pilot.code, "project_system_name": pilot.project_system_name},
     )
     db.commit()
@@ -201,7 +204,7 @@ def _validation_errors(stage_number: int, submission: StageSubmission) -> list[d
 
 
 def _canonical_submission_data(
-    stage: PilotStage, payload: StageSubmit
+    db: Session, stage: PilotStage, payload: StageSubmit
 ) -> tuple[dict, dict[str, bool]]:
     pilot = stage.pilot
     if stage.number in {1, 2}:
@@ -864,7 +867,10 @@ def _canonical_submission_data(
                     item["schedule_slot"]: item["result"] for item in follow_ups
                 },
             },
-            {"follow_up_registered": complete},
+            {
+                "follow_up_registered": complete,
+                "call_policy_completed": stage_call_requirement_met(db, pilot.id, 18),
+            },
         )
     if stage.number == 19:
         outcome = pilot.final_outcome
@@ -961,7 +967,7 @@ def submit_stage(
             errors=[{"field": "stage.status", "label": "وضعیت مرحله", "reason": stage.status}],
         )
 
-    form_data, checklist = _canonical_submission_data(stage, payload)
+    form_data, checklist = _canonical_submission_data(db, stage, payload)
     submitted_at = _now()
     submission = StageSubmission(
         stage=stage,
@@ -993,6 +999,7 @@ def submit_stage(
         entity_type="PilotStage",
         entity_id=stage.id,
         actor_user_id=actor_user_id,
+        pilot_id=stage.pilot_id,
         new_data={"stage": stage.number, "version": submission.version},
     )
     db.commit()
@@ -1046,6 +1053,7 @@ def invalidate_from_stage(
         entity_type="Pilot",
         entity_id=pilot.id,
         actor_user_id=actor_user_id,
+        pilot_id=pilot.id,
         old_data={"current_stage": target.number, "status": "approved"},
         new_data={"current_stage": stage_number, "status": "needs_revision"},
         reason=reason,
@@ -1158,6 +1166,7 @@ def approve_stage(
         entity_type="PilotStage",
         entity_id=stage.id,
         actor_user_id=actor_user_id,
+        pilot_id=stage.pilot_id,
         new_data={"stage": stage.number, "version": submission.version},
         reason=comment,
     )
@@ -1213,6 +1222,7 @@ def reject_stage(
         entity_type="PilotStage",
         entity_id=stage.id,
         actor_user_id=actor_user_id,
+        pilot_id=stage.pilot_id,
         old_data={"status": "submitted"},
         new_data={"status": "needs_revision", "version": submission.version},
         reason=payload.reason or "; ".join(payload.correction_items),

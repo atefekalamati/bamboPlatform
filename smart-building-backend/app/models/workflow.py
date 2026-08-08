@@ -27,6 +27,7 @@ class Pilot(Base):
     current_stage = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime, nullable=False, default=utc_now)
     updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     __table_args__ = (UniqueConstraint("pilot_year", "sequence", name="uq_pilot_year_sequence"),)
 
@@ -120,6 +121,7 @@ class Pilot(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
 
 
 class PilotStage(Base):
