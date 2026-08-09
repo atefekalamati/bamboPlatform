@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CALL_OUTCOMES, mapCall } from "../src/services/callService.js";
+import { stageEighteenSubmissionErrorMessage } from "../src/pages/StageEighteenPage.js";
 
 test("maps the backend call contract without exposing a full destination", () => {
   const result = mapCall({
@@ -22,4 +23,14 @@ test("keeps every backend-supported business outcome", () => {
     "customer_rejected", "invalid_contact", "escalated_to_manager",
     "contract_follow_up", "follow_up_completed",
   ]);
+});
+
+test("explains the backend Stage 18 call requirement without changing its gate", () => {
+  const message = stageEighteenSubmissionErrorMessage({
+    code: "STAGE_VALIDATION_FAILED",
+    errors: [{ field: "checklist.call_policy_completed", reason: "required" }],
+  });
+  assert.match(message, /تماس پاسخ‌داده‌شده یا تکمیل‌شده/);
+  assert.match(message, /Override/);
+  assert.equal(stageEighteenSubmissionErrorMessage({ message: "خطای دیگر" }), "خطای دیگر");
 });

@@ -48,6 +48,8 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
   const actions = node("div", "calls-panel__actions");
   const list = node("div", "calls-list");
   const feedback = node("p", "stage-actions__feedback");
+  list.setAttribute("aria-live", "polite");
+  feedback.setAttribute("aria-live", "polite");
   const canRead = permissions.includes("calls.read");
   const canInitiate = permissions.includes("calls.initiate");
   const canRecord = permissions.includes("calls.record_outcome");
@@ -184,6 +186,16 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
   if (canInitiate) {
     const initiate = node("button", "button button--primary", "آغاز تماس"); initiate.type = "button";
     initiate.addEventListener("click", () => openInitiate(initiate)); actions.append(initiate);
+  }
+  if (canRead) {
+    const refresh = node("button", "button button--ghost", "به‌روزرسانی وضعیت تماس‌ها");
+    refresh.type = "button";
+    refresh.addEventListener("click", async () => {
+      refresh.disabled = true;
+      try { await load("آخرین وضعیت تماس‌ها از سرور دریافت شد."); }
+      finally { refresh.disabled = false; }
+    });
+    actions.append(refresh);
   }
   heading.append(titleArea, actions); section.append(heading, feedback, list);
   if (canRead) load(); else list.append(node("p", "error-state__message", "دسترسی مشاهده تماس‌ها را ندارید."));
