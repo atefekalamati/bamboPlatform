@@ -9,6 +9,62 @@ from app.services.notifications import (
 )
 
 
+def test_ippanel_provider_sends_pattern_payload(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self):
+            return b'{"message_id":"ippanel-message-1","status":"accepted"}'
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["timeout"] = timeout
+        captured["headers"] = dict(request.header_items())
+        import json
+
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SMS_ENABLED", "true")
+    monkeypatch.setenv("SMS_PROVIDER", "ippanel")
+    monkeypatch.setenv("SMS_BASE_URL", "https://edge.ippanel.com/v1")
+    monkeypatch.setenv("SMS_API_KEY", "secret-token")
+    monkeypatch.setenv("SMS_SENDER", "+983000505")
+    monkeypatch.setenv("SMS_TEMPLATE_ID", "spuueljew7dxi3z")
+    monkeypatch.setenv("SMS_TIMEOUT_SECONDS", "7")
+    monkeypatch.setattr("app.providers.sms.urlopen", fake_urlopen)
+
+    from app.providers.sms import get_sms_provider
+
+    result = get_sms_provider().send_notification(
+        mobile="+989120000000",
+        template_code="mission_created",
+        body="ignored by IPPanel pattern adapter",
+    )
+
+    assert result.accepted is True
+    assert result.provider == "ippanel"
+    assert result.provider_message_id == "ippanel-message-1"
+    assert captured["url"] == "https://edge.ippanel.com/v1/api/send"
+    assert captured["timeout"] == 7
+    assert captured["headers"]["Authorization"] == "secret-token"
+    assert captured["payload"] == {
+        "sending_type": "pattern",
+        "from_number": "+983000505",
+        "code": "spuueljew7dxi3z",
+        "recipients": ["+989120000000"],
+    }
+
+
 def create_capture_expert(client, headers, mobile="09156667777"):
     roles = client.get("/roles", headers=headers).json()
     role_id = next(role["id"] for role in roles if role["name"] == "capture_expert")

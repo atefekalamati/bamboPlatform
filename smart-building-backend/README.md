@@ -187,6 +187,12 @@ account, sender line, template/pattern, credit, IP/domain restrictions, and
 delivery-log access are ready; with `SMS_ENABLED=false`, SMS delivery is
 recorded as skipped and no provider request is made.
 
+The approved production SMS adapter is `SMS_PROVIDER=ippanel`. It posts a
+pattern request to IPPanel Edge using `SMS_BASE_URL` or `SMS_API_URL`,
+`SMS_API_KEY` as the Authorization token, `SMS_SENDER` as `from_number`, and
+`SMS_TEMPLATE_ID` as the pattern `code`. These values must be supplied by the
+deployment environment or secret manager and must not be committed.
+
 DWG files currently use the configurable local backend under
 `DWG_STORAGE_ROOT`. `DWG_MAX_BYTES` must be set explicitly in production.
 The PRD still requires a product decision for the final storage backend and
