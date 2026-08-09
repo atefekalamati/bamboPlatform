@@ -17,7 +17,7 @@ import {
 import { missionService } from "../services/missionService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -204,8 +204,8 @@ const missionSummary = (mission, floors, expertName) => {
   const rows = [
     ["کد مأموریت", mission.code],
     ["کارشناس برداشت", expertName || `کاربر ${mission.expertUserId}`],
-    ["شروع", formatPersianDate(mission.scheduledStart)],
-    ["پایان", formatPersianDate(mission.scheduledEnd)],
+    ["شروع", formatPersianDateTime(mission.scheduledStart)],
+    ["پایان", formatPersianDateTime(mission.scheduledEnd)],
     ["محل", mission.location],
     ["هماهنگ‌کننده", `${mission.siteContactName} — ${mission.siteContactMobile}`],
     ["طبقات", floorNames],

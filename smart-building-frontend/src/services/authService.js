@@ -21,6 +21,14 @@ export const authService = Object.freeze({
     return response;
   },
   getCurrentUser: () => request("/auth/me"),
+  updateMyName: async (displayName) => {
+    const user = await request("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify({ display_name: displayName }),
+    });
+    sessionStore.setCurrentUser(user);
+    return user;
+  },
   logout: async () => {
     try {
       await request("/auth/logout", { method: "POST" });

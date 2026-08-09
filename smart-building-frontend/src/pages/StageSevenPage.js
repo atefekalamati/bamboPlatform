@@ -13,6 +13,7 @@ import { dwgService } from "../services/dwgService.js";
 import { missionService } from "../services/missionService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
+import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -39,7 +40,7 @@ const CAPTURE_ITEMS = Object.freeze([
   ["finishedAndSaved", "در نقطه پایان، ضبط متوقف و ذخیره فایل کنترل شد."],
 ]);
 
-const localDateTime = (value) => (value ? value.slice(0, 16) : "");
+const localDateTime = (value) => formatIranDateTimeLocalValue(value);
 
 const floorCaptureForm = ({ floor, state, disabled, onChange }) => {
   const section = element("section", "floor-workspace");

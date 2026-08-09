@@ -29,6 +29,7 @@ from app.schemas.product import (
 )
 from app.models.product import utc_now as product_utc_now
 from app.services.security import AuthContext, add_audit_log, require_permission
+from app.services.access import enforce_path_pilot_access
 from app.services.workflow import invalidate_from_stage
 from app.storage.dwg import (
     delete_storage_key,
@@ -38,7 +39,7 @@ from app.storage.dwg import (
     stage_upload,
 )
 
-router = APIRouter(tags=["project-data"])
+router = APIRouter(tags=["project-data"], dependencies=[Depends(enforce_path_pilot_access)])
 
 F01_STAGE_1_FIELDS = {
     "project_active",

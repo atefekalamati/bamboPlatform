@@ -8,7 +8,8 @@ import { experienceService } from "../services/experienceService.js";
 import { incidentService } from "../services/incidentService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
+import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -35,13 +36,7 @@ const ISSUE_ROUTES = Object.freeze({
   continuation: ["تمایل به ادامه", "sales", "فروش"],
 });
 
-const toDateTimeLocal = (value) => {
-  if (!value) return "";
-  const explicit = /(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? value : `${value}Z`;
-  const date = new Date(explicit);
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-};
+const toDateTimeLocal = (value) => value ? formatIranDateTimeLocalValue(/(?:Z|[+-]\d{2}:\d{2})$/.test(value) ? value : `${value}Z`) : "";
 
 const control = (tag = "input") => {
   const node = document.createElement(tag);
@@ -245,7 +240,7 @@ const incidentCard = ({ incident, canManage, onClosed }) => {
     fieldValue("شدت", incident.severity),
     fieldValue("وضعیت", incident.status),
     fieldValue("شرح", incident.description),
-    fieldValue("مهلت پاسخ", formatPersianDate(incident.responseDueAt)),
+    fieldValue("مهلت پاسخ", formatPersianDateTime(incident.responseDueAt)),
   );
   card.append(element("h2", "stage-form__legend", "رخداد بحرانی باز"), details);
   if (canManage) {

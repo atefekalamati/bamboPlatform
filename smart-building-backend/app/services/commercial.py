@@ -20,7 +20,12 @@ from app.schemas.commercial import (
     FollowUpSlot,
 )
 from app.services.security import add_audit_log, mask_mobile, utc_now
-from app.services.notifications import create_notification
+from app.services.notifications import (
+    PLATFORM_CONTRACT_REVIEW_TEMPLATE,
+    PLATFORM_CONTRACT_REVIEW_TITLE,
+    build_platform_contract_review_sms,
+    create_notification,
+)
 from app.services.workflow import invalidate_from_stage
 
 FOLLOW_UP_SLOT_ORDER = ("day_0", "day_2", "day_5", "day_7_10")
@@ -74,14 +79,14 @@ def _dispatch_follow_up_notification(
         notification_type="commercial.followup_due",
         category="COMMERCIAL",
         priority="NORMAL",
-        title="موعد پیگیری فروش",
+        title=PLATFORM_CONTRACT_REVIEW_TITLE,
         body=f"پیگیری پیشنهاد تجاری پرونده {pilot.code} باید انجام شود.",
-        short_body=f"پیگیری فروش {pilot.code}",
+        short_body=build_platform_contract_review_sms(),
         entity_type="CommercialProposal",
         entity_id=pilot.commercial_proposal.id if pilot.commercial_proposal else None,
         pilot_id=pilot.id,
         action_url=f"/pilots/{pilot.id}/stages/18",
-        template_code="commercial_follow_up_due",
+        template_code=PLATFORM_CONTRACT_REVIEW_TEMPLATE,
         payload={
             "pilot_code": pilot.code,
             "follow_up_at": follow_up_at.isoformat(),

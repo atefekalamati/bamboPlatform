@@ -7,6 +7,7 @@ import {
 import { experienceService } from "../services/experienceService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
+import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -33,11 +34,7 @@ const CHECKS = Object.freeze([
   ["lastVisitChecked", "آخرین بازدید پروژه بررسی شده است."],
 ]);
 
-const toDateTimeLocal = (value) => {
-  const date = value ? new Date(`${value}${/[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? "" : "Z"}`) : new Date();
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-};
+const toDateTimeLocal = (value) => formatIranDateTimeLocalValue(value ? `${value}${/[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? "" : "Z"}` : new Date());
 
 const field = (labelText, control) => {
   const label = element("label", "stage-form__field");

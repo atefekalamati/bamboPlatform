@@ -203,7 +203,7 @@ def test_stage_decision_is_single_use_and_requires_permission(
         headers=sales_headers,
     )
     assert denied.status_code == 403
-    assert denied.json()["code"] == "PERMISSION_DENIED"
+    assert denied.json()["code"] == "STAGE_REVIEWER_DENIED"
 
     approved = client.post(
         f"/pilots/{pilot['id']}/stages/1/approve",

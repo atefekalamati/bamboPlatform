@@ -112,6 +112,26 @@ export const parseJalaliDateTimeInput = (value) => {
     ? result.toISOString() : null;
 };
 
+export const toBackendUtcDateTime = (value) => {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(raw)) {
+    return parseJalaliDateTimeInput(formatJalaliDateTimeInput(raw));
+  }
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+export const formatIranDateTimeLocalValue = (value = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = partsOf(new Intl.DateTimeFormat("en-CA", {
+    timeZone: IRAN_TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }), date);
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+};
+
 export const formatJalaliManualInput = (value, dateTime = false) => {
   const digits = toLatinDigits(value).replace(/\D/g, "").slice(0, dateTime ? 12 : 8);
   const date = [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8)].filter(Boolean).join("/");

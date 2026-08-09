@@ -25,8 +25,9 @@ from app.services.commercial import (
     update_final_outcome,
 )
 from app.services.security import AuthContext, require_permission
+from app.services.access import enforce_path_pilot_access
 
-router = APIRouter(tags=["commercial"])
+router = APIRouter(tags=["commercial"], dependencies=[Depends(enforce_path_pilot_access)])
 
 
 @router.get(

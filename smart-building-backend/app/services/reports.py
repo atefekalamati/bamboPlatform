@@ -30,6 +30,10 @@ STATUS_TO_PIPELINE = {
     "proposal_sent": "proposal_sent", "converted": "converted",
     "completed": "closed", "closed": "closed", "rejected": "closed", "stopped": "closed",
 }
+PIPELINE_TO_STATUSES = {
+    key: frozenset(status for status, group in STATUS_TO_PIPELINE.items() if group == key)
+    for key, _ in PIPELINE
+}
 EVIDENCE_LABELS = {
     "project_summary": "خلاصه وضعیت پروژه", "actual_progress": "پیشرفت واقعی",
     "delay_amount": "میزان عقب‌ماندگی", "last_visit": "آخرین بازدید",
@@ -118,7 +122,13 @@ def _filter_pilots(db: Session, context, filters: ReportFilters) -> list[Pilot]:
         assignee_id, _ = _assignee(pilot)
         if filters.pilot_id and pilot.id != filters.pilot_id: continue
         if filters.project_id and (not pilot.project or pilot.project.id != filters.project_id): continue
-        if filters.pilot_status and pilot.status != filters.pilot_status: continue
+        if filters.pilot_status:
+            allowed_statuses = PIPELINE_TO_STATUSES.get(filters.pilot_status)
+            if allowed_statuses is not None:
+                if pilot.status not in allowed_statuses:
+                    continue
+            elif pilot.status != filters.pilot_status:
+                continue
         if filters.stage and pilot.current_stage != filters.stage: continue
         if filters.stage_status and (not stage or stage.status != filters.stage_status): continue
         if filters.gate and (not gate or gate.code != filters.gate): continue
@@ -173,7 +183,16 @@ def report_overview(db: Session, context, filters: ReportFilters) -> ReportRespo
 
 def report_pipeline(db: Session, context, filters: ReportFilters) -> ReportResponse:
     pilots = _filter_pilots(db, context, filters); counts = Counter(STATUS_TO_PIPELINE.get(p.status, "closed") for p in pilots)
-    items = [{"key": key, "label": label, "count": counts[key], "drill_down_filter": {"pilot_status": key}} for key, label in PIPELINE]
+    items = [
+        {
+            "key": key,
+            "label": label,
+            "count": counts[key],
+            "source_statuses": sorted(PIPELINE_TO_STATUSES[key]),
+            "drill_down_filter": {"pilot_status": key},
+        }
+        for key, label in PIPELINE
+    ]
     return ReportResponse(generated_at=_now().replace(tzinfo=UTC), filters=_filters_dict(filters), summary={"total": len(pilots)}, items=items, state=_state(db, pilots))
 
 

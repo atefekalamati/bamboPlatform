@@ -10,6 +10,7 @@ const mapUser = (user) => ({
   id: user.id,
   mobile: user.mobile,
   displayName: user.display_name,
+  canEditOwnName: Boolean(user.can_edit_own_name),
   isActive: user.is_active,
   lockedAt: user.locked_at,
   roles: user.roles.map(mapRole),
@@ -28,6 +29,20 @@ export const userService = Object.freeze({
           role_ids: roleIds,
           is_active: isActive,
         }),
+      }),
+    ),
+  updateName: async (userId, displayName) =>
+    mapUser(
+      await request(`/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ display_name: displayName }),
+      }),
+    ),
+  updateOwnNamePermission: async (userId, canEditOwnName) =>
+    mapUser(
+      await request(`/users/${userId}/own-name-edit-permission`, {
+        method: "PATCH",
+        body: JSON.stringify({ can_edit_own_name: canEditOwnName }),
       }),
     ),
   updateRoles: async (userId, roleIds) =>

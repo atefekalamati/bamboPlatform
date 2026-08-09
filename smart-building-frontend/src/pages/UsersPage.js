@@ -5,12 +5,14 @@ import { Modal } from "../components/Modal.js";
 import { Pagination } from "../components/Pagination.js";
 import { UserCard } from "../components/UserCard.js";
 import { UserForm } from "../components/UserForm.js";
+import { UserProfileForm } from "../components/UserProfileForm.js";
 import {
   matchesUserStatus,
   USER_STATUS_FILTERS,
 } from "../features/users/userFilters.js";
 import { roleService } from "../services/roleService.js";
 import { userService } from "../services/userService.js";
+import { authService } from "../services/authService.js";
 import { debounce } from "../utils/debounce.js";
 import { normalizeDigits } from "../utils/phoneNumber.js";
 
@@ -40,6 +42,7 @@ const includesQuery = (user, query) => {
   const normalized = normalizeDigits(query).trim().toLocaleLowerCase("fa-IR");
   if (!normalized) return true;
   return [
+    String(user.id),
     user.displayName,
     user.mobile,
     ...user.roles.flatMap(({ name, displayName }) => [name, displayName]),
@@ -54,9 +57,9 @@ export const UsersPage = () => {
   const statusFilter = element("div", "user-status-filter");
   const create = element("button", "button button--primary", "ایجاد کاربر");
   const region = element("section", "users-region");
-  const canManage = sessionStore
-    .getCurrentUser()
-    ?.permissions.includes("users.manage");
+  const currentUser = sessionStore.getCurrentUser();
+  const canManage = currentUser?.permissions.includes("users.manage");
+  const isSuperAdmin = currentUser?.roles?.some(({ name }) => name === "super_admin") ?? false;
   let users = [];
   let currentPage = 1;
   let activeStatusFilter = "all";
@@ -117,6 +120,22 @@ export const UsersPage = () => {
         EmptyState({
           title: "کاربری پیدا نشد",
           description: "عبارت جست‌وجو یا فیلتر وضعیت را تغییر دهید و دوباره تلاش کنید.",
+          actions: [
+            {
+              label: "پاک‌کردن فیلترها",
+              onClick: () => {
+                search.value = "";
+                activeStatusFilter = "all";
+                currentPage = 1;
+                statusButtons.forEach((button, status) =>
+                  button.setAttribute("aria-pressed", String(status === "all")),
+                );
+                render();
+                search.focus();
+              },
+            },
+            ...(canManage ? [{ label: "ایجاد کاربر", className: "button button--primary", onClick: () => create.click() }] : []),
+          ],
         }),
       );
       return;
@@ -128,7 +147,11 @@ export const UsersPage = () => {
         UserCard({
           user,
           canManage,
+          canEditOwnName:
+            Number(user.id) === Number(currentUser?.id) &&
+            Boolean(currentUser?.can_edit_own_name),
           onEdit: openForm,
+          onEditOwnName: openOwnNameForm,
           onToggleStatus: async (targetUser, trigger) => {
             const action = targetUser.isActive ? "غیرفعال" : "فعال";
             if (
@@ -193,6 +216,26 @@ export const UsersPage = () => {
     }
   };
 
+  const openOwnNameForm = (user, trigger) => {
+    let modal;
+    const editingSelf = Number(user.id) === Number(currentUser?.id);
+    const form = UserProfileForm({
+      user,
+      onSubmit: async (payload) => {
+        const updated = await authService.updateMyName(payload.display_name);
+        modal.close();
+        await loadUsers();
+        if (editingSelf) document.querySelector(".app-header__user-name")?.replaceChildren(document.createTextNode(updated.displayName ?? updated.display_name));
+      },
+      onCancel: () => modal.close(),
+    });
+    modal = Modal({
+      title: editingSelf ? "تغییر نام من" : `تغییر نام ${user.displayName}`,
+      content: form,
+      triggerElement: trigger,
+    });
+  };
+
   const openForm = async (user = null, trigger = create) => {
     trigger.disabled = true;
     try {
@@ -201,6 +244,8 @@ export const UsersPage = () => {
       const form = UserForm({
         user,
         roles,
+        canEditName: isSuperAdmin,
+        canManageOwnNamePermission: isSuperAdmin,
         onSubmit: async (values) => {
           if (!user) {
             await userService.createUser(values);
@@ -209,21 +254,38 @@ export const UsersPage = () => {
             const nextRoleIds = [...values.roleIds].sort();
             const rolesChanged =
               initialRoleIds.join(",") !== nextRoleIds.join(",");
+            const nameChanged =
+              isSuperAdmin && values.displayName !== user.displayName;
             if (
-              (rolesChanged || values.statusChanged) &&
+              (nameChanged || rolesChanged || values.statusChanged || values.ownNamePermissionChanged) &&
               !(await confirmDialog({
                 title: "تأیید تغییرات کاربر",
-                message: "تغییر نقش یا وضعیت این کاربر را تأیید می‌کنید؟",
+                message: "تغییر نام، نقش، دسترسی یا وضعیت این کاربر را تأیید می‌کنید؟",
                 confirmLabel: "تأیید تغییرات",
               }))
             ) {
               throw new Error("تغییرات توسط شما لغو شد.");
+            }
+            if (nameChanged) {
+              await userService.updateName(user.id, values.displayName);
             }
             if (rolesChanged) {
               await userService.updateRoles(user.id, values.roleIds);
             }
             if (values.statusChanged) {
               await userService.updateStatus(user.id, values);
+            }
+            if (values.ownNamePermissionChanged) {
+              await userService.updateOwnNamePermission(user.id, values.canEditOwnName);
+            }
+            if (Number(user.id) === Number(currentUser?.id) && nameChanged) {
+              sessionStore.setCurrentUser({
+                ...sessionStore.getCurrentUser(),
+                display_name: values.displayName,
+              });
+              document.querySelector(".app-header__user-name")?.replaceChildren(
+                document.createTextNode(values.displayName),
+              );
             }
           }
           modal.close();

@@ -101,6 +101,19 @@ export const PilotsPage = () => {
         EmptyState({
           title: "پرونده‌ای پیدا نشد",
           description: "فیلترها را تغییر دهید یا یک پرونده جدید ایجاد کنید.",
+          actions: [
+            {
+              label: "پاک‌کردن فیلترها",
+              onClick: () => {
+                search.value = "";
+                status.value = "";
+                currentPage = 1;
+                render();
+                search.focus();
+              },
+            },
+            ...(canCreate ? [{ label: "ایجاد پرونده", className: "button button--primary", onClick: () => create.click() }] : []),
+          ],
         }),
       );
       return;

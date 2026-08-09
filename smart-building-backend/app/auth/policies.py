@@ -18,6 +18,27 @@ def is_super_admin_role_names(role_names: set[str]) -> bool:
     return "super_admin" in role_names
 
 
+def can_review_stage(
+    role_names: set[str],
+    stage_number: int,
+    action: str,
+) -> bool:
+    """Authorize the configured reviewer or the general-manager substitute."""
+    if action not in {"approve", "reject"}:
+        return False
+    if is_super_admin_role_names(role_names):
+        return stage_number in STAGE_MATRIX
+    allowed_roles = STAGE_MATRIX.get(stage_number, {}).get("approve", ())
+    return bool(role_names.intersection(allowed_roles))
+
+
+def can_submit_stage(role_names: set[str], stage_number: int) -> bool:
+    if is_super_admin_role_names(role_names):
+        return stage_number in STAGE_MATRIX
+    allowed_roles = STAGE_MATRIX.get(stage_number, {}).get("submit", ())
+    return bool(role_names.intersection(allowed_roles))
+
+
 def scopes_for_roles(role_names: set[str]) -> list[str]:
     if is_super_admin_role_names(role_names):
         return ["ALL"]

@@ -1,5 +1,5 @@
 import { formService } from "../services/formService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
 const element = (tag, className = "", text = "") => {
   const node = document.createElement(tag);
@@ -243,7 +243,7 @@ export const PilotFormsPanel = ({ pilotId }) => {
           element("td", "", `${form.form_code} — ${form.title}`),
           element("td", "", form.status_label),
           element("td", "", String(form.printable_count)),
-          element("td", "", formatPersianDate(form.last_changed)),
+          element("td", "", formatPersianDateTime(form.last_changed)),
         );
         const actions = document.createElement("td");
         actions.append(renderActions(instance));
@@ -258,7 +258,7 @@ export const PilotFormsPanel = ({ pilotId }) => {
           element("td", "", index === 0 ? `${form.form_code} — ${form.title}` : instance.title),
           element("td", "", instance.is_complete ? "کامل" : "ناقص"),
           element("td", "", "۱"),
-          element("td", "", formatPersianDate(instance.last_changed)),
+          element("td", "", formatPersianDateTime(instance.last_changed)),
         );
         const actions = document.createElement("td");
         actions.append(renderActions(instance));

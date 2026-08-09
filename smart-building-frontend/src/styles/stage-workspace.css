@@ -333,6 +333,34 @@ textarea.stage-form__control {
   color: var(--color-text-secondary);
 }
 
+.stage-actions--normalized {
+  margin-block-start: var(--space-4);
+}
+
+.stage-actions > [data-stage-action],
+.form-actions > [data-stage-action] {
+  min-width: 10rem;
+  min-height: 2.75rem;
+}
+
+.stage-actions > [data-stage-action="reject"],
+.form-actions > [data-stage-action="reject"] {
+  margin-inline-start: auto;
+}
+
+@media (max-width: 40rem) {
+  .stage-actions > [data-stage-action],
+  .form-actions > [data-stage-action] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .stage-actions > [data-stage-action="reject"],
+  .form-actions > [data-stage-action="reject"] {
+    margin-inline-start: 0;
+  }
+}
+
 .dwg-versions {
   display: grid;
   gap: var(--space-2);

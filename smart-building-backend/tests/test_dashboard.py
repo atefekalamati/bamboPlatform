@@ -1,4 +1,29 @@
-from conftest import login_with_otp, sample_pilot_payload
+from conftest import login_with_otp, prepare_pilot_through_g2, sample_pilot_payload
+
+
+def _create_capture_expert(client, headers, mobile="09157777777"):
+    roles = client.get("/roles", headers=headers).json()
+    role_id = next(role["id"] for role in roles if role["name"] == "capture_expert")
+    response = client.post(
+        "/users",
+        json={"mobile": mobile, "display_name": "کارشناس برداشت محدود", "role_ids": [role_id]},
+        headers=headers,
+    )
+    assert response.status_code == 201, response.json()
+    return response.json()
+
+
+def _mission_payload(expert_id, floor_ids):
+    return {
+        "expert_user_id": expert_id,
+        "scheduled_start": "2027-01-10T08:00:00+00:00",
+        "scheduled_end": "2027-01-10T10:00:00+00:00",
+        "floor_ids": floor_ids,
+        "location": "محل پروژه",
+        "site_contact_name": "هماهنگ‌کننده",
+        "site_contact_mobile": "09152222222",
+        "limitation": "ندارد",
+    }
 
 
 def test_dashboard_summary_and_pilot_list(client, super_admin_headers):
@@ -30,12 +55,11 @@ def test_dashboard_sections_and_actions(client, super_admin_headers):
     assert actions.json()["items"][0]["entity_type"] == "stage"
 
 
-def test_dashboard_requires_permission_and_embed_never_exposes_secret(client, super_admin_headers):
+def test_dashboard_requires_permission_and_powerbi_route_is_removed(client, super_admin_headers):
     no_auth = client.get("/api/v1/dashboard/summary")
     assert no_auth.status_code == 401
     embed = client.get("/api/v1/dashboard/powerbi/embed-token", headers=super_admin_headers)
-    assert embed.status_code == 503
-    assert "POWERBI" not in embed.text
+    assert embed.status_code == 404
 
 
 def test_dashboard_no_data_state(client, super_admin_headers):
@@ -55,3 +79,30 @@ def test_dashboard_scope_does_not_leak_unassigned_pilots(client, super_admin_hea
     assert response.status_code == 200
     assert response.json()["state"] == "NO_ACCESS"
     assert response.json()["items"] == []
+    assert client.get("/pilots", headers=scoped_headers).json() == []
+    assert client.get(f"/pilots/{created.json()['id']}", headers=scoped_headers).status_code == 404
+
+
+def test_capture_expert_only_sees_pilot_assigned_through_mission(client, super_admin_headers):
+    assigned, floors = prepare_pilot_through_g2(client, super_admin_headers, total_floors=1)
+    unassigned = client.post("/pilots", json=sample_pilot_payload(), headers=super_admin_headers)
+    assert unassigned.status_code == 201
+    expert = _create_capture_expert(client, super_admin_headers, "09158887777")
+    mission = client.post(
+        f"/pilots/{assigned['id']}/missions",
+        json=_mission_payload(expert["id"], [floor["id"] for floor in floors]),
+        headers=super_admin_headers,
+    )
+    assert mission.status_code == 201, mission.json()
+    expert_headers = login_with_otp(client, "09158887777")
+
+    pilot_list = client.get("/pilots", headers=expert_headers)
+    assert pilot_list.status_code == 200
+    assert [pilot["id"] for pilot in pilot_list.json()] == [assigned["id"]]
+    assert client.get(f"/pilots/{assigned['id']}", headers=expert_headers).status_code == 200
+    assert client.get(f"/pilots/{unassigned.json()['id']}", headers=expert_headers).status_code == 404
+
+    dashboard = client.get("/api/v1/dashboard/pilots", headers=expert_headers).json()
+    assert [pilot["id"] for pilot in dashboard["items"]] == [assigned["id"]]
+    summary = client.get("/api/v1/dashboard/summary", headers=expert_headers).json()
+    assert summary["summary"]["total_pilots"] == 1

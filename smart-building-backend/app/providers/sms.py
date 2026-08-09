@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import os
 from typing import Protocol
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from uuid import uuid4
 
-from app.config import get_app_env
+from app.config import get_app_env, get_bool_setting
 
 
 @dataclass(frozen=True)
@@ -100,7 +104,158 @@ class UnconfiguredSmsProvider:
         )
 
 
+class HttpJsonSmsProvider:
+    """Provider-neutral HTTPS JSON adapter; credentials never leave the backend."""
+
+    provider = "http_json"
+
+    def __init__(self) -> None:
+        self.url = os.environ["SMS_API_URL"]
+        self.api_key = os.environ["SMS_API_KEY"]
+        self.sender = os.environ["SMS_SENDER"]
+        self.timeout = float(os.getenv("SMS_TIMEOUT_SECONDS", "10"))
+
+    def _send(self, *, mobile: str, body: str, kind: str, reference: str) -> SmsSendResult:
+        payload = json.dumps({
+            "to": mobile,
+            "from": self.sender,
+            "message": body,
+            "type": kind,
+            "reference": reference,
+        }).encode("utf-8")
+        request = Request(
+            self.url,
+            data=payload,
+            method="POST",
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+        )
+        try:
+            with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - HTTPS validated by readiness
+                data = json.loads(response.read().decode("utf-8") or "{}")
+            message_id = data.get("message_id") or data.get("id")
+            accepted = data.get("accepted", True) is not False and bool(message_id)
+            return SmsSendResult(
+                accepted=accepted,
+                provider=self.provider,
+                provider_status=str(data.get("status") or ("accepted" if accepted else "rejected"))[:80],
+                provider_message_id=str(message_id) if message_id else None,
+                failure_code=None if accepted else "SMS_REJECTED",
+                retryable=False,
+            )
+        except (HTTPError, URLError, TimeoutError, ValueError, OSError):
+            return SmsSendResult(
+                accepted=False,
+                provider=self.provider,
+                provider_status="transport_error",
+                failure_code="SMS_TRANSPORT_ERROR",
+                failure_reason="SMS transport request failed",
+                retryable=True,
+            )
+
+    def send_otp(self, *, mobile: str, purpose: str, body: str) -> SmsSendResult:
+        return self._send(mobile=mobile, body=body, kind="otp", reference=purpose)
+
+    def send_notification(self, *, mobile: str, template_code: str, body: str) -> SmsSendResult:
+        return self._send(mobile=mobile, body=body, kind="notification", reference=template_code)
+
+    def get_delivery_status(self, *, provider_message_id: str) -> SmsSendResult:
+        return SmsSendResult(False, self.provider, "status_not_supported", provider_message_id)
+
+
+class IpPanelSmsProvider:
+    """IPPanel Edge pattern adapter for operational SMS notifications."""
+
+    provider = "ippanel"
+
+    def __init__(self) -> None:
+        base_url = os.getenv("SMS_BASE_URL", "https://edge.ippanel.com/v1").rstrip("/")
+        self.url = os.getenv("SMS_API_URL", f"{base_url}/api/send")
+        self.api_token = os.environ["SMS_API_KEY"]
+        self.sender = os.environ["SMS_SENDER"]
+        self.pattern_code = os.environ["SMS_TEMPLATE_ID"]
+        self.timeout = float(os.getenv("SMS_TIMEOUT_SECONDS", "10"))
+
+    def _send_pattern(self, *, mobile: str, reference: str) -> SmsSendResult:
+        payload = json.dumps({
+            "sending_type": "pattern",
+            "from_number": self.sender,
+            "code": self.pattern_code,
+            "recipients": [mobile],
+        }).encode("utf-8")
+        request = Request(
+            self.url,
+            data=payload,
+            method="POST",
+            headers={"Authorization": self.api_token, "Content-Type": "application/json"},
+        )
+        try:
+            with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - HTTPS validated by readiness
+                raw_body = response.read().decode("utf-8") or "{}"
+            try:
+                data = json.loads(raw_body)
+            except ValueError:
+                data = {"raw": raw_body}
+            nested_data = data.get("data")
+            message_id = (
+                data.get("message_id")
+                or data.get("id")
+                or data.get("bulk_id")
+                or data.get("tracking_code")
+                or (nested_data.get("message_id") if isinstance(nested_data, dict) else None)
+            )
+            accepted = 200 <= response.status < 300
+            return SmsSendResult(
+                accepted=accepted,
+                provider=self.provider,
+                provider_status=str(data.get("status") or ("accepted" if accepted else "rejected"))[:80],
+                provider_message_id=str(message_id or reference) if accepted else None,
+                failure_code=None if accepted else "SMS_REJECTED",
+                retryable=False,
+            )
+        except HTTPError as exc:
+            retryable = 500 <= exc.code < 600
+            return SmsSendResult(
+                accepted=False,
+                provider=self.provider,
+                provider_status=f"http_{exc.code}",
+                failure_code="SMS_PROVIDER_ERROR" if retryable else "SMS_REJECTED",
+                failure_reason="SMS provider rejected the request",
+                retryable=retryable,
+            )
+        except (URLError, TimeoutError, ValueError, OSError):
+            return SmsSendResult(
+                accepted=False,
+                provider=self.provider,
+                provider_status="transport_error",
+                failure_code="SMS_TRANSPORT_ERROR",
+                failure_reason="SMS transport request failed",
+                retryable=True,
+            )
+
+    def send_otp(self, *, mobile: str, purpose: str, body: str) -> SmsSendResult:
+        return self._send_pattern(mobile=mobile, reference=purpose)
+
+    def send_notification(self, *, mobile: str, template_code: str, body: str) -> SmsSendResult:
+        return self._send_pattern(mobile=mobile, reference=template_code)
+
+    def get_delivery_status(self, *, provider_message_id: str) -> SmsSendResult:
+        return SmsSendResult(False, self.provider, "status_not_supported", provider_message_id)
+
+
 def get_sms_provider() -> SmsProvider:
+    if not get_bool_setting("SMS_ENABLED", True):
+        return UnconfiguredSmsProvider()
     if get_app_env() in {"development", "test"}:
         return FakeSmsProvider()
+    sms_provider = os.getenv("SMS_PROVIDER", "").strip().lower()
+    if sms_provider == "http_json":
+        try:
+            return HttpJsonSmsProvider()
+        except KeyError:
+            return UnconfiguredSmsProvider()
+    if sms_provider == "ippanel":
+        try:
+            return IpPanelSmsProvider()
+        except KeyError:
+            return UnconfiguredSmsProvider()
     return UnconfiguredSmsProvider()

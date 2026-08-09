@@ -61,13 +61,20 @@ const roleSelector = (roles, selectedRoleIds) => {
   };
 };
 
-export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
+export const UserForm = ({
+  user,
+  roles,
+  canEditName = false,
+  canManageOwnNamePermission = false,
+  onSubmit,
+  onCancel,
+}) => {
   const form = document.createElement("form");
   const feedback = document.createElement("div");
   const name = field({
     id: "user-display-name",
     label: "نام و نام خانوادگی",
-    readOnly: Boolean(user),
+    readOnly: Boolean(user) && !canEditName,
   });
   const mobile = field({
     id: "user-mobile",
@@ -76,6 +83,9 @@ export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
   });
   const selectedRoleIds = new Set(user?.roles.map(({ id }) => id) ?? []);
   const rolesField = roleSelector(roles, selectedRoleIds);
+  const ownNamePermissionLabel = document.createElement("label");
+  const ownNamePermission = document.createElement("input");
+  const ownNamePermissionText = document.createElement("span");
   const statusLabel = document.createElement("label");
   const status = document.createElement("select");
   const reason = field({ id: "status-reason", label: "دلیل تغییر وضعیت" });
@@ -91,6 +101,12 @@ export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
   name.input.value = user?.displayName ?? "";
   mobile.input.value = user?.mobile ?? "";
   mobile.input.inputMode = "tel";
+  ownNamePermissionLabel.className = "role-selector__item";
+  ownNamePermission.type = "checkbox";
+  ownNamePermission.checked = Boolean(user?.canEditOwnName);
+  ownNamePermissionText.textContent = "اجازه تغییر نام توسط خود کاربر";
+  ownNamePermissionLabel.append(ownNamePermission, ownNamePermissionText);
+  ownNamePermissionLabel.hidden = !user || !canManageOwnNamePermission;
   statusLabel.className = "form-field";
   statusLabel.append(document.createElement("span"), status);
   statusLabel.firstElementChild.className = "form-field__label";
@@ -118,7 +134,7 @@ export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
     const statusChanged =
       Boolean(user) && (status.value === "active") !== user.isActive;
     const reasonValue = reason.input.value.trim();
-    const validName = user || (displayName.length >= 2 && displayName.length <= 120);
+    const validName = displayName.length >= 2 && displayName.length <= 120;
     const validMobile = user || isValidIranianMobile(normalizedMobile);
     const validReason = !statusChanged || reasonValue.length >= 2;
 
@@ -140,6 +156,9 @@ export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
         displayName,
         mobile: normalizedMobile,
         roleIds,
+        canEditOwnName: ownNamePermission.checked,
+        ownNamePermissionChanged:
+          Boolean(user) && ownNamePermission.checked !== Boolean(user.canEditOwnName),
         isActive: status.value === "active",
         statusChanged,
         reason: reasonValue,
@@ -160,6 +179,7 @@ export const UserForm = ({ user, roles, onSubmit, onCancel }) => {
     name.wrapper,
     mobile.wrapper,
     rolesField.fieldset,
+    ownNamePermissionLabel,
     statusLabel,
     reason.wrapper,
     actions,

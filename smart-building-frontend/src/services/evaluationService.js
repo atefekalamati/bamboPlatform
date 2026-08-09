@@ -1,4 +1,5 @@
 import { request } from "./httpClient.js";
+import { toBackendUtcDateTime } from "../utils/jalaliDateTime.js";
 
 export const evaluationService = Object.freeze({
   getEvaluation: async (pilotId) => {
@@ -33,7 +34,7 @@ export const evaluationService = Object.freeze({
       method: "PUT",
       body: JSON.stringify({
         status: values.status,
-        checked_at: new Date(values.checkedAt).toISOString(),
+        checked_at: toBackendUtcDateTime(values.checkedAt),
         result: values.result?.trim() || null,
       }),
     }),
