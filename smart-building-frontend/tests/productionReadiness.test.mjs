@@ -43,3 +43,12 @@ test("all stage routes install the shared action layout", async () => {
   const router = await readFile(new URL("../src/app/router.js", import.meta.url), "utf8");
   assert.match(router, /installStageActionLayout/);
 });
+
+test("dashboard does not expose the removed Power BI backend contract", async () => {
+  const dashboard = await readFile(new URL("../src/pages/DashboardPage.js", import.meta.url), "utf8");
+  const service = await readFile(new URL("../src/services/dashboardService.js", import.meta.url), "utf8");
+  const nginx = await readFile(new URL("../nginx.conf", import.meta.url), "utf8");
+  assert.doesNotMatch(dashboard, /PowerBI|powerbi|reports\.powerbi/i);
+  assert.doesNotMatch(service, /getPowerBIEmbed|embed-token/i);
+  assert.doesNotMatch(nginx, /powerbi\.com/i);
+});
