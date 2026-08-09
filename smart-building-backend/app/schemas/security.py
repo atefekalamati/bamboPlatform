@@ -65,9 +65,17 @@ class UserRead(BaseModel):
 
 class AuthToken(BaseModel):
     access_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
     expires_in: int
+    refresh_expires_in: int | None = None
     user: UserRead
+
+
+class RefreshTokenInput(BaseModel):
+    refresh_token: str = Field(min_length=32, max_length=512)
+
+    model_config = {"extra": "forbid"}
 
 
 class UserPreferenceRead(BaseModel):

@@ -131,7 +131,7 @@ def _verify_test_otp(
     barrier.wait()
     with database.get_session() as db:
         try:
-            token, _, user = verify_otp(db, request_id, code, "127.0.0.1")
+            token, _, _, _, user = verify_otp(db, request_id, code, "127.0.0.1")
             return token, user.id
         except SecurityError as exc:
             db.rollback()

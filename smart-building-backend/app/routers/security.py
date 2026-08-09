@@ -25,6 +25,7 @@ from app.schemas.security import (
     OtpVerifyInput,
     PermissionGroupRead,
     PermissionRead,
+    RefreshTokenInput,
     RoleClone,
     RoleCreate,
     RolePermissionsUpdate,
@@ -48,6 +49,7 @@ from app.services.security import (
     mask_mobile,
     request_otp,
     require_permission,
+    refresh_session,
     revoke_session,
     utc_now,
     update_user_profile,
@@ -166,8 +168,41 @@ def otp_verify_endpoint(
     request: Request,
     db: Session = Depends(get_db),
 ) -> AuthToken:
-    token, expires_in, user = verify_otp(db, payload.request_id, payload.code, client_ip(request))
-    return AuthToken(access_token=token, expires_in=expires_in, user=user_read(user))
+    access_token, refresh_token, expires_in, refresh_expires_in, user = verify_otp(
+        db,
+        payload.request_id,
+        payload.code,
+        client_ip(request),
+        request.headers.get("user-agent"),
+    )
+    return AuthToken(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=expires_in,
+        refresh_expires_in=refresh_expires_in,
+        user=user_read(user),
+    )
+
+
+@auth_router.post("/refresh", response_model=AuthToken)
+def refresh_endpoint(
+    payload: RefreshTokenInput,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AuthToken:
+    access_token, refresh_token, expires_in, refresh_expires_in, user = refresh_session(
+        db,
+        payload.refresh_token,
+        ip_address=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return AuthToken(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=expires_in,
+        refresh_expires_in=refresh_expires_in,
+        user=user_read(user),
+    )
 
 
 @auth_router.get("/me", response_model=UserRead)
@@ -228,10 +263,11 @@ def bootstrap(
 
 @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
+    payload: RefreshTokenInput | None = None,
     context: AuthContext = Depends(get_auth_context),
     db: Session = Depends(get_db),
 ) -> None:
-    revoke_session(db, context)
+    revoke_session(db, context, payload.refresh_token if payload else None)
 
 
 @auth_router.get("/preferences", response_model=UserPreferenceRead)

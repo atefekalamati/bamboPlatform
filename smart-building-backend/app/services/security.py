@@ -125,6 +125,18 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _new_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
+def access_token_ttl_seconds() -> int:
+    return get_int_setting("AUTH_ACCESS_TTL_SECONDS", 900)
+
+
+def refresh_token_ttl_seconds() -> int:
+    return get_int_setting("AUTH_REFRESH_TTL_SECONDS", 60 * 60 * 24 * 30)
+
+
 def _transaction_lock(db: Session, scope: str) -> None:
     """Serialize a small authentication scope across PostgreSQL workers."""
     if db.get_bind().dialect.name != "postgresql":
@@ -330,8 +342,12 @@ def request_otp(db: Session, mobile: str, ip_address: str | None) -> OtpDispatch
 
 
 def verify_otp(
-    db: Session, request_id: str, code: str, ip_address: str | None
-) -> tuple[str, int, User]:
+    db: Session,
+    request_id: str,
+    code: str,
+    ip_address: str | None,
+    user_agent: str | None = None,
+) -> tuple[str, str, int, int, User]:
     now = utc_now()
     otp_request = (
         db.query(OtpRequest)
@@ -384,13 +400,19 @@ def verify_otp(
         )
 
     session_started_at = utc_now()
-    token = secrets.token_urlsafe(32)
-    session_ttl = get_int_setting("AUTH_SESSION_TTL_SECONDS", 28800)
+    token = _new_token()
+    refresh_token = _new_token()
+    session_ttl = access_token_ttl_seconds()
+    refresh_ttl = refresh_token_ttl_seconds()
     auth_session = AuthSession(
         user=user,
         token_hash=_token_hash(token),
+        refresh_token_hash=_token_hash(refresh_token),
         created_at=session_started_at,
         expires_at=session_started_at + timedelta(seconds=session_ttl),
+        refresh_expires_at=session_started_at + timedelta(seconds=refresh_ttl),
+        ip_address=ip_address,
+        user_agent=user_agent[:500] if user_agent else None,
     )
     user.last_login_at = session_started_at
     db.add(auth_session)
@@ -406,7 +428,93 @@ def verify_otp(
     )
     db.commit()
     db.refresh(user)
-    return token, session_ttl, user
+    return token, refresh_token, session_ttl, refresh_ttl, user
+
+
+def refresh_session(
+    db: Session,
+    refresh_token: str,
+    *,
+    ip_address: str | None,
+    user_agent: str | None = None,
+) -> tuple[str, str, int, int, User]:
+    now = utc_now()
+    refresh_hash = _token_hash(refresh_token)
+    auth_session = (
+        db.query(AuthSession)
+        .filter(AuthSession.refresh_token_hash == refresh_hash)
+        .with_for_update()
+        .first()
+    )
+    if auth_session is None:
+        reused_session = (
+            db.query(AuthSession)
+            .filter(AuthSession.previous_refresh_token_hash == refresh_hash)
+            .with_for_update()
+            .first()
+        )
+        if reused_session is not None:
+            db.query(AuthSession).filter(
+                AuthSession.user_id == reused_session.user_id,
+                AuthSession.revoked_at.is_(None),
+            ).update({AuthSession.revoked_at: now}, synchronize_session=False)
+            add_audit_log(
+                db,
+                action="auth.refresh_reuse_detected",
+                entity_type="AuthSession",
+                entity_id=reused_session.id,
+                actor_user_id=reused_session.user_id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                session_id=reused_session.id,
+            )
+            db.commit()
+        raise SecurityError(
+            code="REFRESH_INVALID",
+            message="نشست ورود نامعتبر یا منقضی است.",
+            status_code=401,
+            errors=[],
+        )
+    if (
+        auth_session.revoked_at is not None
+        or auth_session.refresh_expires_at is None
+        or auth_session.refresh_expires_at <= now
+        or not auth_session.user.is_active
+        or auth_session.user.locked_at is not None
+    ):
+        raise SecurityError(
+            code="REFRESH_INVALID",
+            message="نشست ورود نامعتبر یا منقضی است.",
+            status_code=401,
+            errors=[],
+        )
+
+    access_token = _new_token()
+    new_refresh_token = _new_token()
+    access_ttl = access_token_ttl_seconds()
+    refresh_ttl = refresh_token_ttl_seconds()
+    auth_session.previous_refresh_token_hash = auth_session.refresh_token_hash
+    auth_session.refresh_token_hash = _token_hash(new_refresh_token)
+    auth_session.token_hash = _token_hash(access_token)
+    auth_session.expires_at = now + timedelta(seconds=access_ttl)
+    auth_session.refresh_expires_at = now + timedelta(seconds=refresh_ttl)
+    auth_session.last_used_at = now
+    auth_session.refresh_used_at = now
+    auth_session.ip_address = ip_address
+    auth_session.user_agent = user_agent[:500] if user_agent else None
+    add_audit_log(
+        db,
+        action="auth.refresh",
+        entity_type="AuthSession",
+        entity_id=auth_session.id,
+        actor_user_id=auth_session.user_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        session_id=auth_session.id,
+    )
+    db.commit()
+    db.refresh(auth_session.user)
+    return access_token, new_refresh_token, access_ttl, refresh_ttl, auth_session.user
 
 
 @dataclass
@@ -445,6 +553,8 @@ def get_auth_context(
             status_code=401,
             errors=[],
         )
+    auth_session.last_used_at = now
+    db.commit()
     return AuthContext(user=auth_session.user, session=auth_session)
 
 
@@ -462,14 +572,25 @@ def require_permission(permission_code: str):
     return dependency
 
 
-def revoke_session(db: Session, context: AuthContext) -> None:
+def revoke_session(db: Session, context: AuthContext, refresh_token: str | None = None) -> None:
+    refresh_hash = _token_hash(refresh_token) if refresh_token else None
     auth_session = (
         db.query(AuthSession)
-        .filter(AuthSession.id == context.session.id)
+        .filter(
+            AuthSession.id == context.session.id,
+            *((AuthSession.refresh_token_hash == refresh_hash,) if refresh_hash else ()),
+        )
         .populate_existing()
         .with_for_update()
-        .one()
+        .first()
     )
+    if auth_session is None:
+        raise SecurityError(
+            code="REFRESH_INVALID",
+            message="نشست ورود نامعتبر یا منقضی است.",
+            status_code=401,
+            errors=[],
+        )
     if auth_session.revoked_at is not None:
         return
     auth_session.revoked_at = utc_now()

@@ -118,10 +118,16 @@ class AuthSession(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    refresh_token_hash = Column(String(64), nullable=True, unique=True, index=True)
+    previous_refresh_token_hash = Column(String(64), nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=utc_now)
     expires_at = Column(DateTime, nullable=False, index=True)
+    refresh_expires_at = Column(DateTime, nullable=True, index=True)
     last_used_at = Column(DateTime, nullable=True)
+    refresh_used_at = Column(DateTime, nullable=True)
     revoked_at = Column(DateTime, nullable=True)
+    ip_address = Column(String(64), nullable=True, index=True)
+    user_agent = Column(String(500), nullable=True)
 
     user = relationship("User", back_populates="sessions")
 

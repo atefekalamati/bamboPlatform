@@ -51,7 +51,7 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0019_user_own_name_edit_permission"
+            == "0020_refresh_tokens"
         )
         existing_permission = connection.execute(
             text("SELECT can_edit_own_name FROM users LIMIT 1")
@@ -89,6 +89,36 @@ def test_initial_migration_compiles_for_postgresql(monkeypatch):
     assert "ck_commercial_proposal_file_metadata" in sql
     assert "other_issue_description" in sql
     assert "can_edit_own_name" in sql
+    assert "refresh_token_hash" in sql
+
+
+def test_refresh_token_migration_adds_session_fields_and_rolls_back(monkeypatch, tmp_path):
+    database_path = tmp_path / "refresh-token-migration.db"
+    database_url = f"sqlite:///{database_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    config = alembic_config()
+
+    command.upgrade(config, "0019_user_own_name_edit_permission")
+    command.upgrade(config, "0020_refresh_tokens")
+    columns = {
+        column["name"]
+        for column in inspect(create_engine(database_url)).get_columns("auth_sessions")
+    }
+    assert {
+        "refresh_token_hash",
+        "previous_refresh_token_hash",
+        "refresh_expires_at",
+        "refresh_used_at",
+        "ip_address",
+        "user_agent",
+    }.issubset(columns)
+
+    command.downgrade(config, "0019_user_own_name_edit_permission")
+    columns = {
+        column["name"]
+        for column in inspect(create_engine(database_url)).get_columns("auth_sessions")
+    }
+    assert "refresh_token_hash" not in columns
 
 
 def test_own_name_edit_permission_migrates_existing_users_and_rolls_back(monkeypatch, tmp_path):

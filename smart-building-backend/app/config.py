@@ -182,6 +182,8 @@ def validate_production_settings() -> None:
         errors.append("FORWARDED_ALLOW_IPS must identify trusted reverse proxies")
     for name, default in (
         ("AUTH_SESSION_TTL_SECONDS", 28800),
+        ("AUTH_ACCESS_TTL_SECONDS", 900),
+        ("AUTH_REFRESH_TTL_SECONDS", 2592000),
         ("OTP_TTL_SECONDS", 300),
         ("OTP_MAX_ATTEMPTS", 5),
         ("OTP_MAX_REQUESTS_PER_WINDOW", 5),
