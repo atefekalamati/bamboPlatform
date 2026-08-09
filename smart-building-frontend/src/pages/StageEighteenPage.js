@@ -1,5 +1,6 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { StageReviewPanel, StageSnapshots, stageElement as element } from "../components/StageShared.js";
+import { CallsPanel } from "../components/CallsPanel.js";
 import { commercialService } from "../services/commercialService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -56,6 +57,7 @@ export const StageEighteenPage = ({ pilotId }) => {
       );
       header.append(identity, element("span", "status-badge stage-workspace__status", STATUS_LABELS[stage.status] ?? stage.status));
       page.replaceChildren(back, header, feedback);
+      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 18, permissions, required: true }));
 
       const currentBySlot = new Map(followUps.map((item) => [item.schedule_slot, item]));
       const activeUsers = users.filter(({ isActive }) => isActive); const controls = new Map(); const baseline = new Date(proposal.follow_up_at);

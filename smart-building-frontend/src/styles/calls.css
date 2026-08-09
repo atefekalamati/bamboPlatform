@@ -1,0 +1,17 @@
+.calls-panel { display: grid; gap: var(--space-4); }
+.calls-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.calls-panel__actions, .calls-card__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.calls-list { display: grid; gap: var(--space-3); }
+.calls-card { padding: var(--space-4); border: 0.0625rem solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.calls-card__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-block-end: var(--space-3); }
+.calls-card__details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-2) var(--space-4); margin: 0 0 var(--space-4); }
+.calls-card__details dt { color: var(--color-text-secondary); }
+.calls-card__details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.calls-modal-form { display: grid; gap: var(--space-4); }
+.calls-consent { display: flex; align-items: flex-start; gap: var(--space-2); }
+@media (max-width: 40rem) {
+  .calls-panel__heading, .calls-card__header { align-items: stretch; flex-direction: column; }
+  .calls-panel__actions .button, .calls-card__actions .button { flex: 1 1 100%; }
+  .calls-card__details { grid-template-columns: 1fr; }
+  .calls-card__details dt { margin-block-start: var(--space-2); }
+}
