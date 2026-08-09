@@ -63,9 +63,9 @@ const mapPilotDetail = (pilot) => ({
 });
 
 export const pilotService = Object.freeze({
-  getPilots: async () => (await request("/pilots")).map(mapPilot),
-  getPilotById: async (pilotId) =>
-    mapPilotDetail(await request(`/pilots/${pilotId}`)),
+  getPilots: async (options) => (await request("/pilots", options)).map(mapPilot),
+  getPilotById: async (pilotId, options) =>
+    mapPilotDetail(await request(`/pilots/${pilotId}`, options)),
   createPilot: async (values) =>
     mapPilotDetail(
       await request("/pilots", {

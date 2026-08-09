@@ -1,4 +1,5 @@
 import { request } from "./httpClient.js";
+import { toBackendUtcDateTime } from "../utils/jalaliDateTime.js";
 
 const mapIncident = (item) => ({
   id: item.id, pilotId: item.pilot_id, missionId: item.mission_id, sequence: item.sequence,
@@ -23,13 +24,13 @@ export const mapIncidentListResponse = (response) => {
 
 const createPayload = (values) => ({
   mission_id: values.missionId ? Number(values.missionId) : null,
-  occurred_at: new Date(values.occurredAt).toISOString(),
+  occurred_at: toBackendUtcDateTime(values.occurredAt),
   stage_number: Number(values.stageNumber), severity: values.severity,
   incident_type: values.incidentType, description: values.description.trim(),
   containment_action: values.containmentAction?.trim() || null,
   notified_people: values.notifiedPeople ?? [],
   owner_user_id: values.ownerUserId ? Number(values.ownerUserId) : null,
-  correction_due_at: values.correctionDueAt ? new Date(values.correctionDueAt).toISOString() : null,
+  correction_due_at: values.correctionDueAt ? toBackendUtcDateTime(values.correctionDueAt) : null,
 });
 
 export const incidentService = Object.freeze({

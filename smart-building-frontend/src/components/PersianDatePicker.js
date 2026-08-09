@@ -171,7 +171,7 @@ class PersianDatePicker {
     return match ? { year: +match[1], month: +match[2], day: +match[3], hour: +(match[4] ?? this.today.hour), minute: +(match[5] ?? this.today.minute) } : null;
   }
 
-  selectDay(day) {
+  selectDay(day, closeAfterSelection = true) {
     const selected = this.selectedParts();
     const hour = this.hourSelect ? this.hourSelect.value : selected?.hour ?? this.today.hour;
     const minute = this.minuteSelect ? this.minuteSelect.value : selected?.minute ?? this.today.minute;
@@ -182,7 +182,8 @@ class PersianDatePicker {
     this.input.setCustomValidity("");
     this.input.dispatchEvent(new Event("input", { bubbles: true }));
     this.input.dispatchEvent(new Event("change", { bubbles: true }));
-    this.close(true);
+    if (closeAfterSelection) this.close(true);
+    else this.render();
   }
 
   render() {
@@ -210,7 +211,7 @@ class PersianDatePicker {
         ? parseJalaliDateTimeInput(`${this.view.year}/${this.view.month}/${day} ${pad(selected?.hour ?? 12)}:${pad(selected?.minute ?? 0)}`)
         : parseJalaliDateInput(`${this.view.year}/${this.view.month}/${day}`);
       if (!candidate || !this.inRange(candidate)) button.disabled = true;
-      button.onclick = () => this.selectDay(day); grid.append(button);
+      button.onclick = () => this.selectDay(day, !this.dateTime); grid.append(button);
     }
     const footer = element("footer", "persian-date-picker__footer");
     if (this.dateTime) {
@@ -222,7 +223,14 @@ class PersianDatePicker {
       time.append(this.hourSelect, element("span", "persian-date-picker__time-separator", ":"), this.minuteSelect); footer.append(time);
     }
     const actions = element("div", "persian-date-picker__actions");
-    const today = element("button", "button button--ghost", "امروز"); today.type = "button"; today.onclick = () => { this.view = { year: this.today.year, month: this.today.month }; this.render(); this.selectDay(this.today.day); };
+    if (this.dateTime) {
+      const confirm = element("button", "button button--primary", "تأیید تاریخ و ساعت");
+      confirm.type = "button";
+      confirm.disabled = !selected?.day;
+      confirm.onclick = () => { const current = this.selectedParts(); if (current?.day) this.selectDay(current.day, true); };
+      actions.append(confirm);
+    }
+    const today = element("button", "button button--ghost", "امروز"); today.type = "button"; today.onclick = () => { this.view = { year: this.today.year, month: this.today.month }; this.render(); this.selectDay(this.today.day, !this.dateTime); };
     actions.append(today);
     if (!this.required) { const clear = element("button", "button button--ghost", "پاک‌کردن"); clear.type = "button"; clear.onclick = () => { nativeValue.set.call(this.input, ""); this.input.setCustomValidity(""); this.input.dispatchEvent(new Event("change", { bubbles: true })); this.close(true); }; actions.append(clear); }
     footer.append(actions);

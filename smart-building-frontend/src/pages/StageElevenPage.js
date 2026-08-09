@@ -7,7 +7,7 @@ import {
 import { experienceService } from "../services/experienceService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -211,7 +211,7 @@ export const StageElevenPage = ({ pilotId }) => {
           ),
           statusRow("وضعیت سرویس", latestNotification.provider_status),
           statusRow("تعداد تلاش", String(latestNotification.attempts)),
-          statusRow("زمان ارسال", formatPersianDate(latestNotification.sent_at)),
+          statusRow("زمان ارسال", formatPersianDateTime(latestNotification.sent_at)),
           statusRow(
             "تماس جایگزین",
             latestNotification.alternate_contact_method || "ثبت نشده",

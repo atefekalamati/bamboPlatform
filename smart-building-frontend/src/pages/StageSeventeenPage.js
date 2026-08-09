@@ -3,6 +3,7 @@ import { StageReviewPanel, StageSnapshots, stageElement as element } from "../co
 import { commercialService } from "../services/commercialService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
+import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
 
 const STATUS_LABELS = { open: "باز", submitted: "در انتظار بررسی", approved: "تأییدشده", needs_revision: "نیازمند اصلاح" };
 const control = (tag = "input") => { const node = document.createElement(tag); node.className = "stage-form__control"; return node; };
@@ -58,7 +59,7 @@ export const StageSeventeenPage = ({ pilotId }) => {
       const support = control("textarea"); support.rows = 3; support.value = proposal?.support_scope ?? "";
       const features = control("textarea"); features.rows = 3; features.value = (proposal?.features ?? []).join("، ");
       const decisionMaker = control(); decisionMaker.value = proposal?.decision_maker ?? "";
-      const followUp = control(); followUp.type = "datetime-local"; followUp.value = proposal?.follow_up_at?.slice(0, 16) ?? "";
+      const followUp = control(); followUp.type = "datetime-local"; followUp.value = formatIranDateTimeLocalValue(proposal?.follow_up_at);
       const inputs = [projectCount, floorCount, area, userCount, frequency, period, support, features, decisionMaker, followUp];
       inputs.forEach((input) => { input.disabled = !editable || !canManage; });
       grid.append(

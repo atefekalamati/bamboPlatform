@@ -9,7 +9,8 @@ import { evaluationService } from "../services/evaluationService.js";
 import { missionService } from "../services/missionService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
+import { toBackendUtcDateTime } from "../utils/jalaliDateTime.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -176,8 +177,8 @@ const executionPanel = ({ mission, floors, onSaved }) => {
         main_app_connected: true, battery_ready: true, storage_ready: true,
         project_floor_plan_confirmed: true, test_image_completed: true,
         mission_completed: true, operations_confirmed: true,
-        started_at: new Date(start.value).toISOString(),
-        finished_at: new Date(end.value).toISOString(),
+        started_at: toBackendUtcDateTime(start.value),
+        finished_at: toBackendUtcDateTime(end.value),
       });
       await onSaved();
     } catch (error) {
@@ -317,7 +318,7 @@ export const StageFourteenPage = ({ pilotId }) => {
 
       continuation.forEach((mission) => {
         const complete = missionComplete(mission);
-        const summary = element("p", "draft-info", `${mission.code} — ${formatPersianDate(mission.scheduledStart)} — ${complete ? "چرخه عملیاتی کامل" : "در انتظار تکمیل عملیات"}`);
+        const summary = element("p", "draft-info", `${mission.code} — ${formatPersianDateTime(mission.scheduledStart)} — ${complete ? "چرخه عملیاتی کامل" : "در انتظار تکمیل عملیات"}`);
         page.append(summary);
         if (!complete && canManage && ["open", "needs_revision"].includes(stage.status)) {
           page.append(executionPanel({ mission, floors, onSaved: () => load("چرخه عملیاتی نوبت ذخیره شد.") }));

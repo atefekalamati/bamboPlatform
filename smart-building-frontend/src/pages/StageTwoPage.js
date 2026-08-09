@@ -7,7 +7,7 @@ import {
 import { StageTwoForm } from "../components/StageTwoForm.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
 import { translateDisplayValue } from "../utils/displayText.js";
 
 const LABELS = {
@@ -37,7 +37,7 @@ const snapshotsView = (snapshots) => {
     item.append(
       element("strong", "", `نسخه ${snapshot.version}`),
       element("span", "", snapshot.name),
-      element("span", "", formatPersianDate(snapshot.created_at)),
+      element("span", "", formatPersianDateTime(snapshot.created_at)),
       element("code", "", snapshot.content_hash),
     );
     list.append(item);

@@ -41,9 +41,11 @@ import {
   canLeaveCurrentPage,
   clearNavigationGuard,
   hasNavigationGuard,
+  installStageNavigationGuard,
 } from "./navigationGuard.js";
 import { sessionStore } from "./sessionStore.js";
 import { canAccessRoute, requiredPermissionForRoute } from "./routePermissions.js";
+import { installStageActionLayout } from "./stageActionLayout.js";
 
 const accessDeniedPage = (route) => {
   const page = document.createElement("main");
@@ -78,8 +80,10 @@ const ROUTE_FACTORIES = Object.freeze({
 const getCurrentRoute = () => window.location.hash || ROUTES.dashboard;
 
 const resolveRoute = (currentRoute) => {
-  const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
-  if (!canAccessRoute(currentRoute, permissions)) {
+  const user = sessionStore.getCurrentUser();
+  const permissions = user?.permissions ?? [];
+  const roles = user?.roles ?? [];
+  if (!canAccessRoute(currentRoute, permissions, roles)) {
     return { page: accessDeniedPage(currentRoute), navigationRoute: "" };
   }
   const routePath = currentRoute.split("?")[0];
@@ -326,9 +330,22 @@ const resolveRoute = (currentRoute) => {
   };
 };
 
+let cleanupStageNavigationGuard = () => {};
+let cleanupStageActionLayout = () => {};
+
 const renderRoute = (appRoot) => {
+  cleanupStageNavigationGuard();
+  cleanupStageActionLayout();
   const currentRoute = getCurrentRoute();
   const resolvedRoute = resolveRoute(currentRoute);
+  cleanupStageNavigationGuard = installStageNavigationGuard(
+    resolvedRoute.page,
+    currentRoute,
+  );
+  cleanupStageActionLayout = installStageActionLayout(
+    resolvedRoute.page,
+    currentRoute,
+  );
 
   appRoot.replaceChildren(
     AppShell({

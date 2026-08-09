@@ -49,13 +49,7 @@ const field = ({ id, label, value = "", disabled, type = "textarea" }) => {
   return { wrapper, control };
 };
 
-const toDateTimeLocalValue = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-};
+const toDateTimeLocalValue = formatIranDateTimeLocalValue;
 
 export const StageFourForm = ({ initialData, disabled, onChange }) => {
   const values = initialData ?? {};
@@ -179,3 +173,4 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
 
   return { element: form, getData, validate };
 };
+import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";

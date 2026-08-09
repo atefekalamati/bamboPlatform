@@ -1,5 +1,5 @@
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
 export const stageElement = (tag, className, text = "") => {
   const node = document.createElement(tag);
@@ -23,7 +23,7 @@ export const StageSnapshots = ({ snapshots, title = "نسخه‌های تأیی�
     item.append(
       stageElement("strong", "", `نسخه ${snapshot.version}`),
       stageElement("span", "", snapshot.name),
-      stageElement("span", "", formatPersianDate(snapshot.created_at)),
+      stageElement("span", "", formatPersianDateTime(snapshot.created_at)),
       stageElement("code", "", snapshot.content_hash),
     );
     list.append(item);

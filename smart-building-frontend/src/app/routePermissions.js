@@ -25,8 +25,15 @@ export const requiredPermissionForRoute = (route) => {
   return null;
 };
 
-export const canAccessRoute = (route, permissions = []) => {
+const ADMIN_ROLE_NAMES = new Set(["admin", "super_admin"]);
+
+export const hasAdministrativeRole = (roles = []) =>
+  roles.some((role) => ADMIN_ROLE_NAMES.has(typeof role === "string" ? role : role?.name));
+
+export const canAccessRoute = (route, permissions = [], roles = []) => {
   const required = requiredPermissionForRoute(route);
-  return !required || permissions.includes(required);
+  if (required && !permissions.includes(required)) return false;
+  if (route.split("?")[0] === ROUTES.roles) return hasAdministrativeRole(roles);
+  return true;
 };
 

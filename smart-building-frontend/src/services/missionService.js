@@ -1,4 +1,5 @@
 import { request } from "./httpClient.js";
+import { toBackendUtcDateTime } from "../utils/jalaliDateTime.js";
 
 const mapNotification = (notification) => ({
   id: notification.id,
@@ -55,8 +56,8 @@ export const missionService = Object.freeze({
         method: "POST",
         body: JSON.stringify({
           expert_user_id: Number(values.expertUserId),
-          scheduled_start: new Date(values.scheduledStart).toISOString(),
-          scheduled_end: new Date(values.scheduledEnd).toISOString(),
+          scheduled_start: toBackendUtcDateTime(values.scheduledStart),
+          scheduled_end: toBackendUtcDateTime(values.scheduledEnd),
           floor_ids: values.floorIds.map(Number),
           location: values.location,
           site_contact_name: values.siteContactName,
@@ -90,10 +91,10 @@ export const missionService = Object.freeze({
         capture_finished: values.captureFinished,
         saved_in_main_app: values.savedInMainApp,
         capture_started_at: values.captureStartedAt
-          ? new Date(values.captureStartedAt).toISOString()
+          ? toBackendUtcDateTime(values.captureStartedAt)
           : null,
         capture_finished_at: values.captureFinishedAt
-          ? new Date(values.captureFinishedAt).toISOString()
+          ? toBackendUtcDateTime(values.captureFinishedAt)
           : null,
         main_upload_started: values.mainUploadStarted,
         main_upload_completed: values.mainUploadCompleted,

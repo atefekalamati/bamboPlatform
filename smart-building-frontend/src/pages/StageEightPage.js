@@ -8,7 +8,7 @@ import { dwgService } from "../services/dwgService.js";
 import { missionService } from "../services/missionService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -34,8 +34,8 @@ const floorResult = ({ floor, state, pilotId }) => {
     state.capture_state;
   const rows = [
     ["وضعیت برداشت", status],
-    ["شروع برداشت", formatPersianDate(state.capture_started_at)],
-    ["پایان برداشت", formatPersianDate(state.capture_finished_at)],
+    ["شروع برداشت", formatPersianDateTime(state.capture_started_at)],
+    ["پایان برداشت", formatPersianDateTime(state.capture_finished_at)],
     ["دلیل نقص یا اصلاح", state.failure_reason || "ندارد"],
   ];
   rows.forEach(([label, value]) => {

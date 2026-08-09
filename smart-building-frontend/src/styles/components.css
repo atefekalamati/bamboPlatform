@@ -148,6 +148,7 @@
   font-size: var(--font-size-md);
 }
 
+.user-card__identifier,
 .user-card__phone,
 .user-card__role {
   color: var(--color-text-secondary);
@@ -266,6 +267,27 @@
   padding: var(--space-5);
 }
 
+.user-card__identifier {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.form-field__hint {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.7;
+}
+
+.app-header__profile {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 36rem) {
+  .app-header__profile { min-height: 2.5rem; padding-inline: var(--space-2); font-size: var(--font-size-xs); }
+}
+
 .role-selector {
   display: grid;
   gap: var(--space-2);
@@ -286,6 +308,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+}
+
+.empty-state__actions {
+  justify-content: center;
+  margin-block-start: var(--space-4);
 }
 
 .button--danger {

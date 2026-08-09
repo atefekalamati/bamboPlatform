@@ -5,6 +5,8 @@ import { authService } from "../services/authService.js";
 import { preferenceService } from "../services/preferenceService.js";
 import { NotificationCenter } from "../components/NotificationCenter.js";
 import { notificationStore } from "../app/notificationStore.js";
+import { Modal } from "../components/Modal.js";
+import { UserProfileForm } from "../components/UserProfileForm.js";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -36,9 +38,18 @@ const createNavigation = (currentRoute) => {
   navigation.setAttribute("aria-label", "منوی اصلی");
   list.className = "sidebar__list";
 
-  const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
-  PRIMARY_NAVIGATION.forEach(({ label, href, isAvailable = false, permission }) => {
+  const user = sessionStore.getCurrentUser();
+  const permissions = user?.permissions ?? [];
+  const roleNames = new Set(user?.roles?.map(({ name }) => name) ?? []);
+  PRIMARY_NAVIGATION.forEach(({
+    label,
+    href,
+    isAvailable = false,
+    permission,
+    allowedRoles,
+  }) => {
     if (permission && !permissions.includes(permission)) return;
+    if (allowedRoles && !allowedRoles.some((roleName) => roleNames.has(roleName))) return;
     const item = document.createElement("li");
     const link = document.createElement(isAvailable ? "a" : "span");
     link.className = "sidebar__link";
@@ -114,6 +125,7 @@ const createHeader = ({ onMenuToggle }) => {
   const title = document.createElement("span");
   const account = document.createElement("div");
   const userName = document.createElement("span");
+  const editName = document.createElement("button");
   const logout = document.createElement("button");
   const user = sessionStore.getCurrentUser();
   header.className = "app-header";
@@ -128,7 +140,28 @@ const createHeader = ({ onMenuToggle }) => {
   title.className = "app-header__title";
   title.textContent = "مدیریت پایلوت";
   account.className = "app-header__account";
+  userName.className = "app-header__user-name";
   userName.textContent = user?.display_name ?? "";
+  editName.className = "button button--ghost app-header__profile";
+  editName.type = "button";
+  editName.textContent = "تغییر نام";
+  editName.addEventListener("click", () => {
+    let modal;
+    const form = UserProfileForm({
+      user: {
+        id: user.id,
+        displayName: user.display_name,
+        mobile: user.mobile,
+      },
+      onSubmit: async (payload) => {
+        const updated = await authService.updateMyName(payload.display_name);
+        userName.textContent = updated.display_name;
+        modal.close();
+      },
+      onCancel: () => modal.close(),
+    });
+    modal = Modal({ title: "تغییر نام حساب", content: form, triggerElement: editName });
+  });
   logout.className = "button button--ghost app-header__logout";
   logout.type = "button";
   logout.title = "خروج";
@@ -142,7 +175,11 @@ const createHeader = ({ onMenuToggle }) => {
   });
   const permissions = user?.permissions ?? [];
   if (permissions.includes("notifications.read")) account.append(NotificationCenter());
-  account.append(userName, createThemeToggle(), logout);
+  account.append(userName);
+  if (!permissions.includes("users.read") && user?.can_edit_own_name) {
+    account.append(editName);
+  }
+  account.append(createThemeToggle(), logout);
   primary.append(menu, title);
   header.append(primary, account);
   return header;

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  formatJalaliDateTimeInput, formatJalaliManualInput, jalaliMonthLength, parseJalaliDateInput,
-  parseJalaliDateTimeInput,
+  formatIranDateTimeLocalValue, formatJalaliDateTimeInput, formatJalaliManualInput, jalaliMonthLength, parseJalaliDateInput,
+  parseJalaliDateTimeInput, toBackendUtcDateTime,
 } from "../src/utils/jalaliDateTime.js";
 
 test("manual date entry accepts mixed digits and adds separators", () => {
@@ -17,6 +17,8 @@ test("manual date-time entry masks date, hour and minute", () => {
 
 test("a timezone-less backend control value is interpreted in Asia/Tehran", () => {
   assert.equal(formatJalaliDateTimeInput("2026-03-21T03:30"), "۱۴۰۵/۰۱/۰۱ ۰۳:۳۰");
+  assert.equal(toBackendUtcDateTime("2026-08-08T14:30"), "2026-08-08T11:00:00.000Z");
+  assert.equal(formatIranDateTimeLocalValue("2026-08-08T11:00:00.000Z"), "2026-08-08T14:30");
 });
 
 test("Jalali validation rejects invalid month and day", () => {
