@@ -179,8 +179,8 @@ def test_mission_f03_stages_5_to_9_and_g3(client, super_admin_headers):
         client.get(
             f"/pilots/{pilot['id']}/missions",
             headers=other_expert_headers,
-        ).json()
-        == []
+        ).status_code
+        == 404
     )
     expert_reschedule = client.patch(
         f"/missions/{mission_id}",
@@ -414,3 +414,107 @@ def test_expert_conflict_and_failed_provider_are_recorded(
     assert boundary.status_code == 201, boundary.json()
     assert boundary.json()["notifications"][0]["status"] == "failed"
     assert boundary.json()["notifications"][0]["provider_status"] == "unconfigured"
+
+
+def test_same_expert_can_have_multiple_non_overlapping_missions_on_same_day(
+    client,
+    super_admin_headers,
+):
+    expert = create_capture_expert(client, super_admin_headers, "09157770001")
+    first_pilot, first_floors = prepare_pilot_through_g2(
+        client,
+        super_admin_headers,
+        total_floors=1,
+    )
+    second_pilot, second_floors = prepare_pilot_through_g2(
+        client,
+        super_admin_headers,
+        total_floors=1,
+    )
+
+    first = client.post(
+        f"/pilots/{first_pilot['id']}/missions",
+        json=mission_payload(expert["id"], [first_floors[0]["id"]]),
+        headers=super_admin_headers,
+    )
+    assert first.status_code == 201, first.json()
+
+    second_payload = mission_payload(
+        expert["id"],
+        [second_floors[0]["id"]],
+        start="2027-01-10T12:00:00+00:00",
+    )
+    second_payload["scheduled_end"] = "2027-01-10T14:00:00+00:00"
+    second = client.post(
+        f"/pilots/{second_pilot['id']}/missions",
+        json=second_payload,
+        headers=super_admin_headers,
+    )
+
+    assert second.status_code == 201, second.json()
+    assert second.json()["expert_user_id"] == expert["id"]
+    assert second.json()["scheduled_start"] == "2027-01-10T12:00:00"
+    assert second.json()["scheduled_end"] == "2027-01-10T14:00:00"
+
+
+def test_reschedule_rejects_overlap_but_allows_same_day_non_overlapping_slot(
+    client,
+    super_admin_headers,
+):
+    expert = create_capture_expert(client, super_admin_headers, "09157770002")
+    first_pilot, first_floors = prepare_pilot_through_g2(
+        client,
+        super_admin_headers,
+        total_floors=1,
+    )
+    second_pilot, second_floors = prepare_pilot_through_g2(
+        client,
+        super_admin_headers,
+        total_floors=1,
+    )
+
+    first = client.post(
+        f"/pilots/{first_pilot['id']}/missions",
+        json=mission_payload(expert["id"], [first_floors[0]["id"]]),
+        headers=super_admin_headers,
+    )
+    assert first.status_code == 201, first.json()
+
+    second_payload = mission_payload(
+        expert["id"],
+        [second_floors[0]["id"]],
+        start="2027-01-10T12:00:00+00:00",
+    )
+    second_payload["scheduled_end"] = "2027-01-10T14:00:00+00:00"
+    second = client.post(
+        f"/pilots/{second_pilot['id']}/missions",
+        json=second_payload,
+        headers=super_admin_headers,
+    )
+    assert second.status_code == 201, second.json()
+    second_id = second.json()["id"]
+
+    overlapping = client.patch(
+        f"/missions/{second_id}",
+        json={
+            "scheduled_start": "2027-01-10T09:30:00+00:00",
+            "scheduled_end": "2027-01-10T11:30:00+00:00",
+            "reason": "هم‌پوشانی با مأموریت قبلی",
+        },
+        headers=super_admin_headers,
+    )
+    assert overlapping.status_code == 409
+    assert overlapping.json()["code"] == "MISSION_EXPERT_CONFLICT"
+
+    allowed = client.patch(
+        f"/missions/{second_id}",
+        json={
+            "scheduled_start": "2027-01-10T14:00:00+00:00",
+            "scheduled_end": "2027-01-10T16:00:00+00:00",
+            "reason": "جابجایی در همان روز بدون تداخل",
+        },
+        headers=super_admin_headers,
+    )
+    assert allowed.status_code == 200, allowed.json()
+    assert allowed.json()["scheduled_start"] == "2027-01-10T14:00:00"
+    assert allowed.json()["scheduled_end"] == "2027-01-10T16:00:00"

@@ -176,7 +176,11 @@ def me(context: AuthContext = Depends(get_auth_context)) -> UserRead:
 
 
 @auth_router.patch("/me", response_model=UserRead)
-def patch_my_profile(payload: UserProfilePatch, context: AuthContext = Depends(get_auth_context), db: Session = Depends(get_db)) -> UserRead:
+def patch_my_profile(
+    payload: UserProfilePatch,
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> UserRead:
     if (
         "display_name" in payload.model_fields_set
         and payload.display_name != context.user.display_name
@@ -184,14 +188,26 @@ def patch_my_profile(payload: UserProfilePatch, context: AuthContext = Depends(g
         and not _is_super_admin(context.user)
     ):
         raise SecurityError(
-            "OWN_NAME_EDIT_NOT_ALLOWED",
-            "اجازه ویرایش نام حساب برای شما فعال نشده است.",
-            403,
-            [{"field": "display_name", "reason": "permission_not_granted"}],
+            code="OWN_NAME_EDIT_NOT_ALLOWED",
+            message="اجازه ویرایش نام حساب برای شما فعال نشده است.",
+            status_code=403,
+            errors=[{"field": "display_name", "reason": "permission_not_granted"}],
         )
     if "mobile" in payload.model_fields_set and payload.mobile != context.user.mobile:
-        raise SecurityError("PHONE_CHANGE_VERIFICATION_REQUIRED", "تغییر شماره حساب نیازمند تأیید OTP شماره جدید است.", 409, [{"field": "mobile", "reason": "otp_verification_required"}])
-    return user_read(update_user_profile(db, actor=context.user, target=context.user, payload=payload, session_id=context.session.id))
+        raise SecurityError(
+            code="PHONE_CHANGE_VERIFICATION_REQUIRED",
+            message="تغییر شماره حساب نیازمند تأیید OTP شماره جدید است.",
+            status_code=409,
+            errors=[{"field": "mobile", "reason": "otp_verification_required"}],
+        )
+    user = update_user_profile(
+        db,
+        actor=context.user,
+        target=context.user,
+        payload=payload,
+        session_id=context.session.id,
+    )
+    return user_read(user)
 
 
 @auth_router.get("/bootstrap", response_model=AuthBootstrapRead)
@@ -308,13 +324,30 @@ def create_user(
 
 
 @users_router.patch("/{user_id}", response_model=UserRead)
-def patch_user_profile(user_id: int, payload: UserProfilePatch, context: AuthContext = Depends(get_auth_context), db: Session = Depends(get_db)) -> UserRead:
+def patch_user_profile(
+    user_id: int,
+    payload: UserProfilePatch,
+    context: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db),
+) -> UserRead:
     if not _is_super_admin(context.user):
-        raise SecurityError("USER_PROFILE_UPDATE_DENIED", "فقط مدیر کل می‌تواند اطلاعات حساب کاربران دیگر را تغییر دهد.", 403, [])
+        raise SecurityError(
+            code="USER_PROFILE_UPDATE_DENIED",
+            message="فقط مدیر کل می‌تواند اطلاعات حساب کاربران دیگر را تغییر دهد.",
+            status_code=403,
+            errors=[],
+        )
     target = db.get(User, user_id)
     if target is None:
         raise SecurityError("USER_NOT_FOUND", "کاربر پیدا نشد.", 404, [])
-    return user_read(update_user_profile(db, actor=context.user, target=target, payload=payload, session_id=context.session.id))
+    user = update_user_profile(
+        db,
+        actor=context.user,
+        target=target,
+        payload=payload,
+        session_id=context.session.id,
+    )
+    return user_read(user)
 
 
 @users_router.patch("/{user_id}/own-name-edit-permission", response_model=UserRead)
@@ -326,23 +359,22 @@ def patch_user_own_name_edit_permission(
 ) -> UserRead:
     if not _is_super_admin(context.user):
         raise SecurityError(
-            "USER_PERMISSION_UPDATE_DENIED",
-            "فقط مدیر کل می‌تواند اجازه ویرایش نام حساب را تغییر دهد.",
-            403,
-            [],
+            code="USER_PERMISSION_UPDATE_DENIED",
+            message="فقط مدیر کل می‌تواند اجازه ویرایش نام حساب را تغییر دهد.",
+            status_code=403,
+            errors=[],
         )
     target = db.get(User, user_id)
     if target is None:
         raise SecurityError("USER_NOT_FOUND", "کاربر پیدا نشد.", 404, [])
-    return user_read(
-        update_own_name_edit_permission(
-            db,
-            actor=context.user,
-            target=target,
-            allowed=payload.can_edit_own_name,
-            session_id=context.session.id,
-        )
+    user = update_own_name_edit_permission(
+        db,
+        actor=context.user,
+        target=target,
+        allowed=payload.can_edit_own_name,
+        session_id=context.session.id,
     )
+    return user_read(user)
 
 
 def _ensure_not_removing_last_super_admin(db: Session, user: User, keeps_super_admin: bool) -> None:

@@ -105,6 +105,7 @@ class OtpRequest(Base):
     attempts = Column(Integer, nullable=False, default=0)
     max_attempts = Column(Integer, nullable=False, default=5)
     provider_status = Column(String(80), nullable=False)
+    provider_message_id = Column(String(160), nullable=True, index=True)
     request_ip = Column(String(64), nullable=True, index=True)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, nullable=False, default=utc_now)

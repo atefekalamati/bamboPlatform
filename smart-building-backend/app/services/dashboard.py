@@ -6,7 +6,6 @@ from datetime import UTC, datetime, timedelta
 from math import ceil
 from typing import Any
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
@@ -24,6 +23,7 @@ from app.models import (
 )
 from app.models.workflow import PilotGate, PilotStage, StageSubmission
 from app.services.security import AuthContext, effective_permissions
+from app.services.access import scoped_pilot_query
 from app.schemas.dashboard import ActionItem, DashboardResponse, Pagination, PilotDashboardItem
 
 
@@ -40,30 +40,8 @@ def _all_access(context: AuthContext) -> bool:
     return bool({"super_admin"} & _roles(context)) or "dashboard.read_all" in permissions or "pilots.read_all" in permissions
 
 
-def scoped_pilots_query(db: Session, context: AuthContext):
-    query = db.query(Pilot)
-    if _all_access(context):
-        return query
-    roles = _roles(context)
-    # Roles whose business responsibility is cross-pilot may see the operational
-    # overview; restricted roles are limited to records assigned to the user.
-    if roles.intersection({"pilot_manager", "operations", "support", "customer_success", "product_manager"}):
-        return query
-    user_id = context.user.id
-    return query.filter(
-        or_(
-            Pilot.missions.any(Mission.expert_user_id == user_id),
-            Pilot.missions.any(Mission.created_by_user_id == user_id),
-            Pilot.incidents.any(Incident.owner_user_id == user_id),
-            Pilot.customer_follow_ups.any(CustomerFollowUp.owner_user_id == user_id),
-            Pilot.commercial_proposal.has(CommercialProposal.responsible_user_id == user_id),
-            Pilot.form_f04.has(or_(
-                FormF04.responsible_user_id == user_id,
-                FormF04.sales_user_id == user_id,
-                FormF04.customer_success_user_id == user_id,
-            )),
-        )
-    )
+def _scope_query(db: Session, context: AuthContext):
+    return scoped_pilot_query(db, context)
 
 
 def _load_pilots(query):
@@ -138,7 +116,7 @@ def _pilot_item(pilot: Pilot, now: datetime) -> PilotDashboardItem:
 
 
 def visible_pilots(db: Session, context: AuthContext) -> list[Pilot]:
-    return _load_pilots(scoped_pilots_query(db, context).order_by(Pilot.updated_at.desc(), Pilot.id)).all()
+    return _load_pilots(_scope_query(db, context).order_by(Pilot.updated_at.desc(), Pilot.id)).all()
 
 
 def dashboard_summary(db: Session, context: AuthContext) -> DashboardResponse:

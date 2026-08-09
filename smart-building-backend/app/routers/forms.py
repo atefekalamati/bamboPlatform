@@ -14,8 +14,9 @@ from app.services.form_documents import (
     render_form_html,
 )
 from app.services.security import AuthContext, require_permission
+from app.services.access import enforce_path_pilot_access
 
-router = APIRouter(tags=["official-forms"])
+router = APIRouter(tags=["official-forms"], dependencies=[Depends(enforce_path_pilot_access)])
 
 
 @router.get("/pilots/{pilot_id}/forms", response_model=list[FormSummary])

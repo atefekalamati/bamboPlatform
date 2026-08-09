@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth.policies import active_role_names, can_review_stage
+from app.auth.policies import active_role_names, can_review_stage, can_submit_stage
 from app.database import get_db
 from app.exceptions import SecurityError
 from app.models import ImmutableSnapshot, Pilot
@@ -18,10 +18,14 @@ from app.schemas.workflow import (
     StageSubmit,
 )
 from app.services.workflow import approve_stage, create_pilot, reject_stage, submit_stage
+from app.services.access import enforce_path_pilot_access, scoped_pilot_query
 from app.services.security import AuthContext, require_permission
-from app.services.dashboard import scoped_pilots_query
 
-router = APIRouter(prefix="/pilots", tags=["pilots"])
+router = APIRouter(
+    prefix="/pilots",
+    tags=["pilots"],
+    dependencies=[Depends(enforce_path_pilot_access)],
+)
 
 
 def _require_stage_reviewer(context: AuthContext, stage_number: int, action: str) -> None:
@@ -39,6 +43,16 @@ def _require_stage_reviewer(context: AuthContext, stage_number: int, action: str
         )
 
 
+def _require_stage_submitter(context: AuthContext, stage_number: int) -> None:
+    if not can_submit_stage(active_role_names(context.user), stage_number):
+        raise SecurityError(
+            code="STAGE_SUBMITTER_DENIED",
+            message="این کاربر ارسال‌کننده مجاز این مرحله نیست.",
+            status_code=403,
+            errors=[{"field": "stage_number", "reason": "submitter_role_not_allowed"}],
+        )
+
+
 @router.post("", response_model=PilotDetail, status_code=status.HTTP_201_CREATED)
 def create_pilot_endpoint(
     payload: PilotCreate,
@@ -53,16 +67,16 @@ def list_pilots(
     context: AuthContext = Depends(require_permission("pilots.read")),
     db: Session = Depends(get_db),
 ) -> list[Pilot]:
-    return scoped_pilots_query(db, context).order_by(Pilot.id).all()
+    return scoped_pilot_query(db, context).order_by(Pilot.id).all()
 
 
 @router.get("/{pilot_id}", response_model=PilotDetail)
 def get_pilot(
     pilot_id: int,
-    context: AuthContext = Depends(require_permission("pilots.read")),
+    _: AuthContext = Depends(require_permission("pilots.read")),
     db: Session = Depends(get_db),
 ) -> Pilot:
-    pilot = scoped_pilots_query(db, context).filter(Pilot.id == pilot_id).first()
+    pilot = db.get(Pilot, pilot_id)
     if not pilot:
         raise HTTPException(status_code=404, detail="Pilot not found")
     return pilot
@@ -73,9 +87,10 @@ def submit_stage_endpoint(
     pilot_id: int,
     stage_number: int,
     payload: StageSubmit,
-    context: AuthContext = Depends(require_permission("checklists.manage")),
+    context: AuthContext = Depends(require_permission("stages.submit")),
     db: Session = Depends(get_db),
 ) -> StageActionResult:
+    _require_stage_submitter(context, stage_number)
     stage, submission = submit_stage(
         db,
         pilot_id,

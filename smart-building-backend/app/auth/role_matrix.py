@@ -113,7 +113,11 @@ STAGE_MATRIX: dict[int, dict[str, tuple[str, ...]]] = {
     16: {"edit": ("customer_success", "sales"), "submit": ("customer_success", "sales"), "approve": ("pilot_manager", "sales")},
     17: {"edit": ("sales",), "submit": ("sales",), "approve": ("pilot_manager", "sales")},
     18: {"edit": ("sales",), "submit": ("sales",), "approve": ("pilot_manager", "sales")},
-    19: {"edit": ("sales",), "submit": ("sales",), "approve": ("pilot_manager",)},
+    19: {
+        "edit": ("sales",),
+        "submit": ("sales",),
+        "approve": ("pilot_manager", "customer_success"),
+    },
 }
 
 GATE_MATRIX: dict[str, tuple[str, ...]] = {

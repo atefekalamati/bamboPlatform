@@ -51,8 +51,13 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0016_form_f04_other_issue_description"
+            == "0019_user_own_name_edit_permission"
         )
+        existing_permission = connection.execute(
+            text("SELECT can_edit_own_name FROM users LIMIT 1")
+        ).first()
+        if existing_permission is not None:
+            assert existing_permission[0] in (False, 0)
     assert {
         column["name"] for column in inspector.get_columns("form_f04")
     } >= {"other_issue_description"}
@@ -83,6 +88,38 @@ def test_initial_migration_compiles_for_postgresql(monkeypatch):
     assert "ALTER TABLE incidents DROP CONSTRAINT incidents_code_key" in sql
     assert "ck_commercial_proposal_file_metadata" in sql
     assert "other_issue_description" in sql
+    assert "can_edit_own_name" in sql
+
+
+def test_own_name_edit_permission_migrates_existing_users_and_rolls_back(monkeypatch, tmp_path):
+    database_path = tmp_path / "own-name-permission.db"
+    database_url = f"sqlite:///{database_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    config = alembic_config()
+
+    command.upgrade(config, "0018_call_integration")
+    engine = create_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users "
+                "(mobile, display_name, is_active, created_at, updated_at) "
+                "VALUES ('+989151111111', 'کاربر قبلی', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+    engine.dispose()
+
+    command.upgrade(config, "0019_user_own_name_edit_permission")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT can_edit_own_name FROM users WHERE mobile = '+989151111111'")
+        ).scalar_one() in (False, 0)
+    engine.dispose()
+
+    command.downgrade(config, "0018_call_integration")
+    columns = {column["name"] for column in inspect(create_engine(database_url)).get_columns("users")}
+    assert "can_edit_own_name" not in columns
 
 
 def test_stage_title_alignment_migration_preserves_and_restores_existing_data(

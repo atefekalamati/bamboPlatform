@@ -55,12 +55,11 @@ def test_dashboard_sections_and_actions(client, super_admin_headers):
     assert actions.json()["items"][0]["entity_type"] == "stage"
 
 
-def test_dashboard_requires_permission_and_embed_never_exposes_secret(client, super_admin_headers):
+def test_dashboard_requires_permission_and_powerbi_route_is_removed(client, super_admin_headers):
     no_auth = client.get("/api/v1/dashboard/summary")
     assert no_auth.status_code == 401
     embed = client.get("/api/v1/dashboard/powerbi/embed-token", headers=super_admin_headers)
-    assert embed.status_code == 503
-    assert "POWERBI" not in embed.text
+    assert embed.status_code == 404
 
 
 def test_dashboard_no_data_state(client, super_admin_headers):

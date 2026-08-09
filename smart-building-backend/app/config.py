@@ -11,7 +11,7 @@ if os.getenv("APP_ENV", "development").lower() != "production":
 
 DEFAULT_DATABASE_URL = "postgresql+psycopg://bambo:bambo@localhost:5432/bambo"
 DEFAULT_AUTH_SECRET = "development-only-change-me"
-SUPPORTED_PRODUCTION_SMS_PROVIDERS: frozenset[str] = frozenset()
+SUPPORTED_PRODUCTION_SMS_PROVIDERS: frozenset[str] = frozenset({"http_json", "ippanel"})
 
 
 def get_database_url() -> str:
@@ -140,6 +140,30 @@ def validate_production_settings() -> None:
     sms_provider = os.getenv("SMS_PROVIDER", "").strip().lower()
     if sms_provider not in SUPPORTED_PRODUCTION_SMS_PROVIDERS:
         errors.append("no approved production SMS provider adapter is implemented")
+    elif sms_provider == "http_json":
+        sms_url = os.getenv("SMS_API_URL", "").strip()
+        if not sms_url.startswith("https://"):
+            errors.append("SMS_API_URL must be an HTTPS URL")
+        if not os.getenv("SMS_API_KEY", "").strip():
+            errors.append("SMS_API_KEY must be configured")
+        if not os.getenv("SMS_SENDER", "").strip():
+            errors.append("SMS_SENDER must be configured")
+    elif sms_provider == "ippanel":
+        sms_url = os.getenv("SMS_API_URL", "https://edge.ippanel.com/v1/api/send").strip()
+        sms_base_url = os.getenv("SMS_BASE_URL", "https://edge.ippanel.com/v1").strip()
+        if not sms_url.startswith("https://") or not sms_base_url.startswith("https://"):
+            errors.append("IPPanel SMS URLs must be HTTPS URLs")
+        if not os.getenv("SMS_API_KEY", "").strip():
+            errors.append("SMS_API_KEY must be configured")
+        if not os.getenv("SMS_SENDER", "").strip():
+            errors.append("SMS_SENDER must be configured")
+        if not os.getenv("SMS_TEMPLATE_ID", "").strip():
+            errors.append("SMS_TEMPLATE_ID must be configured")
+    call_provider = os.getenv("CALL_PROVIDER", "").strip().lower()
+    if call_provider != "astel":
+        errors.append("CALL_PROVIDER must be astel in production")
+    else:
+        errors.append("official Astel API and webhook contract is not installed")
     if get_bool_setting("DEBUG"):
         errors.append("DEBUG must be disabled")
     if get_docs_enabled():

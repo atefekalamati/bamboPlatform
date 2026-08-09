@@ -1426,6 +1426,28 @@ def test_stages_17_to_19_full_commercial_workflow(
         "day_5",
         "day_7_10",
     ]
+    missing_required_call = client.post(
+        f"/pilots/{pilot_id}/stages/18/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert missing_required_call.status_code == 422
+    assert any(
+        item["field"] == "checklist.call_policy_completed"
+        for item in missing_required_call.json()["errors"]
+    )
+    stage_18_call = client.post(
+        f"/api/v1/pilots/{pilot_id}/stages/18/calls",
+        json={"idempotency_key": "commercial-stage-18-call"},
+        headers=super_admin_headers,
+    )
+    assert stage_18_call.status_code == 201, stage_18_call.text
+    override = client.post(
+        f"/api/v1/calls/{stage_18_call.json()['public_id']}/override",
+        json={"reason": "Manager confirmed an approved offline customer conversation."},
+        headers=super_admin_headers,
+    )
+    assert override.status_code == 200, override.text
     stage_18 = submit_and_approve_stage(
         client,
         pilot_id,

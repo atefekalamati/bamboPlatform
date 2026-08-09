@@ -32,5 +32,4 @@ export const dashboardService = Object.freeze({
   getFormsSummary: (options) => breakdown("forms", options),
   getCommercialSummary: (options) => breakdown("commercial", options),
   getRecentActivities: (options) => breakdown("activities", options),
-  getPowerBIEmbed: (options) => get("/powerbi/embed-token", options),
 });

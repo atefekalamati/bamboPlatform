@@ -89,8 +89,6 @@
 .dashboard-state--warning { color: var(--color-warning); }
 .dashboard-skeleton { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
 .dashboard-skeleton__item { min-height: 7rem; border-radius: var(--radius-md); background: linear-gradient(90deg, var(--color-background), var(--color-surface), var(--color-background)); background-size: 200% 100%; animation: dashboard-shimmer 1.2s infinite; }
-.powerbi-frame { min-height: 18rem; overflow: hidden; border-radius: var(--radius-md); background: var(--color-background); }
-.powerbi-frame__embed { width: 100%; min-height: 70vh; border: 0; }
 @keyframes dashboard-shimmer { to { background-position: -200% 0; } }
 @media (max-width: 75rem) { .dashboard-kpis { grid-template-columns: repeat(2, 1fr); } .dashboard-filters { grid-template-columns: repeat(3, 1fr); } .dashboard-operational, .dashboard-widgets { grid-template-columns: repeat(2, 1fr); } .dashboard-stage-journey__list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 48rem) { .dashboard-heading, .dashboard-stage-journey__header { align-items: stretch; flex-direction: column; } .dashboard-kpis, .dashboard-filters, .dashboard-operational, .dashboard-widgets, .dashboard-skeleton, .dashboard-health__body { grid-template-columns: 1fr; } .dashboard-panel { padding: var(--space-4); } .dashboard-heading__updated { white-space: normal; } .dashboard-stage-journey__selector { width: 100%; } .dashboard-stage-journey__list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
