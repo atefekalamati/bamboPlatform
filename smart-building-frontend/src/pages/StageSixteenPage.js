@@ -1,5 +1,6 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { StageReviewPanel, StageSnapshots, stageElement as element } from "../components/StageShared.js";
+import { CallsPanel } from "../components/CallsPanel.js";
 import { experienceService } from "../services/experienceService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -76,6 +77,7 @@ export const StageSixteenPage = ({ pilotId }) => {
       );
       header.append(identity, element("span", "status-badge stage-workspace__status", STATUS_LABELS[stage.status] ?? stage.status));
       page.replaceChildren(back, header, feedback);
+      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 16, permissions }));
 
       const form = element("section", "stage-form");
       const loginCount = control(); loginCount.type = "number"; loginCount.min = "0"; loginCount.value = f04?.main_platform_login_count ?? "";
