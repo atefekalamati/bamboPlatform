@@ -23,6 +23,7 @@ export const PRIMARY_NAVIGATION = Object.freeze([
     href: ROUTES.roles,
     isAvailable: true,
     permission: "roles.read",
+    allowedRoles: ["admin", "super_admin"],
   },
   { label: "رخدادها", href: ROUTES.incidents, isAvailable: true, permission: "incidents.read" },
   { label: "گزارش‌ها", href: ROUTES.reports, isAvailable: true, permission: "reports.read" },

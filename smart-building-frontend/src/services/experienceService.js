@@ -1,4 +1,5 @@
 import { request } from "./httpClient.js";
+import { toBackendUtcDateTime } from "../utils/jalaliDateTime.js";
 
 const payload = (values) => ({
   project_reference: values.projectReference?.trim() || null,
@@ -11,7 +12,7 @@ const payload = (values) => ({
   latest_capture_checked: values.latestCaptureChecked,
   last_visit_checked: values.lastVisitChecked,
   reason: values.reason?.trim() || null,
-  checked_at: new Date(values.checkedAt).toISOString(),
+  checked_at: toBackendUtcDateTime(values.checkedAt),
 });
 
 export const experienceService = Object.freeze({
@@ -106,10 +107,10 @@ export const createF04FollowUpPayload = (values) => ({
         main_tour_viewed: values.mainTourViewed,
         viewing_result: values.viewingResult || null,
         first_follow_up_at: values.firstFollowUpAt
-          ? new Date(values.firstFollowUpAt).toISOString()
+          ? toBackendUtcDateTime(values.firstFollowUpAt)
           : null,
         second_follow_up_at: values.secondFollowUpAt
-          ? new Date(values.secondFollowUpAt).toISOString()
+          ? toBackendUtcDateTime(values.secondFollowUpAt)
           : null,
         useful: values.useful,
         coverage_score: values.coverageScore || null,
@@ -127,7 +128,7 @@ export const createF04FollowUpPayload = (values) => ({
         issue_route: values.issueRoute || null,
         issue_owner_user_id: values.issueOwnerUserId || null,
         issue_due_at: values.issueDueAt
-          ? new Date(values.issueDueAt).toISOString()
+          ? toBackendUtcDateTime(values.issueDueAt)
           : null,
         customer_success_user_id: values.customerSuccessUserId || null,
 });

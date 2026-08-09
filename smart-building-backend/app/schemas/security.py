@@ -56,6 +56,7 @@ class UserRead(BaseModel):
     id: int
     mobile: str
     display_name: str
+    can_edit_own_name: bool
     is_active: bool
     locked_at: datetime | None
     roles: list[RoleSummary]
@@ -107,6 +108,42 @@ class UserCreate(BaseModel):
     is_active: bool = True
 
     _normalize_mobile = field_validator("mobile")(normalize_mobile)
+
+
+class UserProfilePatch(BaseModel):
+    display_name: str | None = Field(default=None, min_length=2, max_length=120)
+    mobile: str | None = None
+
+    @field_validator("display_name")
+    @classmethod
+    def normalize_display_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if len(normalized) < 2:
+            raise ValueError("display_name must contain at least 2 characters")
+        return normalized
+
+    @field_validator("mobile")
+    @classmethod
+    def validate_mobile(cls, value: str | None) -> str | None:
+        return normalize_mobile(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def require_editable_field(self):
+        if not self.model_fields_set.intersection({"display_name", "mobile"}):
+            raise ValueError("at least one editable field is required")
+        if any(getattr(self, field) is None for field in self.model_fields_set):
+            raise ValueError("editable fields cannot be null")
+        return self
+
+    model_config = {"extra": "forbid"}
+
+
+class UserOwnNameEditPermissionPatch(BaseModel):
+    can_edit_own_name: bool
+
+    model_config = {"extra": "forbid"}
 
 
 class UserRolesUpdate(BaseModel):

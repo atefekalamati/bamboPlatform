@@ -3,7 +3,7 @@ import { confirmDialog } from "../components/AppDialog.js";
 import { dwgService } from "../services/dwgService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatPersianDate } from "../utils/dateFormatter.js";
+import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
 const LABELS = {
   open: "باز",
@@ -39,7 +39,7 @@ const snapshotsView = (snapshots) => {
     item.append(
       element("strong", "", `نسخه ${snapshot.version}`),
       element("span", "", snapshot.name),
-      element("span", "", formatPersianDate(snapshot.created_at)),
+      element("span", "", formatPersianDateTime(snapshot.created_at)),
       element("code", "", snapshot.content_hash),
     );
     list.append(item);
@@ -65,7 +65,7 @@ const versionList = ({ versions, canDownload, feedback }) => {
         element(
           "span",
           "",
-          `${formatSize(version.sizeBytes)} · ${formatPersianDate(version.uploadedAt)}`,
+          `${formatSize(version.sizeBytes)} · ${formatPersianDateTime(version.uploadedAt)}`,
         ),
         element("code", "", version.sha256),
       );
@@ -193,6 +193,7 @@ const floorCard = ({
   const referenceCheckbox = document.createElement("input");
   const referenceText = element("span", "dwg-reference__text");
   referenceCheckbox.type = "checkbox";
+  referenceCheckbox.dataset.navigationGuardIgnore = "true";
   referenceCheckbox.checked = floor.dwgReferenceConfirmed;
   referenceCheckbox.disabled = !editable;
   referenceText.append(
@@ -456,6 +457,7 @@ export const StageThreePage = ({ pilotId }) => {
           : "برای تمام طبقات، فایل آپلود یا وجود DWG در مرجع اصلی تأیید شده است.",
       );
       referenceRequirementInput.type = "checkbox";
+      referenceRequirementInput.dataset.navigationGuardIgnore = "true";
       referenceRequirementInput.checked =
         floors.length > 0 && invalidReferenceFloors.length === 0;
       referenceRequirementInput.disabled = !manageable || !floors.length;

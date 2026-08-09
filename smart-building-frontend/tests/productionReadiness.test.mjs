@@ -13,7 +13,9 @@ test("sensitive routes require backend permissions", () => {
   assert.equal(requiredPermissionForRoute("#/users"), "users.read");
   assert.equal(requiredPermissionForRoute("#/pilots/2/stages/9"), "pilots.read");
   assert.equal(canAccessRoute("#/roles", []), false);
-  assert.equal(canAccessRoute("#/roles", ["roles.read"]), true);
+  assert.equal(canAccessRoute("#/roles", ["roles.read"], [{ name: "operations" }]), false);
+  assert.equal(canAccessRoute("#/roles", ["roles.read"], [{ name: "admin" }]), true);
+  assert.equal(canAccessRoute("#/roles", ["roles.read"], [{ name: "super_admin" }]), true);
 });
 
 test("production index has no inline script", async () => {
@@ -27,4 +29,17 @@ test("sensitive stage actions are not gated by role names", async () => {
     const source = await readFile(new URL(`../src/pages/${page}`, import.meta.url), "utf8");
     assert.doesNotMatch(source, /roleNames|super_admin/);
   }
+});
+
+test("all stage routes install the shared unsaved changes guard", async () => {
+  const router = await readFile(new URL("../src/app/router.js", import.meta.url), "utf8");
+  const guard = await readFile(new URL("../src/app/navigationGuard.js", import.meta.url), "utf8");
+  assert.match(router, /installStageNavigationGuard/);
+  assert.match(guard, /pilots.*stages/);
+  assert.match(guard, /تغییرات این مرحله هنوز ذخیره نشده است/);
+});
+
+test("all stage routes install the shared action layout", async () => {
+  const router = await readFile(new URL("../src/app/router.js", import.meta.url), "utf8");
+  assert.match(router, /installStageActionLayout/);
 });

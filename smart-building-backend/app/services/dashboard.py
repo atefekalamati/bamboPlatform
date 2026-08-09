@@ -40,7 +40,7 @@ def _all_access(context: AuthContext) -> bool:
     return bool({"super_admin"} & _roles(context)) or "dashboard.read_all" in permissions or "pilots.read_all" in permissions
 
 
-def _scope_query(db: Session, context: AuthContext):
+def scoped_pilots_query(db: Session, context: AuthContext):
     query = db.query(Pilot)
     if _all_access(context):
         return query
@@ -138,7 +138,7 @@ def _pilot_item(pilot: Pilot, now: datetime) -> PilotDashboardItem:
 
 
 def visible_pilots(db: Session, context: AuthContext) -> list[Pilot]:
-    return _load_pilots(_scope_query(db, context).order_by(Pilot.updated_at.desc(), Pilot.id)).all()
+    return _load_pilots(scoped_pilots_query(db, context).order_by(Pilot.updated_at.desc(), Pilot.id)).all()
 
 
 def dashboard_summary(db: Session, context: AuthContext) -> DashboardResponse:

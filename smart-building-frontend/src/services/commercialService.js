@@ -1,4 +1,5 @@
 import { request } from "./httpClient.js";
+import { toBackendUtcDateTime } from "../utils/jalaliDateTime.js";
 
 export const commercialService = Object.freeze({
   getFinalOutcome: async (pilotId) => {
@@ -15,11 +16,11 @@ export const commercialService = Object.freeze({
       body: JSON.stringify({
         outcome: values.outcome,
         reason: values.reason || null,
-        ready_at: values.readyAt ? new Date(values.readyAt).toISOString() : null,
+        ready_at: values.readyAt ? toBackendUtcDateTime(values.readyAt) : null,
         success_owner_user_id: values.successOwnerUserId ? Number(values.successOwnerUserId) : null,
         periodic_capture: values.periodicCapture,
         contracted_user_count: values.contractedUserCount ? Number(values.contractedUserCount) : null,
-        first_capture_at: values.firstCaptureAt ? new Date(values.firstCaptureAt).toISOString() : null,
+        first_capture_at: values.firstCaptureAt ? toBackendUtcDateTime(values.firstCaptureAt) : null,
       }),
     }),
   approveFinalOutcome: (pilotId) =>
@@ -35,9 +36,9 @@ export const commercialService = Object.freeze({
         obstacle: values.obstacle,
         action: values.action,
         owner_user_id: Number(values.ownerUserId),
-        due_at: new Date(values.dueAt).toISOString(),
+        due_at: toBackendUtcDateTime(values.dueAt),
         result: values.result,
-        completed_at: new Date(values.completedAt).toISOString(),
+        completed_at: toBackendUtcDateTime(values.completedAt),
       }),
     }),
   getProposal: async (pilotId) => {
@@ -64,7 +65,7 @@ export const commercialService = Object.freeze({
         proposal_file_size: null,
         proposal_file_sha256: null,
         decision_maker: values.decisionMaker,
-        follow_up_at: new Date(values.followUpAt).toISOString(),
+        follow_up_at: toBackendUtcDateTime(values.followUpAt),
       }),
     }),
 });

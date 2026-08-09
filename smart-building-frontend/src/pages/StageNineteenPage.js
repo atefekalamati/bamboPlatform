@@ -3,6 +3,7 @@ import { StageReviewPanel, StageSnapshots, stageElement as element } from "../co
 import { commercialService } from "../services/commercialService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
+import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
 import { userService } from "../services/userService.js";
 
 const STATUS_LABELS = { open: "باز", submitted: "در انتظار بررسی", approved: "تأییدشده", needs_revision: "نیازمند اصلاح" };
@@ -16,10 +17,7 @@ const field = (labelText, input, help = "") => {
   const label = element("label", "stage-form__field"); label.append(element("span", "stage-form__label", labelText), input);
   if (help) label.append(element("small", "draft-info", help)); return label;
 };
-const localDateTime = (value) => {
-  if (!value) return ""; const date = new Date(value); const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
-};
+const localDateTime = (value) => formatIranDateTimeLocalValue(value);
 
 export const StageNineteenPage = ({ pilotId }) => {
   const page = element("div", "stage-workspace"); const currentUser = sessionStore.getCurrentUser();

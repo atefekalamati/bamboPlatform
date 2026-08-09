@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import (
@@ -22,7 +23,7 @@ from app.database import get_db
 from app.exceptions import SecurityError
 from app.models import AuditLog, AuthSession, OtpRequest, Permission, Role, User
 from app.rbac import PERMISSIONS, SYSTEM_ROLES
-from app.schemas.security import normalize_mobile
+from app.schemas.security import UserProfilePatch, normalize_mobile
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -33,6 +34,50 @@ def utc_now() -> datetime:
 
 def mask_mobile(mobile: str) -> str:
     return f"{mobile[:4]}***{mobile[-4:]}"
+
+
+def update_user_profile(db: Session, *, actor: User, target: User, payload: UserProfilePatch, session_id: int | None) -> User:
+    changes = payload.model_dump(exclude_unset=True); old_data = {}; new_data = {}; changed_fields = []
+    if "display_name" in changes and changes["display_name"] != target.display_name:
+        old_data["display_name"] = target.display_name; target.display_name = changes["display_name"]; new_data["display_name"] = target.display_name; changed_fields.append("display_name")
+    if "mobile" in changes and changes["mobile"] != target.mobile:
+        if db.query(User.id).filter(User.mobile == changes["mobile"], User.id != target.id).first():
+            raise SecurityError("USER_MOBILE_ALREADY_EXISTS", "این شماره تلفن قبلاً ثبت شده است.", 409, [{"field": "mobile", "reason": "duplicate"}])
+        old_mobile = target.mobile; old_data["mobile"] = mask_mobile(old_mobile); target.mobile = changes["mobile"]; new_data["mobile"] = mask_mobile(target.mobile); changed_fields.append("mobile")
+        db.query(OtpRequest).filter(OtpRequest.mobile == old_mobile, OtpRequest.status == "pending").update({OtpRequest.status: "invalidated"}, synchronize_session=False)
+    if not changed_fields: return target
+    add_audit_log(db, action="users.profile_updated", entity_type="User", entity_id=target.id, actor_user_id=actor.id, old_data=old_data, new_data=new_data | {"changed_fields": changed_fields}, session_id=session_id)
+    try: db.commit()
+    except IntegrityError as exc:
+        db.rollback(); raise SecurityError("USER_MOBILE_ALREADY_EXISTS", "این شماره تلفن قبلاً ثبت شده است.", 409, [{"field": "mobile", "reason": "duplicate"}]) from exc
+    db.refresh(target); return target
+
+
+def update_own_name_edit_permission(
+    db: Session,
+    *,
+    actor: User,
+    target: User,
+    allowed: bool,
+    session_id: int | None,
+) -> User:
+    previous = target.can_edit_own_name
+    if previous == allowed:
+        return target
+    target.can_edit_own_name = allowed
+    add_audit_log(
+        db,
+        action="users.own_name_edit_permission_updated",
+        entity_type="User",
+        entity_id=target.id,
+        actor_user_id=actor.id,
+        old_data={"can_edit_own_name": previous},
+        new_data={"can_edit_own_name": allowed},
+        session_id=session_id,
+    )
+    db.commit()
+    db.refresh(target)
+    return target
 
 
 def _otp_hash(public_id: str, code: str) -> str:

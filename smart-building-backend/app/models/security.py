@@ -45,6 +45,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     mobile = Column(String(20), nullable=False, unique=True, index=True)
     display_name = Column(String(120), nullable=False)
+    can_edit_own_name = Column(Boolean, nullable=False, default=False, server_default="false")
     is_active = Column(Boolean, nullable=False, default=True)
     locked_at = Column(DateTime, nullable=True)
     last_login_at = Column(DateTime, nullable=True)

@@ -19,6 +19,7 @@ from app.schemas.workflow import (
 )
 from app.services.workflow import approve_stage, create_pilot, reject_stage, submit_stage
 from app.services.security import AuthContext, require_permission
+from app.services.dashboard import scoped_pilots_query
 
 router = APIRouter(prefix="/pilots", tags=["pilots"])
 
@@ -49,19 +50,19 @@ def create_pilot_endpoint(
 
 @router.get("", response_model=list[PilotRead])
 def list_pilots(
-    _: AuthContext = Depends(require_permission("pilots.read")),
+    context: AuthContext = Depends(require_permission("pilots.read")),
     db: Session = Depends(get_db),
 ) -> list[Pilot]:
-    return db.query(Pilot).order_by(Pilot.id).all()
+    return scoped_pilots_query(db, context).order_by(Pilot.id).all()
 
 
 @router.get("/{pilot_id}", response_model=PilotDetail)
 def get_pilot(
     pilot_id: int,
-    _: AuthContext = Depends(require_permission("pilots.read")),
+    context: AuthContext = Depends(require_permission("pilots.read")),
     db: Session = Depends(get_db),
 ) -> Pilot:
-    pilot = db.get(Pilot, pilot_id)
+    pilot = scoped_pilots_query(db, context).filter(Pilot.id == pilot_id).first()
     if not pilot:
         raise HTTPException(status_code=404, detail="Pilot not found")
     return pilot
