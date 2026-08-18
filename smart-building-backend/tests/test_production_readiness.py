@@ -1,6 +1,16 @@
 import pytest
 
-from app.config import validate_production_settings
+from app.config import get_cors_origin_regex, validate_production_settings
+
+
+def test_development_cors_accepts_localhost_on_any_port(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    assert get_cors_origin_regex() == r"^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
+
+
+def test_production_cors_has_no_localhost_wildcard(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    assert get_cors_origin_regex() is None
 
 
 def test_production_configuration_fails_closed(monkeypatch, tmp_path):

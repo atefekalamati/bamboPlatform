@@ -15,6 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import (
     get_app_env,
+    get_cors_origin_regex,
     get_cors_origins,
     get_docs_enabled,
     get_dwg_storage_root,
@@ -67,6 +68,7 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=get_trusted_hosts())
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
+    allow_origin_regex=get_cors_origin_regex(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
