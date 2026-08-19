@@ -52,3 +52,17 @@ test("dashboard does not expose the removed Power BI backend contract", async ()
   assert.doesNotMatch(service, /getPowerBIEmbed|embed-token/i);
   assert.doesNotMatch(nginx, /powerbi\.com/i);
 });
+
+test("unknown routes render a not-found page instead of the dashboard", async () => {
+  const router = await readFile(new URL("../src/app/router.js", import.meta.url), "utf8");
+  assert.match(router, /page: notFoundPage\(\)/);
+  assert.doesNotMatch(router, /return\s*\{\s*page: DashboardPage\(\),\s*navigationRoute: ROUTES\.dashboard/);
+});
+
+test("dynamic workflow feedback is exposed as a live region", async () => {
+  const bootstrap = await readFile(new URL("../src/app/bootstrap.js", import.meta.url), "utf8");
+  const accessibility = await readFile(new URL("../src/app/accessibility.js", import.meta.url), "utf8");
+  assert.match(bootstrap, /startLiveRegionEnhancements\(\)/);
+  assert.match(accessibility, /\.stage-actions__feedback/);
+  assert.match(accessibility, /aria-live/);
+});

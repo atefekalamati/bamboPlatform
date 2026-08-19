@@ -2,6 +2,7 @@ import {
   PERSIAN_MONTHS, PERSIAN_WEEKDAYS, formatJalaliDateInput, formatJalaliDateTimeInput,
   formatJalaliManualInput, getIranJalaliParts, jalaliMonthLength, jalaliWeekdayIndex,
   parseJalaliDateInput, parseJalaliDateTimeInput, toLatinDigits, toPersianDigits,
+  defaultDateInputValue,
 } from "../utils/jalaliDateTime.js";
 
 const nativeValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
@@ -33,7 +34,14 @@ class PersianDatePicker {
     this.required = input.required;
     this.minimum = input.min;
     this.maximum = input.max;
-    this.initialValue = nativeValue.get.call(input);
+    const currentValue = nativeValue.get.call(input);
+    this.initialValue = currentValue || input.disabled || input.readOnly
+      ? currentValue
+      : defaultDateInputValue(this.originalType);
+    if (!currentValue && this.initialValue) {
+      nativeValue.set.call(input, this.initialValue);
+      input.defaultValue = this.initialValue;
+    }
     this.today = getIranJalaliParts();
     this.view = { year: this.today.year, month: this.today.month };
     this.build();

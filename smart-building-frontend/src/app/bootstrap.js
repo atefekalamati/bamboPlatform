@@ -14,19 +14,26 @@ import { startRouter } from "./router.js";
 import { themeStore } from "./themeStore.js";
 import { notificationStore } from "./notificationStore.js";
 import { startConnectionStatus } from "../components/ConnectionStatus.js";
+import { startLiveRegionEnhancements } from "./accessibility.js";
 
 const APP_ROOT_ID = "app";
 
 startPersianDigitLocalization();
 startPersianDatePickers();
 startConnectionStatus();
+startLiveRegionEnhancements();
+
+let stopRouter = () => {};
 
 const renderAuthenticatedApp = (appRoot) => {
+  stopRouter();
   appRoot.replaceChildren();
-  startRouter(appRoot);
+  stopRouter = startRouter(appRoot);
 };
 
 const renderLogin = (appRoot) => {
+  stopRouter();
+  stopRouter = () => {};
   notificationStore.stop();
   appRoot.replaceChildren(
     AuthLayout({

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  formatIranDateTimeLocalValue, formatJalaliDateTimeInput, formatJalaliManualInput, jalaliMonthLength, parseJalaliDateInput,
+  defaultDateInputValue, formatIranDateTimeLocalValue, formatJalaliDateTimeInput, formatJalaliManualInput, jalaliMonthLength, parseJalaliDateInput,
   parseJalaliDateTimeInput, toBackendUtcDateTime,
 } from "../src/utils/jalaliDateTime.js";
 
@@ -19,6 +19,18 @@ test("a timezone-less backend control value is interpreted in Asia/Tehran", () =
   assert.equal(formatJalaliDateTimeInput("2026-03-21T03:30"), "۱۴۰۵/۰۱/۰۱ ۰۳:۳۰");
   assert.equal(toBackendUtcDateTime("2026-08-08T14:30"), "2026-08-08T11:00:00.000Z");
   assert.equal(formatIranDateTimeLocalValue("2026-08-08T11:00:00.000Z"), "2026-08-08T14:30");
+});
+
+test("empty date controls default to the current Iran date and time", () => {
+  const now = new Date("2026-08-19T08:15:00.000Z");
+  assert.equal(defaultDateInputValue("date", "", now), "2026-08-19");
+  assert.equal(defaultDateInputValue("datetime-local", "", now), "2026-08-19T11:45");
+});
+
+test("a backend date remains the default instead of being replaced by now", () => {
+  const now = new Date("2026-08-19T08:15:00.000Z");
+  assert.equal(defaultDateInputValue("date", "2026-09-01", now), "2026-09-01");
+  assert.equal(defaultDateInputValue("datetime-local", "2026-09-01T09:30", now), "2026-09-01T09:30");
 });
 
 test("Jalali validation rejects invalid month and day", () => {
