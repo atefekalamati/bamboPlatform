@@ -132,6 +132,12 @@ export const formatIranDateTimeLocalValue = (value = new Date()) => {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 };
 
+export const defaultDateInputValue = (type, currentValue = "", now = new Date()) => {
+  if (currentValue) return currentValue;
+  const dateTime = formatIranDateTimeLocalValue(now);
+  return type === "date" ? dateTime.slice(0, 10) : dateTime;
+};
+
 export const formatJalaliManualInput = (value, dateTime = false) => {
   const digits = toLatinDigits(value).replace(/\D/g, "").slice(0, dateTime ? 12 : 8);
   const date = [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8)].filter(Boolean).join("/");

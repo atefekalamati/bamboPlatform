@@ -43,3 +43,17 @@ test("all stage routes install the shared action layout", async () => {
   const router = await readFile(new URL("../src/app/router.js", import.meta.url), "utf8");
   assert.match(router, /installStageActionLayout/);
 });
+
+test("unknown routes render a not-found page instead of the dashboard", async () => {
+  const router = await readFile(new URL("../src/app/router.js", import.meta.url), "utf8");
+  assert.match(router, /page: notFoundPage\(\)/);
+  assert.doesNotMatch(router, /return\s*\{\s*page: DashboardPage\(\),\s*navigationRoute: ROUTES\.dashboard/);
+});
+
+test("dynamic workflow feedback is exposed as a live region", async () => {
+  const bootstrap = await readFile(new URL("../src/app/bootstrap.js", import.meta.url), "utf8");
+  const accessibility = await readFile(new URL("../src/app/accessibility.js", import.meta.url), "utf8");
+  assert.match(bootstrap, /startLiveRegionEnhancements\(\)/);
+  assert.match(accessibility, /\.stage-actions__feedback/);
+  assert.match(accessibility, /aria-live/);
+});

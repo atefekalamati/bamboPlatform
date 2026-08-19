@@ -46,6 +46,7 @@ import {
 import { sessionStore } from "./sessionStore.js";
 import { canAccessRoute, requiredPermissionForRoute } from "./routePermissions.js";
 import { installStageActionLayout } from "./stageActionLayout.js";
+import { matchStageRoute, normalizeRoutePath } from "./routeMatcher.js";
 
 const accessDeniedPage = (route) => {
   const page = document.createElement("main");
@@ -55,6 +56,22 @@ const accessDeniedPage = (route) => {
   page.className = "page error-state";
   heading.textContent = "دسترسی به این صفحه امکان‌پذیر نیست";
   message.textContent = `مجوز لازم برای این مسیر (${requiredPermissionForRoute(route) ?? "نامشخص"}) در حساب شما وجود ندارد.`;
+  back.className = "button button--primary";
+  back.href = ROUTES.dashboard;
+  back.textContent = "بازگشت به نمای کلی";
+  page.append(heading, message, back);
+  return page;
+};
+
+const notFoundPage = () => {
+  const page = document.createElement("main");
+  const heading = document.createElement("h1");
+  const message = document.createElement("p");
+  const back = document.createElement("a");
+  page.className = "page error-state";
+  heading.textContent = "صفحه پیدا نشد";
+  message.className = "error-state__message";
+  message.textContent = "نشانی واردشده معتبر نیست یا این صفحه دیگر در دسترس نیست.";
   back.className = "button button--primary";
   back.href = ROUTES.dashboard;
   back.textContent = "بازگشت به نمای کلی";
@@ -86,7 +103,7 @@ const resolveRoute = (currentRoute) => {
   if (!canAccessRoute(currentRoute, permissions, roles)) {
     return { page: accessDeniedPage(currentRoute), navigationRoute: "" };
   }
-  const routePath = currentRoute.split("?")[0];
+  const routePath = normalizeRoutePath(currentRoute);
   const exactPageFactory = ROUTE_FACTORIES[routePath];
 
   if (exactPageFactory) {
@@ -102,66 +119,10 @@ const resolveRoute = (currentRoute) => {
   }
 
   const pilotDetailsMatch = routePath.match(/^#\/pilots\/([^/]+)$/);
-  const incidentCreateMatch = currentRoute.match(/^#\/pilots\/([^/]+)\/incidents\/new$/);
-  const incidentDetailMatch = currentRoute.match(/^#\/incidents\/([^/?#]+)$/);
-  const notificationDetailsMatch = currentRoute.match(/^#\/notifications\/([^/?#]+)$/);
-  const stageOneMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/1$/,
-  );
-  const stageTwoMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/2$/,
-  );
-  const stageThreeMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/3$/,
-  );
-  const stageFourMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/4$/,
-  );
-  const stageFiveMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/5$/,
-  );
-  const stageSixMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/6$/,
-  );
-  const stageSevenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/7$/,
-  );
-  const stageEightMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/8$/,
-  );
-  const stageNineMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/9$/,
-  );
-  const stageTenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/10$/,
-  );
-  const stageElevenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/11$/,
-  );
-  const stageTwelveMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/12$/,
-  );
-  const stageThirteenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/13$/,
-  );
-  const stageFourteenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/14$/,
-  );
-  const stageFifteenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/15$/,
-  );
-  const stageSixteenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/16$/,
-  );
-  const stageSeventeenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/17$/,
-  );
-  const stageEighteenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/18$/,
-  );
-  const stageNineteenMatch = currentRoute.match(
-    /^#\/pilots\/([^/]+)\/stages\/19$/,
-  );
+  const incidentCreateMatch = routePath.match(/^#\/pilots\/([^/]+)\/incidents\/new$/);
+  const incidentDetailMatch = routePath.match(/^#\/incidents\/([^/?#]+)$/);
+  const notificationDetailsMatch = routePath.match(/^#\/notifications\/([^/?#]+)$/);
+  const stageMatch = matchStageRoute(routePath);
 
   if (incidentCreateMatch) {
     return {
@@ -184,135 +145,16 @@ const resolveRoute = (currentRoute) => {
     };
   }
 
-  if (stageNineteenMatch) {
+  if (stageMatch) {
+    const stagePages = [
+      StageOnePage, StageTwoPage, StageThreePage, StageFourPage, StageFivePage,
+      StageSixPage, StageSevenPage, StageEightPage, StageNinePage, StageTenPage,
+      StageElevenPage, StageTwelvePage, StageThirteenPage, StageFourteenPage,
+      StageFifteenPage, StageSixteenPage, StageSeventeenPage, StageEighteenPage,
+      StageNineteenPage,
+    ];
     return {
-      page: StageNineteenPage({ pilotId: stageNineteenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageEighteenMatch) {
-    return {
-      page: StageEighteenPage({ pilotId: stageEighteenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageSeventeenMatch) {
-    return {
-      page: StageSeventeenPage({ pilotId: stageSeventeenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageSixteenMatch) {
-    return {
-      page: StageSixteenPage({ pilotId: stageSixteenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageFifteenMatch) {
-    return {
-      page: StageFifteenPage({ pilotId: stageFifteenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageFourteenMatch) {
-    return {
-      page: StageFourteenPage({ pilotId: stageFourteenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageThirteenMatch) {
-    return {
-      page: StageThirteenPage({ pilotId: stageThirteenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageTwelveMatch) {
-    return {
-      page: StageTwelvePage({ pilotId: stageTwelveMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageElevenMatch) {
-    return {
-      page: StageElevenPage({ pilotId: stageElevenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageTenMatch) {
-    return {
-      page: StageTenPage({ pilotId: stageTenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageNineMatch) {
-    return {
-      page: StageNinePage({ pilotId: stageNineMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageEightMatch) {
-    return {
-      page: StageEightPage({ pilotId: stageEightMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageSevenMatch) {
-    return {
-      page: StageSevenPage({ pilotId: stageSevenMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageSixMatch) {
-    return {
-      page: StageSixPage({ pilotId: stageSixMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageFiveMatch) {
-    return {
-      page: StageFivePage({ pilotId: stageFiveMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageFourMatch) {
-    return {
-      page: StageFourPage({ pilotId: stageFourMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageThreeMatch) {
-    return {
-      page: StageThreePage({ pilotId: stageThreeMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageTwoMatch) {
-    return {
-      page: StageTwoPage({ pilotId: stageTwoMatch[1] }),
-      navigationRoute: ROUTES.pilots,
-    };
-  }
-
-  if (stageOneMatch) {
-    return {
-      page: StageOnePage({ pilotId: stageOneMatch[1] }),
+      page: stagePages[stageMatch.stageNumber - 1]({ pilotId: stageMatch.pilotId }),
       navigationRoute: ROUTES.pilots,
     };
   }
@@ -325,8 +167,8 @@ const resolveRoute = (currentRoute) => {
   }
 
   return {
-    page: DashboardPage(),
-    navigationRoute: ROUTES.dashboard,
+    page: notFoundPage(),
+    navigationRoute: "",
   };
 };
 
@@ -360,7 +202,7 @@ export const startRouter = (appRoot) => {
   let isRestoringRoute = false;
 
   renderRoute(appRoot);
-  window.addEventListener("hashchange", async () => {
+  const handleHashChange = async () => {
     if (isRestoringRoute) {
       isRestoringRoute = false;
       return;
@@ -376,11 +218,20 @@ export const startRouter = (appRoot) => {
     clearNavigationGuard();
     renderedRoute = nextRoute;
     renderRoute(appRoot);
-  });
-  window.addEventListener("beforeunload", (event) => {
+  };
+  const handleBeforeUnload = (event) => {
     if (!hasNavigationGuard()) return;
 
     event.preventDefault();
     event.returnValue = "";
-  });
+  };
+  window.addEventListener("hashchange", handleHashChange);
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  return () => {
+    window.removeEventListener("hashchange", handleHashChange);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+    cleanupStageNavigationGuard();
+    cleanupStageActionLayout();
+    clearNavigationGuard();
+  };
 };
