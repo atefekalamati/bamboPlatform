@@ -19,15 +19,40 @@ test("assigned capture expert can accept their own mission", () => {
 
 test("mission assignment manager can accept for the assigned expert", () => {
   const permissions = ["missions.manage", "missions.assign"];
-  assert.equal(canManageMissionAssignments(permissions), true);
+  const roles = [{ name: "operations" }];
+  assert.equal(canManageMissionAssignments(permissions, roles), true);
   assert.equal(
     canAcceptMissionAssignment({
       currentUserId: 1,
       expertUserId: 15,
       permissions,
+      roles,
     }),
     true,
   );
+});
+
+test("capture expert never requests the coordinator-only expert directory", () => {
+  const permissions = ["missions.manage", "missions.assign"];
+  const roles = [{ name: "capture_expert" }];
+
+  assert.equal(canManageMissionAssignments(permissions, roles), false);
+  assert.equal(
+    canAcceptMissionAssignment({
+      currentUserId: 15,
+      expertUserId: 15,
+      permissions,
+      roles,
+    }),
+    true,
+  );
+});
+
+test("operations user with an additional capture role remains a coordinator", () => {
+  const permissions = ["missions.manage", "missions.assign"];
+  const roles = [{ name: "capture_expert" }, { name: "operations" }];
+
+  assert.equal(canManageMissionAssignments(permissions, roles), true);
 });
 
 test("unassigned field expert cannot accept another expert mission", () => {

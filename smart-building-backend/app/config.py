@@ -57,6 +57,13 @@ def get_cors_origins() -> list[str]:
     return [origin.strip() for origin in configured.split(",") if origin.strip()]
 
 
+def get_cors_origin_regex() -> str | None:
+    """Allow localhost on any port in development without weakening production."""
+    if get_app_env() == "production":
+        return None
+    return r"^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
+
+
 def get_dwg_storage_root() -> Path:
     return Path(os.getenv("DWG_STORAGE_ROOT", "./storage/dwg")).resolve()
 
