@@ -118,6 +118,8 @@ export const NotificationCenter = () => {
   };
 
   const render = (state) => {
+    const hasUnread = state.unreadCount > 0;
+    bell.classList.toggle("notification-bell--active", hasUnread);
     badge.hidden = state.unreadCount <= 0;
     badge.textContent = state.unreadCount > 99 ? "۹۹+" : String(state.unreadCount);
     bell.setAttribute("aria-label", `اعلان‌ها؛ ${state.unreadCount} اعلان خوانده‌نشده`);
