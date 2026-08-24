@@ -15,6 +15,9 @@ export const authService = Object.freeze({
 
     sessionStore.setSession({
       accessToken: response.access_token,
+      refreshToken: response.refresh_token,
+      expiresIn: response.expires_in,
+      refreshExpiresIn: response.refresh_expires_in,
       user: response.user,
     });
 
@@ -30,8 +33,14 @@ export const authService = Object.freeze({
     return user;
   },
   logout: async () => {
+    const refreshToken = sessionStore.getRefreshToken();
     try {
-      await request("/auth/logout", { method: "POST" });
+      await request("/auth/logout", {
+        method: "POST",
+        body: refreshToken
+          ? JSON.stringify({ refresh_token: refreshToken })
+          : undefined,
+      });
     } finally {
       sessionStore.clear();
     }

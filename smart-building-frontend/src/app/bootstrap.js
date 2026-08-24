@@ -56,7 +56,7 @@ const bootstrap = async () => {
 
   registerGlobalErrorHandling(appRoot);
 
-  if (!sessionStore.getToken()) {
+  if (!sessionStore.hasSession()) {
     renderLogin(appRoot);
     return;
   }
