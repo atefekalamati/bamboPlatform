@@ -1,5 +1,9 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { confirmDialog } from "../components/AppDialog.js";
+import {
+  buildFloorSlots,
+  floorCreationPayload,
+} from "../features/stages/stageThree.js";
 import { dwgService } from "../services/dwgService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -241,59 +245,66 @@ const floorCard = ({
   return card;
 };
 
-const createFloorForm = ({ pilotId, nextIndex, disabled, feedback, reload }) => {
+const createFloorsForm = ({ pilotId, totalFloors, floors, disabled, feedback, reload }) => {
   const form = document.createElement("form");
-  const code = document.createElement("input");
-  const name = document.createElement("input");
-  const order = document.createElement("input");
-  const type = document.createElement("select");
-  const submit = element("button", "button button--primary", "افزودن طبقه");
-  const controls = [
-    [code, "کد مانند F01"],
-    [name, "نام طبقه"],
-    [order, "ترتیب طبقه"],
-  ];
-  form.className = "floor-create";
-  controls.forEach(([control, placeholder]) => {
-    control.className = "stage-form__control";
-    control.placeholder = placeholder;
-    control.disabled = disabled;
+  const drafts = [];
+  const slots = buildFloorSlots(totalFloors, floors);
+  const submit = element("button", "button button--primary", "ثبت اطلاعات طبقات");
+  form.className = "floor-definition";
+
+  slots.forEach((slot) => {
+    if (slot.floor) return;
+    const card = element("article", "floor-card floor-card--draft");
+    const heading = element("header", "floor-card__header");
+    const nameLabel = element("label", "stage-form__field");
+    const nameText = element("span", "stage-form__label", `نام طبقه ${slot.index}`);
+    const name = document.createElement("input");
+    const typeLabel = element("label", "stage-form__field");
+    const typeText = element("span", "stage-form__label", "نوع طبقه");
+    const type = document.createElement("select");
+    heading.append(
+      element("h3", "floor-card__title", `طبقه ${slot.index}`),
+      element("span", "floor-card__meta", slot.code),
+    );
+    name.className = type.className = "stage-form__control";
+    name.placeholder = "نام طبقه را وارد کنید";
+    name.required = true;
+    name.disabled = disabled;
+    type.disabled = disabled;
+    type.append(new Option("غیرتیپ", "non_typical"), new Option("تیپ", "typical"));
+    name.addEventListener("input", () => name.removeAttribute("aria-invalid"));
+    nameLabel.append(nameText, name);
+    typeLabel.append(typeText, type);
+    card.append(heading, nameLabel, typeLabel);
+    form.append(card);
+    drafts.push({ slot, name, type });
   });
-  code.value = `F${String(nextIndex).padStart(2, "0")}`;
-  code.pattern = "F\\d{2,3}";
-  name.required = true;
-  order.type = "number";
-  order.min = "-20";
-  order.max = "500";
-  order.value = String(nextIndex - 1);
-  type.className = "stage-form__control";
-  type.disabled = disabled;
-  type.append(new Option("غیرتیپ", "non_typical"), new Option("تیپ", "typical"));
+
   submit.type = "submit";
   submit.disabled = disabled;
-  form.append(code, name, order, type, submit);
+  form.append(submit);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const validCode = /^F\d{2,3}$/i.test(code.value.trim());
-    const validName = name.value.trim().length > 0;
-    code.setAttribute("aria-invalid", String(!validCode));
-    name.setAttribute("aria-invalid", String(!validName));
-    if (!validCode || !validName) {
-      feedback.textContent = "فیلدهای قرمز طبقه را اصلاح کنید.";
+    const invalidDrafts = drafts.filter(({ name }) => !name.value.trim());
+    drafts.forEach(({ name }) =>
+      name.setAttribute("aria-invalid", String(!name.value.trim())),
+    );
+    if (invalidDrafts.length) {
+      invalidDrafts[0].name.focus();
+      feedback.textContent = "نام تمام طبقات را در فیلدهای قرمزشده وارد کنید.";
       return;
     }
     submit.disabled = true;
     try {
-      await dwgService.createFloor(pilotId, {
-        code: code.value.trim(),
-        name: name.value.trim(),
-        levelOrder: order.value,
-        floorType: type.value,
-      });
-      await reload("طبقه جدید ثبت شد.");
+      for (const draft of drafts) {
+        await dwgService.createFloor(
+          pilotId,
+          floorCreationPayload(draft.slot, draft.name.value, draft.type.value),
+        );
+      }
+      await reload("اطلاعات تمام طبقات ثبت شد.");
     } catch (error) {
-      feedback.textContent = error.message;
-      submit.disabled = false;
+      await reload(`ثبت اطلاعات طبقات متوقف شد: ${error.message}`);
     }
   });
   return form;
@@ -409,34 +420,19 @@ export const StageThreePage = ({ pilotId }) => {
       );
       const content = element("section", "floor-workspace");
       content.append(element("h2", "stage-form__legend", "طبقات پروژه"));
+      content.append(
+        element(
+          "p",
+          "floor-card__meta stage3-floor-count",
+          `تعداد کل طبقات این پرونده: ${pilot.project.totalFloors}`,
+        ),
+      );
       const requirements = element("fieldset", "checklist stage3-requirements");
       const requirementsLegend = element(
         "legend",
         "checklist__legend",
         "شرایط عبور از Stage 3",
       );
-      const floorRequirement = element(
-        "label",
-        `checklist__item${
-          floors.length === pilot.project.totalFloors
-            ? ""
-            : " checklist__item--invalid"
-        }`,
-      );
-      const floorRequirementInput = document.createElement("input");
-      const floorRequirementText = element(
-        "span",
-        "",
-        floors.length === pilot.project.totalFloors
-          ? `تمام ${pilot.project.totalFloors} طبقه پروژه ثبت شده‌اند.`
-          : `${pilot.project.totalFloors - floors.length} طبقه دیگر باید ثبت شود (${floors.length} از ${pilot.project.totalFloors}).`,
-      );
-      floorRequirementInput.type = "checkbox";
-      floorRequirementInput.checked =
-        floors.length === pilot.project.totalFloors;
-      floorRequirementInput.disabled = true;
-      floorRequirement.append(floorRequirementInput, floorRequirementText);
-
       const referenceRequirement = element(
         "label",
         `checklist__item${
@@ -504,15 +500,15 @@ export const StageThreePage = ({ pilotId }) => {
       );
       requirements.append(
         requirementsLegend,
-        floorRequirement,
         referenceRequirement,
       );
       content.append(requirements);
       if (editable && floors.length < pilot.project.totalFloors) {
         content.append(
-          createFloorForm({
+          createFloorsForm({
             pilotId: pilot.id,
-            nextIndex: floors.length + 1,
+            totalFloors: pilot.project.totalFloors,
+            floors,
             disabled: false,
             feedback,
             reload: load,
