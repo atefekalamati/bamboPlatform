@@ -73,7 +73,7 @@ export const PilotForm = ({ onSubmit, onCancel }) => {
     id: "decision-maker-position",
     label: "سمت تصمیم‌گیرنده",
   });
-  const primaryMobile = field({ id: "owner-mobile", label: "موبایل اصلی" });
+  const primaryMobile = field({ id: "owner-mobile", label: "موبایل مالک" });
   const totalFloors = field({ id: "total-floors", label: "تعداد طبقات" });
   const address = field({ id: "project-address", label: "آدرس", type: "textarea" });
   const progressStage = selectField({

@@ -65,11 +65,13 @@
   background: linear-gradient(90deg, var(--color-background));
   color: var(--color-text-primary);
   cursor: pointer;
+  text-decoration: none;
   text-align: start;
 }
 
 .stage-stepper__button:hover,
-.stage-stepper__button[aria-pressed="true"] {
+.stage-stepper__button[aria-pressed="true"],
+.stage-stepper__button[aria-current="step"] {
   border-color: var(--color-brand-secondary);
   box-shadow: 0 0 0 0.125rem
     color-mix(in srgb, var(--color-brand-secondary) 12%, transparent);
@@ -80,7 +82,8 @@
   outline-offset: 0.125rem;
 }
 
-.stage-stepper__button[aria-pressed="true"] {
+.stage-stepper__button[aria-pressed="true"],
+.stage-stepper__button[aria-current="step"] {
   box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--color-brand-secondary) 22%, transparent);
 }
 
