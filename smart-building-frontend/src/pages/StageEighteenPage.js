@@ -1,5 +1,6 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { StageReviewPanel, StageSnapshots, stageElement as element } from "../components/StageShared.js";
+import { CallsPanel } from "../components/CallsPanel.js";
 import { commercialService } from "../services/commercialService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -19,6 +20,14 @@ const field = (labelText, input, help = "") => {
   if (help) label.append(element("small", "draft-info", help)); return label;
 };
 const localDateTime = (date) => formatIranDateTimeLocalValue(date);
+
+export const stageEighteenSubmissionErrorMessage = (error) => {
+  const callRequirementMissing = error?.code === "STAGE_VALIDATION_FAILED"
+    && error.errors?.some(({ field }) => field === "checklist.call_policy_completed");
+  return callRequirementMissing
+    ? "برای ارسال Stage 18 باید حداقل یک تماس پاسخ‌داده‌شده یا تکمیل‌شده با نتیجه معتبر و خلاصه ثبت شود؛ مدیر مجاز نیز می‌تواند Override مستدل ثبت کند."
+    : error?.message ?? "ارسال Stage 18 انجام نشد.";
+};
 
 export const StageEighteenPage = ({ pilotId }) => {
   const page = element("div", "stage-workspace");
@@ -56,6 +65,7 @@ export const StageEighteenPage = ({ pilotId }) => {
       );
       header.append(identity, element("span", "status-badge stage-workspace__status", STATUS_LABELS[stage.status] ?? stage.status));
       page.replaceChildren(back, header, feedback);
+      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 18, permissions, required: true }));
 
       const currentBySlot = new Map(followUps.map((item) => [item.schedule_slot, item]));
       const activeUsers = users.filter(({ isActive }) => isActive); const controls = new Map(); const baseline = new Date(proposal.follow_up_at);
@@ -91,7 +101,7 @@ export const StageEighteenPage = ({ pilotId }) => {
           }); return true;
         };
         save.addEventListener("click", async () => { save.disabled = true; try { if (await persist()) await load("چهار پیگیری تجاری ذخیره شدند."); else save.disabled = false; } catch (error) { feedback.textContent = error.message; save.disabled = false; } });
-        submit.addEventListener("click", async () => { submit.disabled = true; try { if (!(await persist())) { submit.disabled = false; return; } await stageService.submit(pilot.id, 18); await load("Stage 18 برای بررسی ارسال شد."); } catch (error) { feedback.textContent = error.message; submit.disabled = false; } });
+        submit.addEventListener("click", async () => { submit.disabled = true; try { if (!(await persist())) { submit.disabled = false; return; } await stageService.submit(pilot.id, 18); await load("Stage 18 برای بررسی ارسال شد."); } catch (error) { feedback.textContent = stageEighteenSubmissionErrorMessage(error); submit.disabled = false; } });
         actions.append(save, submit); page.append(actions);
       }
       if (stage.status === "submitted" && (canApprove || canReject)) page.append(StageReviewPanel({
