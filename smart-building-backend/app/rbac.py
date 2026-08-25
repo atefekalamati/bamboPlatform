@@ -115,12 +115,6 @@ PERMISSIONS = (
     ("dashboard.read_all", "Dashboard", "مشاهده نمای کلی همه پرونده‌ها", True),
     ("dashboard.export", "Dashboard", "خروجی نمای کلی سامانه", False),
     ("notifications.manage", "Notifications", "ثبت و پیگیری اعلان‌های عملیاتی", False),
-    ("calls.read", "Calls", "مشاهده تماس‌های پرونده‌های مجاز", False),
-    ("calls.initiate", "Calls", "آغاز تماس با مشتری", False),
-    ("calls.record_outcome", "Calls", "ثبت نتیجه و خلاصه تماس", False),
-    ("calls.retry", "Calls", "تلاش مجدد تماس", False),
-    ("calls.recording.read", "Calls", "مشاهده مرجع ضبط تماس", True),
-    ("calls.override", "Calls", "Override الزام تماس با دلیل", True),
     ("notifications.read", "Notifications", "مشاهده اعلان‌های کاربر", False),
     ("notifications.mark_read", "Notifications", "خوانده‌شدن یا حذف اعلان‌های کاربر", False),
     ("notifications.manage_preferences", "Notifications", "مدیریت تنظیمات اعلان", False),
@@ -211,12 +205,6 @@ PILOT_MANAGER_PERMISSIONS = {
     "forms.read",
     "forms.print",
     "forms.export_pdf",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
-    "calls.recording.read",
-    "calls.override",
 }
 
 SALES_PERMISSIONS = {
@@ -247,10 +235,6 @@ SALES_PERMISSIONS = {
     "commercial.manage",
     "checklists.manage",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
 }
 
 SETUP_PERMISSIONS = {
@@ -315,10 +299,6 @@ OPERATIONS_PERMISSIONS = {
     "incidents.resolve",
     "incidents.close",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
     "forms.read",
     "forms.print",
     "forms.export_pdf",
@@ -380,10 +360,6 @@ SUPPORT_PERMISSIONS = {
     "forms.f04.read",
     "forms.f05.read",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
 }
 
 CUSTOMER_SUCCESS_PERMISSIONS = {
@@ -412,10 +388,6 @@ CUSTOMER_SUCCESS_PERMISSIONS = {
     "customer_success.feedback",
     "customer_success.manage",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
 }
 
 TECHNICAL_PERMISSIONS = {

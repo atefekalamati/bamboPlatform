@@ -28,7 +28,10 @@ def test_ippanel_provider_sends_pattern_payload(monkeypatch):
             return False
 
         def read(self):
-            return b'{"message_id":"ippanel-message-1","status":"accepted"}'
+            return (
+                b'{"meta":{"status":true,"message_code":"200"},'
+                b'"data":{"message_outbox_ids":["ippanel-message-1"]}}'
+            )
 
     def fake_urlopen(request, timeout):
         captured["url"] = request.full_url
@@ -68,6 +71,7 @@ def test_ippanel_provider_sends_pattern_payload(monkeypatch):
         "from_number": "+983000505",
         "code": "spuueljew7dxi3z",
         "recipients": ["+989120000000"],
+        "params": {"message": "ignored by IPPanel pattern adapter"},
     }
 
 

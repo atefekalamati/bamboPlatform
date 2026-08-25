@@ -13,8 +13,16 @@ Port: 5433
 Database: bambo
 User: bambo
 Password: ***
-Migration: 0016_form_f04_other_issue_description (head)
+Migration: 0020_refresh_tokens (head)
+Volume: bambo_pilot_postgres_data
+Compose: smart-building-backend/compose.yaml (included by compose.yaml)
 ```
+
+این تنها دیتابیس توسعه است. نام Volume در Compose به‌صورت صریح pin شده تا هر
+Compose Project به همان فضای ذخیره‌سازی برسد و دیتابیس دوم ساخته نشود.
+
+نسخه‌های SQLite قدیمی بازنشسته شده‌اند و در `smart-building-backend/legacy-sqlite/`
+بایگانی می‌شوند؛ داده‌های آن‌ها در ۱۴۰۵/۰۵/۳۰ به همین PostgreSQL منتقل شد.
 
 قالب رشته اتصال:
 

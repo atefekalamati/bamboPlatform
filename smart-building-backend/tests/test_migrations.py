@@ -51,7 +51,7 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0020_refresh_tokens"
+            == "0021_remove_call_integration"
         )
         existing_permission = connection.execute(
             text("SELECT can_edit_own_name FROM users LIMIT 1")
@@ -90,6 +90,28 @@ def test_initial_migration_compiles_for_postgresql(monkeypatch):
     assert "other_issue_description" in sql
     assert "can_edit_own_name" in sql
     assert "refresh_token_hash" in sql
+    assert "DROP TABLE calls" in sql
+
+
+def test_remove_call_integration_migration_drops_tables_and_rolls_back(monkeypatch, tmp_path):
+    database_path = tmp_path / "remove-call-integration.db"
+    database_url = f"sqlite:///{database_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    config = alembic_config()
+
+    command.upgrade(config, "0020_refresh_tokens")
+    inspector = inspect(create_engine(database_url))
+    assert {"calls", "call_attempts", "call_outcomes", "call_webhook_events"}.issubset(
+        set(inspector.get_table_names())
+    )
+
+    command.upgrade(config, "0021_remove_call_integration")
+    tables = set(inspect(create_engine(database_url)).get_table_names())
+    assert {"calls", "call_attempts", "call_outcomes", "call_webhook_events"}.isdisjoint(tables)
+
+    command.downgrade(config, "0020_refresh_tokens")
+    tables = set(inspect(create_engine(database_url)).get_table_names())
+    assert {"calls", "call_attempts", "call_outcomes", "call_webhook_events"}.issubset(tables)
 
 
 def test_refresh_token_migration_adds_session_fields_and_rolls_back(monkeypatch, tmp_path):
