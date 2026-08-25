@@ -483,3 +483,27 @@ class IncidentList(BaseModel):
     page_size: int
     total_pages: int
     summary: IncidentSummary
+
+
+class GlobalIncidentRead(IncidentRead):
+    pilot_code: str
+    pilot_display_name: str
+    sla_due_at: datetime
+
+
+class GlobalIncidentSummary(BaseModel):
+    total: int
+    open: int
+    critical: int
+    important: int
+    overdue: int
+    closed: int
+
+
+class GlobalIncidentList(BaseModel):
+    items: list[GlobalIncidentRead]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+    summary: GlobalIncidentSummary

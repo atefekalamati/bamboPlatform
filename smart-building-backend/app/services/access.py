@@ -88,6 +88,46 @@ def scoped_pilot_query(db: Session, context: AuthContext):
     return query.filter(assigned)
 
 
+def scoped_incident_pilot_query(db: Session, context: AuthContext):
+    """Return the pilot scope used by the global incident list.
+
+    The field expert and pilot manager rules are intentionally narrower than
+    the generic role-related workflow scope: listing incidents must not reveal
+    pilots merely because their current stage is actionable by that role.
+    """
+    query = db.query(Pilot)
+    roles = active_role_names(context.user)
+    permissions = effective_permissions(context.user)
+    scopes = {
+        ROLE_DEFINITIONS[name].data_scope
+        for name in roles
+        if name in ROLE_DEFINITIONS
+    }
+    if "ALL" in scopes or "incidents.read_all" in permissions:
+        return query
+
+    user_id = context.user.id
+    role_filters = []
+    if "capture_expert" in roles:
+        role_filters.extend(
+            (
+                Pilot.missions.any(Mission.expert_user_id == user_id),
+                Pilot.incidents.any(Incident.owner_user_id == user_id),
+            )
+        )
+    if "pilot_manager" in roles:
+        role_filters.extend(
+            (
+                Pilot.form_f01.has(FormF01.pilot_manager_user_id == user_id),
+                Pilot.form_f04.has(FormF04.pilot_manager_user_id == user_id),
+            )
+        )
+    if roles and roles.issubset({"capture_expert", "pilot_manager"}):
+        return query.filter(or_(*role_filters)) if role_filters else query.filter(Pilot.id == -1)
+
+    return scoped_pilot_query(db, context)
+
+
 def require_pilot_access(db: Session, context: AuthContext, pilot_id: int) -> Pilot:
     pilot = scoped_pilot_query(db, context).filter(Pilot.id == pilot_id).first()
     if pilot is None:
