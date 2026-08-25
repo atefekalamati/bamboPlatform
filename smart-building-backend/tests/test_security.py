@@ -410,8 +410,19 @@ def test_permission_groups_and_role_access_preview_expose_granular_rbac(
     assert "stages.submit" in permissions_by_group["Stages"]
     assert "gates.override" in permissions_by_group["Gates"]
     assert "users.assign_roles" in permissions_by_group["Users"]
+    assert "Calls" not in permissions_by_group
+    assert not any(
+        permission.startswith("calls.")
+        for permissions in permissions_by_group.values()
+        for permission in permissions
+    )
 
     roles = client.get("/roles", headers=super_admin_headers).json()
+    assert not any(
+        permission["code"].startswith("calls.")
+        for role in roles
+        for permission in role["permissions"]
+    )
     capture_role = next(role for role in roles if role["name"] == "capture_expert")
     preview = client.get(
         f"/roles/{capture_role['id']}/access-preview",

@@ -25,7 +25,6 @@ from app.models import (
 from app.schemas.experience import CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES
 from app.schemas.workflow import PilotCreate, StageReject, StageSubmit
 from app.services.security import add_audit_log
-from app.services.calls import stage_call_requirement_met
 from app.workflow import (
     FINAL_OUTCOMES,
     GATE_DEFINITIONS,
@@ -869,7 +868,6 @@ def _canonical_submission_data(
             },
             {
                 "follow_up_registered": complete,
-                "call_policy_completed": stage_call_requirement_met(db, pilot.id, 18),
             },
         )
     if stage.number == 19:

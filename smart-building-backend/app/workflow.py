@@ -203,7 +203,7 @@ STAGE_DEFINITIONS = (
     StageDefinition(
         18,
         "پیگیری تا تصمیم و عقد قرارداد",
-        ("follow_up_registered", "call_policy_completed"),
+        ("follow_up_registered",),
         ("obstacle", "action", "owner", "due_at", "result"),
     ),
     StageDefinition(

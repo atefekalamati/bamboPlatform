@@ -22,7 +22,6 @@ from app.models.experience import (
 )
 from app.models.evaluation import ContinuationReview, PilotEvaluation
 from app.models.commercial import CommercialProposal, CustomerFollowUp, FinalOutcome
-from app.models.calls import Call, CallAttempt, CallOutcome, CallWebhookEvent
 from app.models.security import (
     AuditLog,
     AuthSession,
@@ -45,10 +44,6 @@ from app.models.workflow import (
 
 __all__ = [
     "Building",
-    "Call",
-    "CallAttempt",
-    "CallOutcome",
-    "CallWebhookEvent",
     "AuditLog",
     "AuthSession",
     "Contact",

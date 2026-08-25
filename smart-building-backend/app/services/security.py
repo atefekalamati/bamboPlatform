@@ -300,8 +300,7 @@ def request_otp(db: Session, mobile: str, ip_address: str | None) -> OtpDispatch
     ttl = get_int_setting("OTP_TTL_SECONDS", 300)
     delivery = get_sms_provider().send_otp(
         mobile=mobile,
-        purpose="auth",
-        body=f"کد ورود BAMBO: {code}",
+        otp_code=code,
     )
 
     otp_request = OtpRequest(

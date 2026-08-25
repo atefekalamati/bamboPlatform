@@ -45,6 +45,34 @@ def get_int_setting(name: str, default: int) -> int:
     return int(os.getenv(name, str(default)))
 
 
+def get_sms_timeout_seconds() -> float:
+    return float(os.getenv("SMS_TIMEOUT_SECONDS", "10"))
+
+
+def get_sms_retry_count() -> int:
+    return max(0, get_int_setting("SMS_RETRY_COUNT", 0))
+
+
+def get_sms_retry_backoff_seconds() -> float:
+    return max(0.0, float(os.getenv("SMS_RETRY_BACKOFF_SECONDS", "0")))
+
+
+def get_sms_otp_template_id() -> str | None:
+    return os.getenv("SMS_OTP_TEMPLATE_ID") or os.getenv("SMS_TEMPLATE_ID")
+
+
+def get_sms_notification_template_id() -> str | None:
+    return os.getenv("SMS_NOTIFICATION_TEMPLATE_ID") or os.getenv("SMS_TEMPLATE_ID")
+
+
+def get_sms_otp_param_name() -> str:
+    return os.getenv("SMS_OTP_PARAM_NAME", "code")
+
+
+def get_sms_notification_param_name() -> str:
+    return os.getenv("SMS_NOTIFICATION_PARAM_NAME", "message")
+
+
 def get_bootstrap_super_admin_mobile() -> str | None:
     return os.getenv("BOOTSTRAP_SUPER_ADMIN_MOBILE")
 
@@ -159,11 +187,6 @@ def validate_production_settings() -> None:
             errors.append("SMS_SENDER must be configured")
         if not os.getenv("SMS_TEMPLATE_ID", "").strip():
             errors.append("SMS_TEMPLATE_ID must be configured")
-    call_provider = os.getenv("CALL_PROVIDER", "").strip().lower()
-    if call_provider != "astel":
-        errors.append("CALL_PROVIDER must be astel in production")
-    else:
-        errors.append("official Astel API and webhook contract is not installed")
     if get_bool_setting("DEBUG"):
         errors.append("DEBUG must be disabled")
     if get_docs_enabled():
