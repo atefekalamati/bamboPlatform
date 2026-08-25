@@ -434,3 +434,32 @@ def test_postgresql_concurrent_f04_partial_updates_preserve_fields(monkeypatch):
         assert forms[0].project_opened is True
 
     engine.dispose()
+
+
+def test_postgresql_incident_list_indexes_and_query_plan(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
+    engine = database.get_engine()
+    inspector = inspect(engine)
+    index_names = {
+        index["name"] for index in inspector.get_indexes("incidents")
+    }
+    assert {
+        "ix_incidents_pilot_id",
+        "ix_incidents_status",
+        "ix_incidents_severity",
+        "ix_incidents_occurred_at",
+        "ix_incidents_response_due_at",
+        "ix_incidents_correction_due_at",
+    }.issubset(index_names)
+
+    with engine.connect() as connection:
+        plan = connection.execute(
+            text(
+                "EXPLAIN SELECT i.id FROM incidents AS i "
+                "JOIN pilots AS p ON p.id = i.pilot_id "
+                "WHERE i.status = 'open' AND i.severity = 'critical' "
+                "ORDER BY i.occurred_at DESC LIMIT 20"
+            )
+        ).all()
+    assert plan
+    engine.dispose()

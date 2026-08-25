@@ -22,11 +22,15 @@ from app.schemas.experience import (
     ExternalPlatformUpdate,
     FormF04Patch,
     FormF04Read,
+    GlobalIncidentList,
     IncidentClose,
     IncidentCreate,
     IncidentList,
     IncidentPatch,
     IncidentRead,
+    IncidentSeverity,
+    IncidentStatus,
+    IncidentType,
     OutputNotificationCreate,
 )
 from app.schemas.operations import NotificationRead
@@ -36,6 +40,7 @@ from app.services.experience import (
     create_main_output_notification,
     get_incident,
     get_pilot,
+    list_global_incidents,
     list_incidents as list_incidents_service,
     patch_f04,
     patch_incident,
@@ -168,7 +173,51 @@ def post_main_output_notification(
     )
 
 
-@router.get("/pilots/{pilot_id}/incidents", response_model=IncidentList)
+@router.get("/incidents", response_model=GlobalIncidentList)
+def list_all_incidents(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    q: str | None = Query(default=None, min_length=1, max_length=160),
+    status_filter: IncidentStatus | None = Query(default=None, alias="status"),
+    severity: IncidentSeverity | None = Query(default=None),
+    incident_type: IncidentType | None = Query(default=None, alias="type"),
+    pilot_id: int | None = Query(default=None, ge=1),
+    stage_number: int | None = Query(default=None, ge=1, le=19),
+    assignee_id: int | None = Query(default=None, ge=1),
+    overdue: bool | None = Query(default=None),
+    occurred_from: datetime | None = Query(default=None),
+    occurred_to: datetime | None = Query(default=None),
+    sort: str = Query(
+        default="-occurred_at",
+        pattern="^(occurred_at|-occurred_at|severity|status|sla_due_at|-sla_due_at)$",
+    ),
+    context: AuthContext = Depends(require_permission("incidents.read")),
+    db: Session = Depends(get_db),
+) -> GlobalIncidentList:
+    return list_global_incidents(
+        db,
+        context,
+        page=page,
+        page_size=page_size,
+        q=q,
+        status=status_filter,
+        severity=severity,
+        incident_type=incident_type,
+        pilot_id=pilot_id,
+        stage_number=stage_number,
+        assignee_id=assignee_id,
+        overdue=overdue,
+        occurred_from=occurred_from,
+        occurred_to=occurred_to,
+        sort=sort,
+    )
+
+
+@router.get(
+    "/pilots/{pilot_id}/incidents",
+    response_model=IncidentList,
+    deprecated=True,
+)
 def list_incidents(
     pilot_id: int,
     page: int = Query(default=1, ge=1),
