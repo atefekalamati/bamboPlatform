@@ -3,7 +3,6 @@ import {
   DashboardFilters, MyActions, PilotList, RecentActivities, SummaryWidget,
 } from "../components/DashboardComponents.js";
 import { ProcessHealthChart, ProjectStageJourney } from "../components/DashboardVisualizations.js";
-import { PowerBIReport } from "../components/PowerBIReport.js";
 import { dashboardService } from "../services/dashboardService.js";
 import { notificationService } from "../services/notificationService.js";
 import { pilotService } from "../services/pilotService.js";
@@ -35,7 +34,7 @@ const QuickActions = ({ permissions, roles }) => {
   const definitions = [
     ["pilots.create", "ایجاد پرونده", "#/pilots"], ["missions.create", "ایجاد مأموریت", "#/pilots"],
     ["incidents.create", "ثبت رخداد", "#/incidents"], ["dashboard.read", "کارهای من", "#dashboard-actions"],
-    ["reports.sla", "پرونده‌های معوق", "?sla=overdue#/"], ["reports.powerbi", "گزارش مدیریتی", "#powerbi-report"],
+    ["reports.sla", "پرونده‌های معوق", "?sla=overdue#/"],
     ["users.read", "کاربران", "#/users"], ["roles.read", "نقش‌ها و دسترسی‌ها", "#/roles"],
   ];
   const section = node("section", "dashboard-quick-actions"); section.setAttribute("aria-label", "دسترسی سریع");
@@ -45,7 +44,7 @@ const QuickActions = ({ permissions, roles }) => {
       (href !== "#/roles" || hasAdministrativeRole(roles)),
     )
     .forEach(([, title, href]) => {
-    if (href === "#dashboard-actions" || href === "#powerbi-report") {
+    if (href === "#dashboard-actions") {
       const button = node("button", "button button--ghost", title); button.type = "button";
       button.addEventListener("click", () => document.querySelector(href)?.scrollIntoView({ behavior: "smooth", block: "start" })); section.append(button); return;
     }
@@ -179,7 +178,6 @@ export const DashboardPage = () => {
           if (list) notifications.append(list);
         }).catch(() => notifications.append(node("p", "dashboard-state", "دریافت اعلان‌ها انجام نشد."))); widgets.append(notifications);
       }
-      const powerBI = PowerBIReport({ service: dashboardService, enabled: has(permissions, "reports.powerbi") }); powerBI.id = "powerbi-report"; content.append(powerBI);
       renderPilots(pilotsArea);
     } catch (error) {
       const state = node("section", "dashboard-panel dashboard-state dashboard-state--error", error.status === 403 ? "به نمای کلی دسترسی ندارید." : "دریافت اطلاعات داشبورد انجام نشد."); const retry = node("button", "button button--primary", "تلاش مجدد"); retry.type = "button"; retry.onclick = load; state.append(retry); content.replaceChildren(state);

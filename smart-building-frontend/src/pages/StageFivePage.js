@@ -15,6 +15,7 @@ import {
   canManageMissionAssignments,
 } from "../features/missions/missionPermissions.js";
 import { missionService } from "../services/missionService.js";
+import { CallsPanel } from "../components/CallsPanel.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
@@ -299,6 +300,7 @@ export const StageFivePage = ({ pilotId }) => {
         ),
       );
       page.replaceChildren(back, header, feedback);
+      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 5, permissions }));
 
       if (!mission) {
         if (!canCoordinate) {

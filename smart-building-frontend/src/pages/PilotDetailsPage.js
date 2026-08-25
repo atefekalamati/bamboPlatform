@@ -55,7 +55,7 @@ const renderDetails = (container, pilot) => {
     summaryItem("نام پروژه", project.name),
     summaryItem("مالک", owner.name),
     summaryItem("تصمیم‌گیرنده", `${owner.decisionMakerName} — ${owner.decisionMakerPosition}`),
-    summaryItem("موبایل اصلی", owner.primaryMobile),
+    summaryItem("موبایل مالک", owner.primaryMobile),
     summaryItem("تعداد طبقات", String(project.totalFloors)),
     summaryItem("مرحله پروژه", project.progressStage),
     summaryItem("مرحله پایلوت", `${pilot.currentStage} از ۱۹`),

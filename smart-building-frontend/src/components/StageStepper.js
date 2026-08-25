@@ -1,5 +1,6 @@
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
 import { translateDisplayValue } from "../utils/displayText.js";
+import { getStageRoute } from "../features/stages/stageNavigation.js";
 
 const STATUS_LABELS = Object.freeze({
   open: "باز",
@@ -51,10 +52,8 @@ const renderDetails = (container, stage) => {
     ),
     metadata,
   );
-  if (
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(stage.number) &&
-    ["open", "submitted", "needs_revision", "approved"].includes(stage.status)
-  ) {
+  const stageRoute = getStageRoute(container.dataset.pilotId, stage);
+  if (stageRoute) {
     const action = element(
       "a",
       "button button--primary stage-detail__action",
@@ -62,7 +61,7 @@ const renderDetails = (container, stage) => {
         ? `مشاهده مرحله ${stage.number}`
         : `ورود به مرحله ${stage.number}`,
     );
-    action.href = `#/pilots/${container.dataset.pilotId}/stages/${stage.number}`;
+    action.href = stageRoute;
     container.append(action);
   }
 };
@@ -91,13 +90,19 @@ export const StageStepper = ({ stages, currentStage, pilotId }) => {
     list.replaceChildren();
     stages.forEach((stage) => {
       const item = element("li", "stage-stepper__item");
+      const stageRoute = getStageRoute(pilotId, stage);
       const button = element(
-        "button",
+        stageRoute ? "a" : "button",
         `stage-stepper__button stage-stepper__button--${stage.status}`,
       );
       const content = element("span", "stage-stepper__content");
-      button.type = "button";
-      button.setAttribute("aria-pressed", String(stage.number === selected));
+      if (stageRoute) {
+        button.href = stageRoute;
+        if (stage.number === selected) button.setAttribute("aria-current", "step");
+      } else {
+        button.type = "button";
+        button.setAttribute("aria-pressed", String(stage.number === selected));
+      }
       button.setAttribute(
         "aria-label",
         `مرحله ${stage.number}: ${stage.title}، ${STATUS_LABELS[stage.status] ?? translateDisplayValue(stage.status, "وضعیت نامشخص")}`,
@@ -115,11 +120,13 @@ export const StageStepper = ({ stages, currentStage, pilotId }) => {
         element("span", "stage-stepper__number", String(stage.number)),
         content,
       );
-      button.addEventListener("click", () => {
-        selected = stage.number;
-        renderList();
-        renderDetails(details, stage);
-      });
+      if (!stageRoute) {
+        button.addEventListener("click", () => {
+          selected = stage.number;
+          renderList();
+          renderDetails(details, stage);
+        });
+      }
       item.append(button);
       list.append(item);
     });

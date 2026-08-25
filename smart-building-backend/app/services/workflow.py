@@ -21,10 +21,13 @@ from app.models import (
     Project,
     StageApproval,
     StageSubmission,
+    User,
 )
+from app.auth.role_matrix import STAGE_MATRIX
 from app.schemas.experience import CUSTOMER_SUCCESS_EVIDENCE_CAPABILITIES
 from app.schemas.workflow import PilotCreate, StageReject, StageSubmit
 from app.services.security import add_audit_log
+from app.services.notifications import create_notification
 from app.services.calls import stage_call_requirement_met
 from app.workflow import (
     FINAL_OUTCOMES,
@@ -37,6 +40,99 @@ from app.workflow import (
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _workflow_recipients(
+    db: Session,
+    pilot: Pilot,
+    stage_number: int,
+    action: str,
+    actor_user_id: int | None,
+) -> list[User]:
+    allowed_roles = set(STAGE_MATRIX.get(stage_number, {}).get(action, ()))
+    if not allowed_roles:
+        return []
+    assigned_capture_ids = {mission.expert_user_id for mission in pilot.missions}
+    assigned_technical_ids = {
+        incident.owner_user_id
+        for incident in pilot.incidents
+        if incident.owner_user_id is not None
+    }
+    recipients: list[User] = []
+    for user in db.query(User).filter(User.is_active.is_(True)).all():
+        if user.id == actor_user_id:
+            continue
+        role_names = {role.name for role in user.roles if role.is_active}
+        if "super_admin" in role_names:
+            recipients.append(user)
+            continue
+        matched = role_names.intersection(allowed_roles)
+        if not matched:
+            continue
+        if matched == {"capture_expert"} and user.id not in assigned_capture_ids:
+            continue
+        if matched == {"technical"} and user.id not in assigned_technical_ids:
+            continue
+        recipients.append(user)
+    return recipients
+
+
+def _notify_workflow_action(
+    db: Session,
+    *,
+    pilot: Pilot,
+    stage_number: int,
+    action: str,
+    actor_user_id: int | None,
+    event: str,
+    version: int,
+) -> None:
+    if event == "review":
+        title = f"تأیید مرحله {stage_number} موردنیاز است"
+        body = (
+            f"مرحله {stage_number} پرونده {pilot.code} برای بررسی و تصمیم شما ارسال شده است."
+        )
+        notification_type = "stage.review_required"
+        priority = "HIGH"
+    elif event == "revision":
+        title = f"اصلاح مرحله {stage_number} موردنیاز است"
+        body = f"مرحله {stage_number} پرونده {pilot.code} رد شده و به اصلاح نیاز دارد."
+        notification_type = "stage.revision_required"
+        priority = "HIGH"
+    else:
+        title = f"اقدام در مرحله {stage_number} موردنیاز است"
+        body = f"مرحله {stage_number} پرونده {pilot.code} باز شده و آماده اقدام است."
+        notification_type = "stage.action_required"
+        priority = "NORMAL"
+
+    for recipient in _workflow_recipients(
+        db, pilot, stage_number, action, actor_user_id
+    ):
+        create_notification(
+            db,
+            recipient_user=recipient,
+            actor_user_id=actor_user_id,
+            notification_type=notification_type,
+            category="STAGE",
+            priority=priority,
+            title=title,
+            body=body,
+            entity_type="stage",
+            entity_id=stage_number,
+            pilot_id=pilot.id,
+            action_url=f"/pilots/{pilot.id}/stages/{stage_number}",
+            template_code=notification_type,
+            payload={
+                "pilot_code": pilot.code,
+                "stage_number": stage_number,
+                "event": event,
+                "version": version,
+            },
+            deduplication_key=(
+                f"workflow:{pilot.id}:{stage_number}:{event}:{version}:{recipient.id}"
+            ),
+            send_sms=False,
+        )
 
 
 def create_pilot(db: Session, payload: PilotCreate, actor_user_id: int | None = None) -> Pilot:
@@ -1002,6 +1098,15 @@ def submit_stage(
         pilot_id=stage.pilot_id,
         new_data={"stage": stage.number, "version": submission.version},
     )
+    _notify_workflow_action(
+        db,
+        pilot=stage.pilot,
+        stage_number=stage.number,
+        action="approve",
+        actor_user_id=actor_user_id,
+        event="review",
+        version=submission.version,
+    )
     db.commit()
     db.refresh(stage)
     db.refresh(submission)
@@ -1170,6 +1275,16 @@ def approve_stage(
         new_data={"stage": stage.number, "version": submission.version},
         reason=comment,
     )
+    if stage.number < len(STAGE_DEFINITIONS):
+        _notify_workflow_action(
+            db,
+            pilot=stage.pilot,
+            stage_number=stage.number + 1,
+            action="submit",
+            actor_user_id=actor_user_id,
+            event="action",
+            version=submission.version,
+        )
     db.commit()
     db.refresh(stage)
     db.refresh(submission)
@@ -1226,6 +1341,15 @@ def reject_stage(
         old_data={"status": "submitted"},
         new_data={"status": "needs_revision", "version": submission.version},
         reason=payload.reason or "; ".join(payload.correction_items),
+    )
+    _notify_workflow_action(
+        db,
+        pilot=stage.pilot,
+        stage_number=stage.number,
+        action="submit",
+        actor_user_id=actor_user_id,
+        event="revision",
+        version=submission.version,
     )
     db.commit()
     db.refresh(stage)

@@ -246,6 +246,25 @@ textarea.stage-form__control {
   background: var(--color-background);
 }
 
+.floor-definition {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+}
+
+.floor-definition > .button {
+  justify-self: start;
+}
+
+.floor-card--draft {
+  align-content: start;
+  background: var(--color-background);
+}
+
+.stage3-floor-count {
+  margin: 0;
+}
+
 .floor-card {
   display: grid;
   gap: var(--space-4);
