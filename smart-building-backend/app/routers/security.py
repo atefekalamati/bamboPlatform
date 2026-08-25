@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -46,11 +47,12 @@ from app.services.security import (
     add_audit_log,
     effective_permissions,
     get_auth_context,
+    bearer_scheme,
+    logout_sessions,
     mask_mobile,
     request_otp,
     require_permission,
     refresh_session,
-    revoke_session,
     utc_now,
     update_user_profile,
     update_own_name_edit_permission,
@@ -263,11 +265,22 @@ def bootstrap(
 
 @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
+    request: Request,
     payload: RefreshTokenInput | None = None,
-    context: AuthContext = Depends(get_auth_context),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> None:
-    revoke_session(db, context, payload.refresh_token if payload else None)
+    logout_sessions(
+        db,
+        access_token=(
+            credentials.credentials
+            if credentials and credentials.scheme.lower() == "bearer"
+            else None
+        ),
+        refresh_token=payload.refresh_token if payload else None,
+        ip_address=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
 
 
 @auth_router.get("/preferences", response_model=UserPreferenceRead)

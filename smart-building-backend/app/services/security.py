@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import text
+from sqlalchemy import or_, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -469,21 +469,36 @@ def refresh_session(
             )
             db.commit()
         raise SecurityError(
-            code="REFRESH_INVALID",
-            message="نشست ورود نامعتبر یا منقضی است.",
+            code=(
+                "REFRESH_TOKEN_REVOKED"
+                if reused_session is not None
+                else "REFRESH_TOKEN_INVALID"
+            ),
+            message="Refresh Token نامعتبر یا باطل‌شده است.",
+            status_code=401,
+            errors=[],
+        )
+    if auth_session.revoked_at is not None:
+        raise SecurityError(
+            code="REFRESH_TOKEN_REVOKED",
+            message="Refresh Token باطل شده است.",
             status_code=401,
             errors=[],
         )
     if (
-        auth_session.revoked_at is not None
-        or auth_session.refresh_expires_at is None
+        auth_session.refresh_expires_at is None
         or auth_session.refresh_expires_at <= now
-        or not auth_session.user.is_active
-        or auth_session.user.locked_at is not None
     ):
         raise SecurityError(
-            code="REFRESH_INVALID",
-            message="نشست ورود نامعتبر یا منقضی است.",
+            code="REFRESH_TOKEN_EXPIRED",
+            message="اعتبار Refresh Token به پایان رسیده است.",
+            status_code=401,
+            errors=[],
+        )
+    if not auth_session.user.is_active or auth_session.user.locked_at is not None:
+        raise SecurityError(
+            code="SESSION_REVOKED",
+            message="نشست کاربر دیگر معتبر نیست.",
             status_code=401,
             errors=[],
         )
@@ -528,7 +543,7 @@ def get_auth_context(
 ) -> AuthContext:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise SecurityError(
-            code="AUTH_REQUIRED",
+            code="ACCESS_TOKEN_INVALID",
             message="ورود به سامانه الزامی است.",
             status_code=401,
             errors=[],
@@ -539,16 +554,31 @@ def get_auth_context(
         .filter(AuthSession.token_hash == _token_hash(credentials.credentials))
         .first()
     )
-    if (
-        not auth_session
-        or auth_session.revoked_at is not None
-        or auth_session.expires_at <= now
-        or not auth_session.user.is_active
-        or auth_session.user.locked_at is not None
-    ):
+    if auth_session is None:
         raise SecurityError(
-            code="AUTH_INVALID",
-            message="نشست ورود نامعتبر یا منقضی است.",
+            code="ACCESS_TOKEN_INVALID",
+            message="Access Token نامعتبر است.",
+            status_code=401,
+            errors=[],
+        )
+    if auth_session.revoked_at is not None:
+        raise SecurityError(
+            code="SESSION_REVOKED",
+            message="نشست ورود باطل شده است.",
+            status_code=401,
+            errors=[],
+        )
+    if auth_session.expires_at <= now:
+        raise SecurityError(
+            code="ACCESS_TOKEN_EXPIRED",
+            message="اعتبار Access Token به پایان رسیده است.",
+            status_code=401,
+            errors=[],
+        )
+    if not auth_session.user.is_active or auth_session.user.locked_at is not None:
+        raise SecurityError(
+            code="SESSION_REVOKED",
+            message="نشست کاربر دیگر معتبر نیست.",
             status_code=401,
             errors=[],
         )
@@ -585,8 +615,8 @@ def revoke_session(db: Session, context: AuthContext, refresh_token: str | None 
     )
     if auth_session is None:
         raise SecurityError(
-            code="REFRESH_INVALID",
-            message="نشست ورود نامعتبر یا منقضی است.",
+            code="REFRESH_TOKEN_INVALID",
+            message="Refresh Token با نشست جاری تطابق ندارد.",
             status_code=401,
             errors=[],
         )
@@ -602,3 +632,57 @@ def revoke_session(db: Session, context: AuthContext, refresh_token: str | None 
         session_id=auth_session.id,
     )
     db.commit()
+
+
+def logout_sessions(
+    db: Session,
+    *,
+    access_token: str | None,
+    refresh_token: str | None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+) -> None:
+    """Idempotently revoke sessions identified by either presented token.
+
+    Unknown, already rotated, or already revoked tokens intentionally return
+    success so logout cannot be used as a token/session existence oracle.
+    """
+    token_hashes = []
+    if access_token:
+        token_hashes.append(AuthSession.token_hash == _token_hash(access_token))
+    if refresh_token:
+        refresh_hash = _token_hash(refresh_token)
+        token_hashes.extend(
+            (
+                AuthSession.refresh_token_hash == refresh_hash,
+                AuthSession.previous_refresh_token_hash == refresh_hash,
+            )
+        )
+    if not token_hashes:
+        return
+
+    now = utc_now()
+    sessions = (
+        db.query(AuthSession)
+        .filter(or_(*token_hashes))
+        .with_for_update()
+        .all()
+    )
+    changed = False
+    for auth_session in sessions:
+        if auth_session.revoked_at is not None:
+            continue
+        auth_session.revoked_at = now
+        add_audit_log(
+            db,
+            action="auth.logout",
+            entity_type="AuthSession",
+            entity_id=auth_session.id,
+            actor_user_id=auth_session.user_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            session_id=auth_session.id,
+        )
+        changed = True
+    if changed:
+        db.commit()

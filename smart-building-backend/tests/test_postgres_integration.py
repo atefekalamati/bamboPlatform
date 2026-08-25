@@ -28,6 +28,7 @@ from app.services.experience import patch_f04
 from app.services.security import (
     AuthContext,
     request_otp,
+    refresh_session,
     revoke_session,
     seed_security_data,
     verify_otp,
@@ -146,6 +147,22 @@ def _logout_test_session(barrier: Barrier, session_id: int) -> None:
         revoke_session(db, context)
 
 
+def _refresh_at_once(barrier: Barrier, refresh_token: str) -> tuple[bool, str]:
+    barrier.wait()
+    with database.get_session() as db:
+        try:
+            _, rotated_token, _, _, _ = refresh_session(
+                db,
+                refresh_token,
+                ip_address="127.0.0.1",
+                user_agent="postgres-concurrency-test",
+            )
+            return True, rotated_token
+        except SecurityError as exc:
+            db.rollback()
+            return False, exc.code
+
+
 def test_postgresql_concurrent_otp_and_rate_limit(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
     monkeypatch.setenv("OTP_RESEND_COOLDOWN_SECONDS", "0")
@@ -236,6 +253,42 @@ def test_postgresql_concurrent_otp_and_rate_limit(monkeypatch):
             == 1
         )
 
+    engine.dispose()
+
+
+def test_postgresql_concurrent_refresh_has_one_winner_and_revokes_replay_family(
+    monkeypatch,
+):
+    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
+    engine = database.get_engine()
+    mobile = "+989150001004"
+    request_id, code = _request_test_otp(mobile)
+    with database.get_session() as db:
+        _, refresh_token, _, _, user = verify_otp(
+            db,
+            request_id,
+            code,
+            "127.0.0.1",
+        )
+        user_id = user.id
+
+    barrier = Barrier(2)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(
+            executor.map(
+                lambda _: _refresh_at_once(barrier, refresh_token),
+                range(2),
+            )
+        )
+    successes = [value for succeeded, value in results if succeeded]
+    failures = [value for succeeded, value in results if not succeeded]
+    assert len(successes) == 1
+    assert failures == ["REFRESH_TOKEN_REVOKED"]
+
+    with database.get_session() as db:
+        sessions = db.query(AuthSession).filter(AuthSession.user_id == user_id).all()
+        assert sessions
+        assert all(session.revoked_at is not None for session in sessions)
     engine.dispose()
 
 

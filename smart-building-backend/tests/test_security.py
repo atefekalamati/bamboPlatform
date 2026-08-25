@@ -187,6 +187,11 @@ def test_otp_login_masks_mobile_and_logout_revokes_session(client):
     )
     assert verified.status_code == 200, verified.json()
     body = verified.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+    assert body["expires_in"] == 900
+    assert body["refresh_expires_in"] > body["expires_in"]
+    assert body["user"]["id"]
     headers = {"Authorization": f"Bearer {body['access_token']}"}
 
     me = client.get("/auth/me", headers=headers)
@@ -197,7 +202,11 @@ def test_otp_login_masks_mobile_and_logout_revokes_session(client):
 
     logout = client.post("/auth/logout", headers=headers)
     assert logout.status_code == 204
-    assert client.get("/auth/me", headers=headers).status_code == 401
+    repeated_logout = client.post("/auth/logout", headers=headers)
+    assert repeated_logout.status_code == 204
+    revoked_me = client.get("/auth/me", headers=headers)
+    assert revoked_me.status_code == 401
+    assert revoked_me.json()["code"] == "SESSION_REVOKED"
 
 
 def test_refresh_token_rotates_and_rejects_reuse(client, monkeypatch):
@@ -225,21 +234,25 @@ def test_refresh_token_rotates_and_rejects_reuse(client, monkeypatch):
         "/auth/me",
         headers={"Authorization": f"Bearer {refreshed_body['access_token']}"},
     ).status_code == 200
-    assert client.get(
+    old_access = client.get(
         "/auth/me",
         headers={"Authorization": f"Bearer {login_body['access_token']}"},
-    ).status_code == 401
+    )
+    assert old_access.status_code == 401
+    assert old_access.json()["code"] == "ACCESS_TOKEN_INVALID"
 
     reused = client.post(
         "/auth/refresh",
         json={"refresh_token": login_body["refresh_token"]},
     )
     assert reused.status_code == 401
-    assert reused.json()["code"] == "REFRESH_INVALID"
-    assert client.get(
+    assert reused.json()["code"] == "REFRESH_TOKEN_REVOKED"
+    revoked_family = client.get(
         "/auth/me",
         headers={"Authorization": f"Bearer {refreshed_body['access_token']}"},
-    ).status_code == 401
+    )
+    assert revoked_family.status_code == 401
+    assert revoked_family.json()["code"] == "SESSION_REVOKED"
 
 
 def test_logout_with_refresh_token_revokes_session(client):
@@ -257,10 +270,19 @@ def test_logout_with_refresh_token_revokes_session(client):
     )
     assert logout.status_code == 204
     assert client.post(
+        "/auth/logout",
+        json={"refresh_token": verified["refresh_token"]},
+        headers=headers,
+    ).status_code == 204
+    revoked_refresh = client.post(
         "/auth/refresh",
         json={"refresh_token": verified["refresh_token"]},
-    ).status_code == 401
-    assert client.get("/auth/me", headers=headers).status_code == 401
+    )
+    assert revoked_refresh.status_code == 401
+    assert revoked_refresh.json()["code"] == "REFRESH_TOKEN_REVOKED"
+    revoked_access = client.get("/auth/me", headers=headers)
+    assert revoked_access.status_code == 401
+    assert revoked_access.json()["code"] == "SESSION_REVOKED"
 
 
 def test_refresh_rejects_expired_revoked_inactive_and_tampered_tokens(
@@ -284,6 +306,7 @@ def test_refresh_rejects_expired_revoked_inactive_and_tampered_tokens(
         db.commit()
     expired = client.post("/auth/refresh", json={"refresh_token": expired_login["refresh_token"]})
     assert expired.status_code == 401
+    assert expired.json()["code"] == "REFRESH_TOKEN_EXPIRED"
 
     requested = client.post("/auth/otp/request", json={"mobile": "09150000013"}).json()
     active_login = client.post(
@@ -296,6 +319,7 @@ def test_refresh_rejects_expired_revoked_inactive_and_tampered_tokens(
         db.commit()
     revoked = client.post("/auth/refresh", json={"refresh_token": active_login["refresh_token"]})
     assert revoked.status_code == 401
+    assert revoked.json()["code"] == "REFRESH_TOKEN_REVOKED"
 
     role = next(item for item in client.get("/roles", headers=super_admin_headers).json() if item["name"] == "sales")
     created = client.post(
@@ -315,12 +339,75 @@ def test_refresh_rejects_expired_revoked_inactive_and_tampered_tokens(
         db.commit()
     inactive = client.post("/auth/refresh", json={"refresh_token": inactive_login["refresh_token"]})
     assert inactive.status_code == 401
+    assert inactive.json()["code"] == "SESSION_REVOKED"
 
     tampered = client.post(
         "/auth/refresh",
         json={"refresh_token": "not-a-real-refresh-token-value-with-valid-length"},
     )
     assert tampered.status_code == 401
+    assert tampered.json()["code"] == "REFRESH_TOKEN_INVALID"
+
+
+def test_access_token_error_codes_and_permission_status(
+    client,
+):
+    from app.database import get_session
+    from app.models import AuthSession
+    from app.services.security import _token_hash, utc_now
+
+    login = client.post("/auth/otp/request", json={"mobile": "09150000016"}).json()
+    verified = client.post(
+        "/auth/otp/verify",
+        json={"request_id": login["request_id"], "code": login["debug_code"]},
+    ).json()
+    headers = {"Authorization": f"Bearer {verified['access_token']}"}
+
+    with get_session() as db:
+        session = (
+            db.query(AuthSession)
+            .filter(AuthSession.token_hash == _token_hash(verified["access_token"]))
+            .one()
+        )
+        session.expires_at = utc_now()
+        db.commit()
+    expired = client.get("/auth/me", headers=headers)
+    assert expired.status_code == 401
+    assert expired.json()["code"] == "ACCESS_TOKEN_EXPIRED"
+
+    invalid = client.get(
+        "/auth/me",
+        headers={"Authorization": "Bearer invalid-access-token"},
+    )
+    assert invalid.status_code == 401
+    assert invalid.json()["code"] == "ACCESS_TOKEN_INVALID"
+
+    fresh_headers = login_with_otp(client, "09150000017")
+    denied = client.get("/users", headers=fresh_headers)
+    assert denied.status_code == 403
+    assert denied.json()["code"] == "PERMISSION_DENIED"
+
+
+def test_auth_me_internal_failure_remains_500(client, super_admin_headers):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    # test_models reloads app.database, so app.database.get_db is no longer the
+    # object the routers were wired to. Take it from the module they imported.
+    from app.services.security import get_db
+
+    def broken_db():
+        raise RuntimeError("simulated database outage")
+        yield  # pragma: no cover
+
+    app.dependency_overrides[get_db] = broken_db
+    try:
+        with TestClient(app, raise_server_exceptions=False) as failing_client:
+            response = failing_client.get("/auth/me", headers=super_admin_headers)
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert response.status_code == 500
+    assert response.status_code != 401
 
 
 def test_refresh_tokens_are_hashed_and_not_exposed_in_audit(client, super_admin_headers):
