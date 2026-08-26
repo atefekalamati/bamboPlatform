@@ -174,7 +174,10 @@ const createHeader = ({ onMenuToggle }) => {
     window.location.reload();
   });
   const permissions = user?.permissions ?? [];
-  if (permissions.includes("notifications.read")) account.append(NotificationCenter());
+  const notificationCenter = permissions.includes("notifications.read")
+    ? NotificationCenter()
+    : null;
+  if (notificationCenter) account.append(notificationCenter);
   account.append(userName);
   if (!permissions.includes("users.read") && user?.can_edit_own_name) {
     account.append(editName);
@@ -182,6 +185,7 @@ const createHeader = ({ onMenuToggle }) => {
   account.append(createThemeToggle(), logout);
   primary.append(menu, title);
   header.append(primary, account);
+  header.cleanup = () => notificationCenter?.cleanup?.();
   return header;
 };
 
@@ -226,5 +230,6 @@ export const AppShell = ({ content, currentRoute }) => {
   menuButton = header.querySelector(".app-header__menu");
   workspace.append(header, main);
   shell.append(sidebar, backdrop, workspace);
+  shell.cleanup = () => header.cleanup?.();
   return shell;
 };

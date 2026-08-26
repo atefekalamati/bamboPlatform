@@ -5,7 +5,6 @@ import {
   stageElement as element,
 } from "../components/StageShared.js";
 import { experienceService } from "../services/experienceService.js";
-import { CallsPanel } from "../components/CallsPanel.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
@@ -142,8 +141,6 @@ export const StageElevenPage = ({ pilotId }) => {
         checklist.append(item);
       });
       page.replaceChildren(back, header, feedback, checklist);
-      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 11, permissions }));
-
       if (["open", "needs_revision"].includes(stage.status)) {
         const notificationForm = element("section", "stage-form");
         const grid = element("div", "stage-form__grid");

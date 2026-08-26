@@ -15,7 +15,23 @@ export const normalizeDigits = (value) =>
     .join("");
 
 export const normalizePhoneNumber = (value) =>
-  normalizeDigits(value).replace(/[^\d+]/g, "");
+  normalizeDigits(String(value ?? "")).replace(/[^\d+]/g, "");
+
+export const toInternationalPhoneNumber = (value) => {
+  if (/[*•xX]/.test(String(value ?? ""))) return "";
+  const normalized = normalizePhoneNumber(value);
+  if (!normalized) return "";
+
+  let international = normalized;
+  if (international.startsWith("0098")) international = `+98${international.slice(4)}`;
+  else if (international.startsWith("98")) international = `+${international}`;
+  else if (international.startsWith("0")) international = `+98${international.slice(1)}`;
+  else if (!international.startsWith("+")) international = `+98${international}`;
+
+  return /^\+[1-9]\d{7,14}$/.test(international) ? international : "";
+};
+
+export const isCallablePhoneNumber = (value) => Boolean(toInternationalPhoneNumber(value));
 
 export const isValidIranianMobile = (value) => /^09\d{9}$/.test(value);
 

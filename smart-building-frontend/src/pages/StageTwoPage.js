@@ -5,7 +5,6 @@ import {
   setNavigationGuard,
 } from "../app/navigationGuard.js";
 import { StageTwoForm } from "../components/StageTwoForm.js";
-import { CallsPanel } from "../components/CallsPanel.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
@@ -166,8 +165,6 @@ export const StageTwoPage = ({ pilotId }) => {
       const back = element("a", "back-link", "بازگشت به جزئیات پرونده");
       back.href = `#/pilots/${pilot.id}`;
       page.replaceChildren(back, header, feedback, form.element);
-      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 2, permissions }));
-
       if (editable) {
         const actions = element("div", "stage-actions");
         const save = element("button", "button button--ghost", "ذخیره بخش دوم F01");

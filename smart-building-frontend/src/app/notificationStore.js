@@ -59,6 +59,7 @@ export const notificationStore = Object.freeze({
     return syncing;
   },
   start: () => {
+    if (pollTimer) return;
     notificationStore.sync().catch(() => null);
     schedule();
   },

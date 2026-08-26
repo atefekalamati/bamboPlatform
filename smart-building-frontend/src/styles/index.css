@@ -12,9 +12,10 @@
 @import url("./roles.css");
 @import url("./notifications.css");
 @import url("./incidents.css");
-@import url("./calls.css");
+@import url("./phone-call.css");
 @import url("./jalali-date.css");
 @import url("./dashboard.css");
 @import url("./reports.css");
 @import url("./responsive.css");
+@import url("./compact.css");
 @import url("./production-status.css");
