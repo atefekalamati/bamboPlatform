@@ -1,6 +1,7 @@
 import { request } from "./httpClient.js";
+import { API_BASE_PATHS } from "../config/apiRoutes.js";
 
-const BASE = "/api/v1/reports";
+const BASE = API_BASE_PATHS.reports;
 
 export const buildReportQuery = (filters = {}) => {
   const query = new URLSearchParams();
