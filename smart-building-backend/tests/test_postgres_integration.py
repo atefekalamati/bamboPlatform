@@ -2,9 +2,12 @@
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from threading import Barrier
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -43,6 +46,23 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
+
+def expected_migration_head() -> str:
+    """Resolve the head from the migration scripts, never from a literal.
+
+    A hardcoded revision goes stale on the next migration and fails a schema
+    that is actually correct. Reading it from ``ScriptDirectory`` also catches a
+    branched history, which would silently leave the database on one of several
+    heads.
+    """
+    config = Config(str(BACKEND_ROOT / "alembic.ini"))
+    heads = ScriptDirectory.from_config(config).get_heads()
+    assert len(heads) == 1, f"expected exactly one alembic head, found {heads}"
+    return heads[0]
+
+
 def _column_type(inspector, table_name: str, column_name: str):
     return next(
         column["type"]
@@ -77,7 +97,7 @@ def test_postgresql_schema_and_persistence(monkeypatch):
             connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            == "0012_stage_13_19_g5_alignment"
+            == expected_migration_head()
         )
 
     with database.get_session() as db:
