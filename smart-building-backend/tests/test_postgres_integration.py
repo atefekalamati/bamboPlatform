@@ -4,12 +4,16 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Barrier
+from uuid import uuid4
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import inspect, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.engine import make_url
+from sqlalchemy.pool import NullPool
 
 import app.database as database
 import app.models  # noqa: F401
@@ -38,15 +42,77 @@ from app.services.security import (
 )
 from app.services.workflow import approve_stage, create_pilot, reject_stage
 
-POSTGRES_TEST_DATABASE_URL = os.getenv("POSTGRES_TEST_DATABASE_URL")
+POSTGRES_SERVER_URL = os.getenv("POSTGRES_TEST_DATABASE_URL")
 
 pytestmark = pytest.mark.skipif(
-    not POSTGRES_TEST_DATABASE_URL,
+    not POSTGRES_SERVER_URL,
     reason="POSTGRES_TEST_DATABASE_URL is not configured",
 )
 
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(scope="session")
+def postgres_database_url() -> str:
+    """A throwaway database of its own, migrated to head and dropped after.
+
+    ``POSTGRES_TEST_DATABASE_URL`` names a server, not the database these tests
+    run against: only its connection details are borrowed. Sharing one database
+    across runs left pilots behind, so a second run numbered the next pilot
+    ``PIL-1499-002`` and the assertions — written for a clean sequence — failed
+    on data, not on behaviour.
+
+    Creating the database here rather than reusing whatever the caller points at
+    also keeps a development database safe from a mistyped environment variable.
+    """
+    server_url = make_url(POSTGRES_SERVER_URL)
+    database_name = f"bambo_test_{uuid4().hex[:12]}"
+    # CREATE/DROP DATABASE cannot run inside a transaction.
+    maintenance = create_engine(
+        server_url.set(database="postgres"),
+        isolation_level="AUTOCOMMIT",
+        poolclass=NullPool,
+    )
+    test_url = server_url.set(database=database_name)
+
+    with maintenance.connect() as connection:
+        connection.execute(text(f'CREATE DATABASE "{database_name}"'))
+
+    previous_database_url = os.environ.get("DATABASE_URL")
+    try:
+        # Migrate through Alembic so the schema under test is the real one,
+        # resolved from the scripts rather than from Base.metadata.
+        os.environ["DATABASE_URL"] = test_url.render_as_string(hide_password=False)
+        command.upgrade(Config(str(BACKEND_ROOT / "alembic.ini")), "head")
+        yield os.environ["DATABASE_URL"]
+    finally:
+        if previous_database_url is None:
+            os.environ.pop("DATABASE_URL", None)
+        else:
+            os.environ["DATABASE_URL"] = previous_database_url
+
+        # Release the app engine's pool; an open connection blocks DROP DATABASE.
+        if database.engine is not None:
+            database.engine.dispose()
+            database.engine = None
+
+        with maintenance.connect() as connection:
+            connection.execute(
+                text(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE datname = :name AND pid <> pg_backend_pid()"
+                ),
+                {"name": database_name},
+            )
+            connection.execute(text(f'DROP DATABASE IF EXISTS "{database_name}"'))
+        maintenance.dispose()
+
+
+@pytest.fixture(autouse=True)
+def _bind_app_to_test_database(monkeypatch, postgres_database_url):
+    """Point every test in this module at the throwaway database."""
+    monkeypatch.setenv("DATABASE_URL", postgres_database_url)
 
 
 def expected_migration_head() -> str:
@@ -72,7 +138,6 @@ def _column_type(inspector, table_name: str, column_name: str):
 
 
 def test_postgresql_schema_and_persistence(monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
     engine = database.get_engine()
     assert engine.dialect.name == "postgresql"
 
@@ -184,7 +249,6 @@ def _refresh_at_once(barrier: Barrier, refresh_token: str) -> tuple[bool, str]:
 
 
 def test_postgresql_concurrent_otp_and_rate_limit(monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
     monkeypatch.setenv("OTP_RESEND_COOLDOWN_SECONDS", "0")
     monkeypatch.setenv("OTP_MAX_REQUESTS_PER_WINDOW", "3")
     engine = database.get_engine()
@@ -279,7 +343,6 @@ def test_postgresql_concurrent_otp_and_rate_limit(monkeypatch):
 def test_postgresql_concurrent_refresh_has_one_winner_and_revokes_replay_family(
     monkeypatch,
 ):
-    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
     engine = database.get_engine()
     mobile = "+989150001004"
     request_id, code = _request_test_otp(mobile)
@@ -394,7 +457,6 @@ def test_postgresql_concurrent_stage_decision_accepts_one(
     pilot_year,
     decisions,
 ):
-    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
     engine = database.get_engine()
     pilot_id, stage_id = _create_submitted_stage_two(pilot_year)
     barrier = Barrier(2)
@@ -440,7 +502,6 @@ def test_postgresql_concurrent_stage_decision_accepts_one(
 
 
 def test_postgresql_concurrent_f04_partial_updates_preserve_fields(monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
     engine = database.get_engine()
     with database.get_session() as db:
         seed_security_data(db)
@@ -510,7 +571,6 @@ def test_postgresql_concurrent_f04_partial_updates_preserve_fields(monkeypatch):
 
 
 def test_postgresql_incident_list_indexes_and_query_plan(monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", POSTGRES_TEST_DATABASE_URL)
     engine = database.get_engine()
     inspector = inspect(engine)
     index_names = {
