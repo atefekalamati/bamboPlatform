@@ -5,6 +5,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 import app.models  # noqa: F401
@@ -15,6 +16,13 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
 def alembic_config() -> Config:
     return Config(str(BACKEND_ROOT / "alembic.ini"))
+
+
+def expected_migration_head() -> str:
+    """Read the head from the scripts so a new migration cannot go stale here."""
+    heads = ScriptDirectory.from_config(alembic_config()).get_heads()
+    assert len(heads) == 1, f"expected exactly one alembic head, found {heads}"
+    return heads[0]
 
 
 def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch, tmp_path):
@@ -51,7 +59,7 @@ def test_initial_migration_upgrades_matches_metadata_and_downgrades(monkeypatch,
     with engine.connect() as connection:
         assert (
             connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-            == "0021_remove_call_integration"
+            == expected_migration_head()
         )
         existing_permission = connection.execute(
             text("SELECT can_edit_own_name FROM users LIMIT 1")
@@ -364,4 +372,102 @@ def test_stage_13_19_titles_and_g5_alignment_are_reversible(
     assert downgraded_gate.after_stage == 16
     assert downgraded_gate.status == "locked"
     assert downgraded_gate.passed_at is None
+    engine.dispose()
+
+
+def test_call_permission_cleanup_removes_orphans_and_spares_everything_else(
+    monkeypatch,
+    tmp_path,
+):
+    database_path = tmp_path / "remove-call-permissions.db"
+    database_url = f"sqlite:///{database_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    config = alembic_config()
+
+    command.upgrade(config, "0021_remove_call_integration")
+    engine = create_engine(database_url)
+
+    # Rebuild the production shape: the six orphans plus a grant that survives a
+    # reseed because it belongs to a custom (non-system) role.
+    with engine.begin() as connection:
+        for code, sensitive in (
+            ("calls.read", 0),
+            ("calls.initiate", 0),
+            ("calls.record_outcome", 0),
+            ("calls.retry", 0),
+            ("calls.recording.read", 1),
+            ("calls.override", 1),
+        ):
+            connection.execute(
+                text(
+                    "INSERT INTO permissions (code, group_name, description, is_sensitive)"
+                    " VALUES (:code, 'Calls', 'legacy', :sensitive)"
+                ),
+                {"code": code, "sensitive": sensitive},
+            )
+        connection.execute(
+            text(
+                "INSERT INTO permissions (code, group_name, description, is_sensitive)"
+                " VALUES ('pilots.read', 'Pilots', 'keep me', 0)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO roles (name, display_name, is_system, is_active,"
+                " created_at, updated_at) VALUES ('legacy_call_desk', 'legacy',"
+                " 0, 1, '2026-01-01', '2026-01-01')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO role_permissions (role_id, permission_id, assigned_at)"
+                " SELECT r.id, p.id, '2026-01-01' FROM roles r, permissions p"
+                " WHERE r.name = 'legacy_call_desk' AND p.code LIKE 'calls.%'"
+            )
+        )
+
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT COUNT(*) FROM permissions WHERE code LIKE 'calls.%'")
+        ).scalar() == 6
+        assert connection.execute(
+            text(
+                "SELECT COUNT(*) FROM role_permissions rp JOIN permissions p"
+                " ON p.id = rp.permission_id WHERE p.code LIKE 'calls.%'"
+            )
+        ).scalar() == 6
+
+    command.upgrade(config, "0022_remove_call_permissions")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT COUNT(*) FROM permissions WHERE code LIKE 'calls.%'")
+        ).scalar() == 0
+        assert connection.execute(
+            text(
+                "SELECT COUNT(*) FROM role_permissions rp JOIN permissions p"
+                " ON p.id = rp.permission_id WHERE p.code LIKE 'calls.%'"
+            )
+        ).scalar() == 0
+        # Untouched: the unrelated permission and the custom role itself.
+        assert connection.execute(
+            text("SELECT COUNT(*) FROM permissions WHERE code = 'pilots.read'")
+        ).scalar() == 1
+        assert connection.execute(
+            text("SELECT COUNT(*) FROM roles WHERE name = 'legacy_call_desk'")
+        ).scalar() == 1
+
+    # Downgrade restores the rows only, never the grants.
+    command.downgrade(config, "0021_remove_call_integration")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT COUNT(*) FROM permissions WHERE code LIKE 'calls.%'")
+        ).scalar() == 6
+        assert connection.execute(
+            text(
+                "SELECT COUNT(*) FROM role_permissions rp JOIN permissions p"
+                " ON p.id = rp.permission_id WHERE p.code LIKE 'calls.%'"
+            )
+        ).scalar() == 0
     engine.dispose()
