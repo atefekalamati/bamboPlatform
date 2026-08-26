@@ -58,11 +58,33 @@ class UnreadCount(BaseModel):
     unread_count: int
 
 
+# Single source of truth for notification-preference defaults. The service layer
+# reads the same constants when a stored preference omits a key, so an empty
+# ``notification_preferences`` blob means "user has not chosen yet" rather than
+# "everything is off".
+DEFAULT_IN_APP_ENABLED = True
+DEFAULT_SMS_ENABLED = True
+DEFAULT_CRITICAL_SMS_ENABLED = True
+
+# Operational pilot categories remind by SMS; AUTH belongs to the OTP flow and
+# SYSTEM is broadcast noise, so both stay opt-in.
+DEFAULT_SMS_CATEGORIES: dict[str, bool] = {
+    "AUTH": False,
+    "PILOT": True,
+    "STAGE": True,
+    "MISSION": True,
+    "INCIDENT": True,
+    "SLA": True,
+    "COMMERCIAL": True,
+    "SYSTEM": False,
+}
+
+
 class NotificationPreferences(BaseModel):
-    in_app_enabled: bool = True
-    sms_enabled: bool = True
-    sms_categories: dict[str, bool] = Field(default_factory=dict)
-    critical_sms_enabled: bool = True
+    in_app_enabled: bool = DEFAULT_IN_APP_ENABLED
+    sms_enabled: bool = DEFAULT_SMS_ENABLED
+    sms_categories: dict[str, bool] = Field(default_factory=lambda: dict(DEFAULT_SMS_CATEGORIES))
+    critical_sms_enabled: bool = DEFAULT_CRITICAL_SMS_ENABLED
     quiet_hours_start: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
     quiet_hours_end: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
 
