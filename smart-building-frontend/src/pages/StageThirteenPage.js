@@ -5,7 +5,6 @@ import {
   stageElement as element,
 } from "../components/StageShared.js";
 import { experienceService } from "../services/experienceService.js";
-import { CallsPanel } from "../components/CallsPanel.js";
 import { incidentService } from "../services/incidentService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -360,7 +359,6 @@ export const StageThirteenPage = ({ pilotId }) => {
         element("span", "status-badge stage-workspace__status", `${STATUS_LABELS[stage.status] ?? stage.status} — G4`),
       );
       page.replaceChildren(back, header, feedback, form.element);
-      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 13, permissions }));
       openCritical.forEach((incident) =>
         page.append(incidentCard({
           incident,

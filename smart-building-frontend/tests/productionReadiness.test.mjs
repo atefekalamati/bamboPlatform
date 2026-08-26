@@ -9,6 +9,29 @@ test("production config cannot enable mock", async () => {
   assert.doesNotMatch(source, /127\.0\.0\.1|localhost/);
 });
 
+test("frontend contains no removed backend call integration", async () => {
+  const files = [
+    "../src/pages/StageTwoPage.js", "../src/pages/StageFivePage.js",
+    "../src/pages/StageElevenPage.js", "../src/pages/StageThirteenPage.js",
+    "../src/pages/StageSixteenPage.js", "../src/pages/StageEighteenPage.js",
+  ];
+  for (const file of files) {
+    const source = await readFile(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /CallsPanel|callService|call_policy_completed/);
+    assert.doesNotMatch(source, /calls\.(read|initiate|retry|override|record_outcome)|calls\.recording\.read/);
+  }
+});
+
+test("Stage 18 contains no legacy call requirement", async () => {
+  const source = await readFile(
+    new URL("../src/pages/StageEighteenPage.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(source, /تماس|Call|VoIP|Astel/i);
+  assert.match(source, /هر پیگیری برای رفع یک مانع مشخص/);
+});
+
 test("sensitive routes require backend permissions", () => {
   assert.equal(requiredPermissionForRoute("#/users"), "users.read");
   assert.equal(requiredPermissionForRoute("#/pilots/2/stages/9"), "pilots.read");

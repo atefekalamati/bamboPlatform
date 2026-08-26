@@ -12,7 +12,32 @@ const mapIncident = (item) => ({
   result: item.result, evidence: item.evidence, lessonsLearned: item.lessons_learned,
   status: item.status, closedByUserId: item.closed_by_user_id, closedAt: item.closed_at,
   createdAt: item.created_at, updatedAt: item.updated_at,
+  pilotCode: item.pilot_code ?? null,
+  pilotName: item.pilot_display_name ?? null,
+  slaDueAt: item.sla_due_at ?? item.response_due_at,
 });
+
+const appendQuery = (values) => {
+  const query = new URLSearchParams();
+  Object.entries(values).forEach(([key, value]) => {
+    if (value !== "" && value !== null && value !== undefined) query.set(key, String(value));
+  });
+  return query.toString();
+};
+
+export const mapGlobalIncidentListResponse = (response) => {
+  if (!response || !Array.isArray(response.items) || !response.summary) {
+    throw new TypeError("پاسخ فهرست سراسری رخدادها با قرارداد بک‌اند مطابقت ندارد.");
+  }
+  return {
+    items: response.items.map(mapIncident),
+    page: Number(response.page),
+    pageSize: Number(response.page_size),
+    total: Number(response.total),
+    totalPages: Number(response.total_pages),
+    summary: response.summary,
+  };
+};
 
 export const mapIncidentListResponse = (response) => {
   if (Array.isArray(response)) return response.map(mapIncident);
@@ -34,6 +59,9 @@ const createPayload = (values) => ({
 });
 
 export const incidentService = Object.freeze({
+  getIncidents: async (filters = {}, { signal } = {}) => mapGlobalIncidentListResponse(
+    await request(`/incidents?${appendQuery(filters)}`, { signal }),
+  ),
   getPilotIncidents: async (pilotId) => mapIncidentListResponse(
     await request(`/pilots/${pilotId}/incidents?page=1&page_size=200`),
   ),

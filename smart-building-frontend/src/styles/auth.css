@@ -112,6 +112,10 @@
   font-size: var(--font-size-sm);
 }
 
+.form-feedback:empty {
+  display: none;
+}
+
 .form-feedback[data-type="error"] {
   background: var(--color-danger-surface);
   color: var(--color-danger);

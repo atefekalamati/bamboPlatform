@@ -174,10 +174,12 @@ const resolveRoute = (currentRoute) => {
 
 let cleanupStageNavigationGuard = () => {};
 let cleanupStageActionLayout = () => {};
+let cleanupAppShell = () => {};
 
 const renderRoute = (appRoot) => {
   cleanupStageNavigationGuard();
   cleanupStageActionLayout();
+  cleanupAppShell();
   const currentRoute = getCurrentRoute();
   const resolvedRoute = resolveRoute(currentRoute);
   cleanupStageNavigationGuard = installStageNavigationGuard(
@@ -189,12 +191,12 @@ const renderRoute = (appRoot) => {
     currentRoute,
   );
 
-  appRoot.replaceChildren(
-    AppShell({
-      content: resolvedRoute.page,
-      currentRoute: resolvedRoute.navigationRoute,
-    }),
-  );
+  const shell = AppShell({
+    content: resolvedRoute.page,
+    currentRoute: resolvedRoute.navigationRoute,
+  });
+  cleanupAppShell = () => shell.cleanup?.();
+  appRoot.replaceChildren(shell);
 };
 
 export const startRouter = (appRoot) => {
@@ -232,6 +234,8 @@ export const startRouter = (appRoot) => {
     window.removeEventListener("beforeunload", handleBeforeUnload);
     cleanupStageNavigationGuard();
     cleanupStageActionLayout();
+    cleanupAppShell();
+    cleanupAppShell = () => {};
     clearNavigationGuard();
   };
 };

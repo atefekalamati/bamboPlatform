@@ -1,0 +1,476 @@
+/* Compact application density. Loaded after responsive.css; print layouts stay unchanged. */
+@media screen {
+  body {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+
+  .app-header {
+    min-height: 3.75rem;
+  }
+
+  .sidebar {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .sidebar__logo {
+    width: 6.5rem;
+    margin-block-end: var(--space-4);
+  }
+
+  .sidebar__list {
+    gap: var(--space-1);
+  }
+
+  .sidebar__link {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .main-content {
+    padding: var(--space-4);
+  }
+
+  .page,
+  .dashboard-content,
+  .roles-content,
+  .reports-content,
+  .reports-result,
+  .stage-workspace {
+    gap: var(--space-4);
+  }
+
+  .page-heading,
+  .stage-workspace__identity {
+    gap: var(--space-1);
+  }
+
+  .page-heading__title {
+    font-size: clamp(1.125rem, 2.4vw, 1.5rem);
+    line-height: 1.35;
+  }
+
+  .page-heading__description,
+  .stage-section__description,
+  .dashboard-panel__description {
+    font-size: var(--font-size-sm);
+    line-height: 1.55;
+  }
+
+  .button,
+  .search-box__input,
+  .filter-field__control,
+  .form-field__input,
+  .stage-form__control,
+  .dashboard-filter__control,
+  .report-filter__control,
+  .role-select {
+    min-height: 2.5rem;
+  }
+
+  .button {
+    padding-inline: var(--space-3);
+    font-size: var(--font-size-sm);
+  }
+
+  textarea.stage-form__control,
+  .pilot-form textarea,
+  .stage-review textarea {
+    min-height: 5rem;
+  }
+
+  .form-field,
+  .stage-form__field,
+  .filter-field,
+  .dashboard-filter,
+  .report-filter,
+  .role-selector-field {
+    gap: var(--space-1);
+  }
+
+  .form-field__error,
+  .stage-form__error {
+    min-height: 1.15rem;
+    font-size: var(--font-size-xs);
+  }
+
+  .form-feedback,
+  .draft-info,
+  .mission-notice,
+  .role-readonly-notice,
+  .incident-critical-banner,
+  .report-partial {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .dashboard-panel,
+  .stage-section,
+  .stage-detail,
+  .stage-form__section,
+  .checklist,
+  .stage-review,
+  .stage-snapshots,
+  .floor-workspace,
+  .pilot-card,
+  .pilot-summary__item,
+  .pilot-form,
+  .user-card,
+  .user-form,
+  .role-panel,
+  .role-workspace,
+  .notification-glass-panel,
+  .notification-settings,
+  .incident-form-shell,
+  .incident-detail__header,
+  .incident-cycle,
+  .incident-overview,
+  .incident-detail__actions,
+  .incident-timeline,
+  .calls-card,
+  .report-panel,
+  .report-document-header {
+    padding: var(--space-3);
+  }
+
+  .stage-form,
+  .stage-section,
+  .stage-section__layout,
+  .stage-detail,
+  .stage-review,
+  .stage-snapshots,
+  .floor-workspace,
+  .floor-card,
+  .pilot-card,
+  .pilot-details,
+  .pilot-summary,
+  .pilot-list,
+  .user-list,
+  .incident-card-list,
+  .incident-list,
+  .incident-card,
+  .notification-list,
+  .notification-preferences-form,
+  .calls-panel,
+  .calls-list,
+  .permission-matrix,
+  .reports-grid {
+    gap: var(--space-2);
+  }
+
+  .dashboard-panel__header,
+  .dashboard-stage-journey__header,
+  .stage-workspace__header,
+  .pilot-details__heading,
+  .role-workspace__header {
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .dashboard-panel__title,
+  .stage-section__title,
+  .stage-detail__title,
+  .stage-form__legend,
+  .checklist__legend,
+  .modal__title {
+    font-size: 1.0625rem;
+  }
+
+  .dashboard-kpis {
+    gap: var(--space-2);
+  }
+
+  .dashboard-kpi,
+  .report-kpi,
+  .dashboard-health__legend-item,
+  .dashboard-action,
+  .report-pipeline__item,
+  .report-action,
+  .report-evidence li,
+  .report-gate {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .dashboard-kpi__value,
+  .report-kpi strong {
+    margin-top: var(--space-1);
+    font-size: 1.35rem;
+  }
+
+  .dashboard-health__body {
+    gap: var(--space-3);
+  }
+
+  .dashboard-health__figure {
+    width: min(100%, 14rem);
+  }
+
+  .dashboard-stage-journey__summary {
+    padding-block: var(--space-2);
+  }
+
+  .dashboard-stage-journey__list,
+  .stage-stepper {
+    gap: var(--space-2);
+  }
+
+  .dashboard-stage-node {
+    min-height: 4.25rem;
+    border-radius: var(--radius-md);
+  }
+
+  .dashboard-stage-node__link,
+  .dashboard-stage-node__content {
+    grid-template-columns: 2.1rem minmax(0, 1fr);
+    padding: var(--space-2);
+  }
+
+  .dashboard-stage-node__number,
+  .stage-stepper__number {
+    width: 2.1rem;
+    height: 2.1rem;
+  }
+
+  .stage-stepper__button {
+    grid-template-columns: 2.1rem minmax(0, 1fr);
+    height: 5.5rem;
+    min-height: 5.5rem;
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .stage-stepper__name {
+    min-height: 2.8em;
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+  }
+
+  .stage-section__progress {
+    padding-block: var(--space-2);
+  }
+
+  .stage-detail__row,
+  .dashboard-widget__row,
+  .report-definition > div {
+    padding-block: var(--space-1);
+  }
+
+  .checklist__items {
+    gap: var(--space-2);
+  }
+
+  .checklist__item,
+  .dwg-reference,
+  .stage-snapshots__item,
+  .floor-card,
+  .access-preview__card,
+  .incident-card,
+  .pilot-incident {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .checklist__item,
+  .dwg-reference {
+    gap: var(--space-2);
+  }
+
+  .checklist__item input,
+  .dwg-reference input,
+  .permission-row input,
+  .notification-preference input {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .stage-actions {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+
+  .stage-actions > [data-stage-action],
+  .form-actions > [data-stage-action] {
+    min-width: 8.5rem;
+    min-height: 2.5rem;
+  }
+
+  .pilot-card__title {
+    font-size: 1.0625rem;
+  }
+
+  .project-forms,
+  .forms-preview,
+  .pilot-incidents {
+    margin-top: var(--space-3);
+  }
+
+  .project-forms__table th,
+  .project-forms__table td,
+  .forms-preview__table th,
+  .forms-preview__table td,
+  .permission-table th,
+  .permission-table td,
+  .notification-delivery-table th,
+  .notification-delivery-table td,
+  .dashboard-table th,
+  .dashboard-table td,
+  .report-table th,
+  .report-table td {
+    padding: var(--space-2);
+  }
+
+  .notification-item {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .notification-item__body {
+    margin: var(--space-1) 0;
+    -webkit-line-clamp: 2;
+  }
+
+  .notification-toolbar,
+  .notification-category-settings,
+  .notification-deliveries {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .incident-summary__card {
+    min-height: 4.25rem;
+    padding: var(--space-3);
+  }
+
+  .incident-summary__icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .incident-summary__card strong {
+    font-size: 1.25rem;
+  }
+
+  .permission-group__header,
+  .role-composer,
+  .access-preview__card {
+    padding: var(--space-3);
+  }
+
+  .role-workspace,
+  .permission-matrix {
+    gap: var(--space-3);
+  }
+
+  .modal__header,
+  .app-dialog {
+    padding: var(--space-3);
+  }
+
+  .app-dialog {
+    gap: var(--space-3);
+  }
+
+  .app-dialog__message {
+    font-size: var(--font-size-sm);
+    line-height: 1.7;
+  }
+
+  /* Only repeatable collections receive an internal viewport. Forms remain fully visible. */
+  .user-list,
+  .pilot-list,
+  .incident-card-list,
+  .incident-list,
+  .notification-list,
+  .calls-list,
+  .pilot-incidents__list,
+  .stage-snapshots__list,
+  .dwg-versions,
+  .permission-matrix,
+  .report-pipeline,
+  .report-action-list,
+  .report-evidence {
+    max-block-size: min(34rem, 65dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-inline-end: var(--space-1);
+  }
+
+  .dashboard-table-wrap,
+  .report-table-wrap {
+    max-block-size: min(32rem, 62dvh);
+  }
+
+  .dashboard-action-list,
+  .dashboard-widget__list {
+    max-block-size: min(16rem, 45dvh);
+  }
+
+  .notification-dropdown {
+    max-height: min(30rem, calc(100dvh - 5rem));
+  }
+}
+
+@media screen and (min-width: 72rem) {
+  .app-shell {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+
+  .app-header,
+  .main-content {
+    padding-inline: var(--space-5);
+  }
+
+  .main-content {
+    padding-block: var(--space-5);
+  }
+}
+
+@media screen and (max-width: 47.99rem) {
+  body {
+    font-size: 0.9rem;
+  }
+
+  .main-content {
+    padding: var(--space-3);
+  }
+
+  .page,
+  .dashboard-content,
+  .stage-workspace {
+    gap: var(--space-3);
+  }
+
+  .dashboard-panel,
+  .stage-section,
+  .stage-detail,
+  .stage-form__section,
+  .checklist,
+  .stage-review,
+  .stage-snapshots,
+  .floor-workspace,
+  .pilot-card,
+  .role-workspace,
+  .notification-settings,
+  .incident-form-shell,
+  .incident-detail__header,
+  .incident-cycle,
+  .incident-overview,
+  .incident-detail__actions,
+  .incident-timeline {
+    padding: var(--space-3);
+  }
+
+  .stage-stepper__button {
+    height: 4.75rem;
+    min-height: 4.75rem;
+  }
+
+  .user-list,
+  .pilot-list,
+  .incident-card-list,
+  .incident-list,
+  .notification-list,
+  .calls-list,
+  .permission-matrix {
+    max-block-size: min(30rem, 68dvh);
+  }
+}

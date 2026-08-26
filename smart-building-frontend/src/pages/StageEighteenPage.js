@@ -1,6 +1,5 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { StageReviewPanel, StageSnapshots, stageElement as element } from "../components/StageShared.js";
-import { CallsPanel } from "../components/CallsPanel.js";
 import { commercialService } from "../services/commercialService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -21,13 +20,8 @@ const field = (labelText, input, help = "") => {
 };
 const localDateTime = (date) => formatIranDateTimeLocalValue(date);
 
-export const stageEighteenSubmissionErrorMessage = (error) => {
-  const callRequirementMissing = error?.code === "STAGE_VALIDATION_FAILED"
-    && error.errors?.some(({ field }) => field === "checklist.call_policy_completed");
-  return callRequirementMissing
-    ? "برای ارسال Stage 18 باید حداقل یک تماس پاسخ‌داده‌شده یا تکمیل‌شده با نتیجه معتبر و خلاصه ثبت شود؛ مدیر مجاز نیز می‌تواند Override مستدل ثبت کند."
-    : error?.message ?? "ارسال Stage 18 انجام نشد.";
-};
+export const stageEighteenSubmissionErrorMessage = (error) =>
+  error?.message ?? "ارسال Stage 18 انجام نشد.";
 
 export const StageEighteenPage = ({ pilotId }) => {
   const page = element("div", "stage-workspace");
@@ -59,14 +53,12 @@ export const StageEighteenPage = ({ pilotId }) => {
       identity.append(
         element("span", "page-heading__eyebrow", `${pilot.code} — Stage 18 از ۱۹`),
         element("h1", "page-heading__title", "پیگیری تا تصمیم و عقد قرارداد"),
-        element("p", "draft-info", "هدف: هر تماس برای رفع یک مانع مشخص انجام شود، نه صرفاً پرسش از تصمیم."),
+        element("p", "draft-info", "هدف: هر پیگیری برای رفع یک مانع مشخص انجام شود و نتیجه آن به اقدام بعدی روشن برسد."),
         element("p", "draft-info", "مسئول: فروش | تقویم: روزهای ۰، ۲، ۵ و ۷ تا ۱۰ | ثبت: مانع، اقدام و تاریخ"),
         element("p", "draft-info", "شرط عبور: تصمیم روشن یا اقدام بعدی دارای مسئول و تاریخ قطعی ثبت شده باشد."),
       );
       header.append(identity, element("span", "status-badge stage-workspace__status", STATUS_LABELS[stage.status] ?? stage.status));
       page.replaceChildren(back, header, feedback);
-      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 18, permissions, required: true }));
-
       const currentBySlot = new Map(followUps.map((item) => [item.schedule_slot, item]));
       const activeUsers = users.filter(({ isActive }) => isActive); const controls = new Map(); const baseline = new Date(proposal.follow_up_at);
       SLOTS.forEach(([slot, title, offset, expectedAction, requiredOutput]) => {

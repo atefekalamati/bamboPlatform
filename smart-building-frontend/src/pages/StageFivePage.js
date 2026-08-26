@@ -15,7 +15,7 @@ import {
   canManageMissionAssignments,
 } from "../features/missions/missionPermissions.js";
 import { missionService } from "../services/missionService.js";
-import { CallsPanel } from "../components/CallsPanel.js";
+import { PhoneCallLink } from "../components/PhoneCallLink.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
@@ -208,13 +208,24 @@ const missionSummary = (mission, floors, expertName) => {
     ["شروع", formatPersianDateTime(mission.scheduledStart)],
     ["پایان", formatPersianDateTime(mission.scheduledEnd)],
     ["محل", mission.location],
-    ["هماهنگ‌کننده", `${mission.siteContactName} — ${mission.siteContactMobile}`],
+    ["هماهنگ‌کننده", mission.siteContactName],
     ["طبقات", floorNames],
     ["محدودیت", mission.limitation || "ندارد"],
   ];
   rows.forEach(([label, value]) => {
     const row = document.createElement("div");
-    row.append(element("dt", "", label), element("dd", "", value));
+    const detail = element("dd", "", value);
+    if (label === "هماهنگ‌کننده") {
+      detail.append(
+        document.createTextNode(" — "),
+        PhoneCallLink({
+          phoneNumber: mission.siteContactMobile,
+          label: mission.siteContactMobile,
+          ariaLabel: `تماس با هماهنگ‌کننده محل، ${mission.siteContactName}`,
+        }),
+      );
+    }
+    row.append(element("dt", "", label), detail);
     list.append(row);
   });
   const notification = mission.notifications.at(-1);
@@ -300,8 +311,6 @@ export const StageFivePage = ({ pilotId }) => {
         ),
       );
       page.replaceChildren(back, header, feedback);
-      page.append(CallsPanel({ pilotId: pilot.id, stageNumber: 5, permissions }));
-
       if (!mission) {
         if (!canCoordinate) {
           page.append(

@@ -26,3 +26,17 @@ export const floorCreationPayload = (slot, name, floorType) => ({
   levelOrder: slot.levelOrder,
   floorType,
 });
+
+export const getFloorRegistrationState = (totalFloors, floors = []) => {
+  const slots = buildFloorSlots(totalFloors, floors);
+  const registeredCount = slots.filter(
+    ({ floor }) => Boolean(floor?.id) && Boolean(floor.name?.trim()),
+  ).length;
+
+  return {
+    totalCount: slots.length,
+    registeredCount,
+    missingCount: Math.max(0, slots.length - registeredCount),
+    isComplete: slots.length > 0 && registeredCount === slots.length,
+  };
+};

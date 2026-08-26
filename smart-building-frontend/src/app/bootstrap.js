@@ -27,6 +27,7 @@ let stopRouter = () => {};
 
 const renderAuthenticatedApp = (appRoot) => {
   stopRouter();
+  themeStore.init(sessionStore.getCurrentUser()?.id);
   appRoot.replaceChildren();
   stopRouter = startRouter(appRoot);
 };
@@ -49,6 +50,23 @@ const registerGlobalErrorHandling = (appRoot) => {
   onAuthenticationRequired(() => renderLogin(appRoot));
 };
 
+const renderSessionRecovery = (appRoot, retry) => {
+  stopRouter();
+  stopRouter = () => {};
+  notificationStore.stop();
+  const state = document.createElement("main");
+  const message = document.createElement("p");
+  const retryButton = document.createElement("button");
+  state.className = "fatal-error";
+  message.textContent = "ارتباط با سرور موقتاً برقرار نشد. نشست شما حفظ شده است.";
+  retryButton.className = "button button--primary";
+  retryButton.type = "button";
+  retryButton.textContent = "تلاش مجدد";
+  retryButton.addEventListener("click", retry);
+  state.append(message, retryButton);
+  appRoot.replaceChildren(state);
+};
+
 const bootstrap = async () => {
   const appRoot = document.getElementById(APP_ROOT_ID);
 
@@ -65,11 +83,14 @@ const bootstrap = async () => {
     const currentUser = await authService.getCurrentUser();
     sessionStore.setCurrentUser(currentUser);
     const preferences = await preferenceService.getPreferences().catch(() => null);
-    themeStore.syncFromServer(preferences?.theme);
+    themeStore.syncFromServer(preferences?.theme, currentUser.id);
     renderAuthenticatedApp(appRoot);
-  } catch {
-    sessionStore.clear();
-    renderLogin(appRoot);
+  } catch (error) {
+    if (!sessionStore.hasSession() || error?.status === 401) {
+      renderLogin(appRoot);
+      return;
+    }
+    renderSessionRecovery(appRoot, bootstrap);
   }
 };
 
