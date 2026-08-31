@@ -1492,8 +1492,10 @@ def test_stages_17_to_19_full_commercial_workflow(
     assert unapproved_outcome.status_code == 422
 
     roles = client.get("/roles", headers=super_admin_headers).json()
+    # customer_success was merged into support; the point of the check is that
+    # a non-pilot-manager cannot approve the final outcome.
     customer_success_role = next(
-        role for role in roles if role["name"] == "customer_success"
+        role for role in roles if role["name"] == "support"
     )
     customer_success_user = client.post(
         "/users",

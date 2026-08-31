@@ -362,6 +362,11 @@ SUPPORT_PERMISSIONS = {
     "preferences.manage",
 }
 
+# Retired as a standalone role: customer success, support and training are one
+# team, so these permissions are folded into SUPPORT_PERMISSIONS below. The set
+# is kept as its own name because it documents which permissions came from that
+# side of the merge, and because the customer_success.* permission codes
+# themselves remain in use — only the role is gone.
 CUSTOMER_SUCCESS_PERMISSIONS = {
     "pilots.read",
     "stages.read",
@@ -389,6 +394,10 @@ CUSTOMER_SUCCESS_PERMISSIONS = {
     "customer_success.manage",
     "preferences.manage",
 }
+
+# The merged role carries everything both sides could do, so nobody loses an
+# ability they had before the merge.
+SUPPORT_PERMISSIONS |= CUSTOMER_SUCCESS_PERMISSIONS
 
 TECHNICAL_PERMISSIONS = {
     "pilots.read",
@@ -449,8 +458,7 @@ SYSTEM_ROLES = {
     "setup": ("مسئول راه‌اندازی", SETUP_PERMISSIONS),
     "operations": ("هماهنگ‌کننده عملیات", OPERATIONS_PERMISSIONS),
     "capture_expert": ("کارشناس برداشت", FIELD_EXPERT_PERMISSIONS),
-    "support": ("آموزش/پشتیبانی", SUPPORT_PERMISSIONS),
-    "customer_success": ("موفقیت مشتری", CUSTOMER_SUCCESS_PERMISSIONS),
+    "support": ("پشتیبانی", SUPPORT_PERMISSIONS),
     "technical": ("تیم فنی", TECHNICAL_PERMISSIONS),
     "product_manager": ("مدیر محصول", PRODUCT_MANAGER_PERMISSIONS),
 }
@@ -466,7 +474,6 @@ for role_name, (_, permission_codes) in SYSTEM_ROLES.items():
             "operations",
             "capture_expert",
             "support",
-            "customer_success",
             "technical",
             "product_manager",
         }:

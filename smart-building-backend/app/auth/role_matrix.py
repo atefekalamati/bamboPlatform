@@ -66,16 +66,18 @@ ROLE_DEFINITIONS: dict[str, RoleDefinition] = {
     "support": RoleDefinition(
         "support",
         "SUPPORT_TRAINING",
-        "آموزش/پشتیبانی",
+        "پشتیبانی",
         "ROLE_RELATED",
-        ("pilots", "training", "notifications", "incidents", "forms"),
-    ),
-    "customer_success": RoleDefinition(
-        "customer_success",
-        "CUSTOMER_SUCCESS",
-        "موفقیت مشتری",
-        "ROLE_RELATED",
-        ("pilots", "customer-success", "stages", "gates", "forms"),
+        (
+            "pilots",
+            "training",
+            "customer-success",
+            "notifications",
+            "incidents",
+            "stages",
+            "gates",
+            "forms",
+        ),
     ),
     "technical": RoleDefinition(
         "technical",
@@ -107,16 +109,16 @@ STAGE_MATRIX: dict[int, dict[str, tuple[str, ...]]] = {
     10: {"edit": ("technical",), "submit": ("technical",), "approve": ("technical", "operations")},
     11: {"edit": ("support",), "submit": ("support",), "approve": ("support",)},
     12: {"edit": ("support",), "submit": ("support",), "approve": ("support",)},
-    13: {"edit": ("customer_success",), "submit": ("customer_success",), "approve": ("customer_success",)},
+    13: {"edit": ("support",), "submit": ("support",), "approve": ("support",)},
     14: {"edit": ("operations",), "submit": ("operations",), "approve": ("pilot_manager", "operations")},
-    15: {"edit": ("pilot_manager", "customer_success"), "submit": ("pilot_manager", "customer_success"), "approve": ("pilot_manager",)},
-    16: {"edit": ("customer_success", "sales"), "submit": ("customer_success", "sales"), "approve": ("pilot_manager", "sales")},
+    15: {"edit": ("pilot_manager", "support"), "submit": ("pilot_manager", "support"), "approve": ("pilot_manager",)},
+    16: {"edit": ("support", "sales"), "submit": ("support", "sales"), "approve": ("pilot_manager", "sales")},
     17: {"edit": ("sales",), "submit": ("sales",), "approve": ("pilot_manager", "sales")},
     18: {"edit": ("sales",), "submit": ("sales",), "approve": ("pilot_manager", "sales")},
     19: {
         "edit": ("sales",),
         "submit": ("sales",),
-        "approve": ("pilot_manager", "customer_success"),
+        "approve": ("pilot_manager", "support"),
     },
 }
 
@@ -124,7 +126,7 @@ GATE_MATRIX: dict[str, tuple[str, ...]] = {
     "G1": ("pilot_manager",),
     "G2": ("setup",),
     "G3": ("operations",),
-    "G4": ("customer_success",),
+    "G4": ("support",),
     "G5": ("pilot_manager", "sales"),
 }
 
