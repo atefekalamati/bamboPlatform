@@ -40,3 +40,29 @@ export const getFloorRegistrationState = (totalFloors, floors = []) => {
     isComplete: slots.length > 0 && registeredCount === slots.length,
   };
 };
+
+export const runFloorBulkOperation = async (
+  items,
+  operation,
+  onProgress = () => {},
+) => {
+  const succeeded = [];
+  const failed = [];
+
+  for (const [index, item] of items.entries()) {
+    try {
+      await operation(item, index);
+      succeeded.push(item);
+    } catch (error) {
+      failed.push({ item, error });
+    }
+    onProgress({
+      completed: index + 1,
+      total: items.length,
+      succeeded: succeeded.length,
+      failed: failed.length,
+    });
+  }
+
+  return { succeeded, failed };
+};

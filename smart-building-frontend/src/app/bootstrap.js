@@ -39,7 +39,11 @@ const renderLogin = (appRoot) => {
   appRoot.replaceChildren(
     AuthLayout({
       content: LoginPage({
-        onAuthenticated: () => renderAuthenticatedApp(appRoot),
+        onAuthenticated: async () => {
+          const currentUser = await authService.getCurrentUser();
+          sessionStore.setCurrentUser(currentUser);
+          renderAuthenticatedApp(appRoot);
+        },
       }),
     }),
   );

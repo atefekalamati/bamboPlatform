@@ -1,6 +1,14 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { request } from "./httpClient.js";
 
+const bootstrapUser = (payload) => ({
+  ...payload.user,
+  stageAccess: payload.stage_access ?? {},
+  gateAccess: payload.gate_access ?? {},
+  scopes: payload.scopes ?? [],
+  menuAccess: payload.menu_access ?? [],
+});
+
 export const authService = Object.freeze({
   requestOtp: (mobile) =>
     request("/auth/otp/request", {
@@ -23,7 +31,7 @@ export const authService = Object.freeze({
 
     return response;
   },
-  getCurrentUser: () => request("/auth/me"),
+  getCurrentUser: async () => bootstrapUser(await request("/auth/bootstrap")),
   updateMyName: async (displayName) => {
     const user = await request("/auth/me", {
       method: "PATCH",

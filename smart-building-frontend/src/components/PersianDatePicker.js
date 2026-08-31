@@ -2,7 +2,7 @@ import {
   PERSIAN_MONTHS, PERSIAN_WEEKDAYS, formatJalaliDateInput, formatJalaliDateTimeInput,
   formatJalaliManualInput, getIranJalaliParts, jalaliMonthLength, jalaliWeekdayIndex,
   parseJalaliDateInput, parseJalaliDateTimeInput, toLatinDigits, toPersianDigits,
-  defaultDateInputValue,
+  resolveDateInputValue,
 } from "../utils/jalaliDateTime.js";
 
 const nativeValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
@@ -35,13 +35,8 @@ class PersianDatePicker {
     this.minimum = input.min;
     this.maximum = input.max;
     const currentValue = nativeValue.get.call(input);
-    this.initialValue = currentValue || input.disabled || input.readOnly
-      ? currentValue
-      : defaultDateInputValue(this.originalType);
-    if (!currentValue && this.initialValue) {
-      nativeValue.set.call(input, this.initialValue);
-      input.defaultValue = this.initialValue;
-    }
+    this.initialValue = currentValue;
+    this.fallbackToNow = !input.disabled && !input.readOnly;
     this.today = getIranJalaliParts();
     this.view = { year: this.today.year, month: this.today.month };
     this.build();
@@ -57,7 +52,13 @@ class PersianDatePicker {
     input.dataset.dateTimezone = "Asia/Tehran";
     input.inputMode = "numeric";
     input.autocomplete = "off";
-    input.placeholder = this.dateTime ? "۱۴۰۵/۰۵/۱۲ ۱۴:۳۰" : "۱۴۰۵/۰۵/۱۲";
+    input.placeholder = this.dateTime
+      ? "انتخاب تاریخ و ساعت — در صورت خالی، زمان فعلی ثبت می‌شود"
+      : "انتخاب تاریخ — در صورت خالی، تاریخ امروز ثبت می‌شود";
+    if (this.required && this.fallbackToNow) {
+      input.required = false;
+      input.setAttribute("aria-required", "true");
+    }
     this.wrapper = element("div", "persian-date-picker");
     input.parentNode.insertBefore(this.wrapper, input);
     this.wrapper.append(input);
@@ -107,7 +108,11 @@ class PersianDatePicker {
   visibleValue() { return nativeValue.get.call(this.input); }
   parser() { return this.dateTime ? parseJalaliDateTimeInput : parseJalaliDateInput; }
   formatter() { return this.dateTime ? formatJalaliDateTimeInput : formatJalaliDateInput; }
-  apiValue() { const value = this.visibleValue(); return value.trim() ? this.parser()(value) ?? "" : ""; }
+  apiValue() {
+    const value = this.visibleValue();
+    if (value.trim()) return this.parser()(value) ?? "";
+    return resolveDateInputValue(this.originalType, "", this.fallbackToNow);
+  }
   setApiValue(value) { nativeValue.set.call(this.input, this.formatter()(value)); this.input.setCustomValidity(""); this.syncView(); }
 
   syncView() {
@@ -154,6 +159,8 @@ class PersianDatePicker {
     if (this.input.disabled || this.input.readOnly) return;
     if (openPicker && openPicker !== this) openPicker.close();
     openPicker = this;
+    this.today = getIranJalaliParts();
+    if (!this.selectedParts()) this.view = { year: this.today.year, month: this.today.month };
     this.syncView(); this.render();
     this.popover.hidden = false; this.backdrop.hidden = false;
     this.trigger.setAttribute("aria-expanded", "true");

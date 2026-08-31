@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  defaultDateInputValue, formatIranDateTimeLocalValue, formatJalaliDateTimeInput, formatJalaliManualInput, jalaliMonthLength, parseJalaliDateInput,
+  defaultDateInputValue, formatIranDateTimeLocalValue, formatJalaliDateTimeInput, formatJalaliManualInput, jalaliMonthLength, parseJalaliDateInput, resolveDateInputValue,
   parseJalaliDateTimeInput, toBackendUtcDateTime,
 } from "../src/utils/jalaliDateTime.js";
 
@@ -19,6 +19,14 @@ test("a timezone-less backend control value is interpreted in Asia/Tehran", () =
   assert.equal(formatJalaliDateTimeInput("2026-03-21T03:30"), "۱۴۰۵/۰۱/۰۱ ۰۳:۳۰");
   assert.equal(toBackendUtcDateTime("2026-08-08T14:30"), "2026-08-08T11:00:00.000Z");
   assert.equal(formatIranDateTimeLocalValue("2026-08-08T11:00:00.000Z"), "2026-08-08T14:30");
+});
+
+test("blank date controls resolve to the current Iran date/time only when read", () => {
+  const now = new Date("2026-08-19T08:15:00.000Z");
+  assert.equal(resolveDateInputValue("date", "", true, now), "2026-08-19");
+  assert.equal(resolveDateInputValue("datetime-local", "", true, now), "2026-08-19T11:45");
+  assert.equal(resolveDateInputValue("datetime-local", "2026-09-01T09:30", true, now), "2026-09-01T09:30");
+  assert.equal(resolveDateInputValue("datetime-local", "", false, now), "");
 });
 
 test("empty date controls default to the current Iran date and time", () => {

@@ -138,6 +138,13 @@ export const defaultDateInputValue = (type, currentValue = "", now = new Date())
   return type === "date" ? dateTime.slice(0, 10) : dateTime;
 };
 
+export const resolveDateInputValue = (
+  type,
+  visibleValue = "",
+  fallbackToNow = true,
+  now = new Date(),
+) => visibleValue || (fallbackToNow ? defaultDateInputValue(type, "", now) : "");
+
 export const formatJalaliManualInput = (value, dateTime = false) => {
   const digits = toLatinDigits(value).replace(/\D/g, "").slice(0, dateTime ? 12 : 8);
   const date = [digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8)].filter(Boolean).join("/");

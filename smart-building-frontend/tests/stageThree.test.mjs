@@ -4,6 +4,7 @@ import {
   buildFloorSlots,
   floorCreationPayload,
   getFloorRegistrationState,
+  runFloorBulkOperation,
 } from "../src/features/stages/stageThree.js";
 
 test("prepares one stable Stage 3 card for every project floor", () => {
@@ -107,4 +108,48 @@ test("Stage 3 keeps completed cards compact before submission", async () => {
   assert.match(styles, /\.floor-card--completed\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(styles, /\.floor-card__filename\s*\{[^}]*text-overflow:\s*ellipsis/s);
   assert.match(styles, /\.floor-card__radio:hover:not\(:has\(input:disabled\)\)/);
+});
+
+test("runs a bulk floor operation sequentially and reports partial failures", async () => {
+  const progress = [];
+  const result = await runFloorBulkOperation(
+    [{ id: 1 }, { id: 2 }, { id: 3 }],
+    async ({ id }) => {
+      if (id === 2) throw new Error("failed");
+    },
+    (state) => progress.push(state),
+  );
+
+  assert.deepEqual(result.succeeded.map(({ id }) => id), [1, 3]);
+  assert.deepEqual(result.failed.map(({ item }) => item.id), [2]);
+  assert.deepEqual(progress.at(-1), {
+    completed: 3,
+    total: 3,
+    succeeded: 2,
+    failed: 1,
+  });
+});
+
+test("Stage 3 provides bulk map actions without removing per-floor actions", async () => {
+  const source = await import("node:fs/promises").then(({ readFile }) =>
+    readFile(new URL("../src/pages/StageThreePage.js", import.meta.url), "utf8"),
+  );
+
+  assert.match(source, /نقشه در اختیار نیست برای همه/);
+  assert.match(source, /انتخاب یک DWG برای همه/);
+  assert.match(source, /انتخاب فایل و ثبت طبقه/);
+  assert.match(source, /runFloorBulkOperation/);
+});
+
+test("Stage 3 identifies floor cards only with compact F-number labels", async () => {
+  const source = await import("node:fs/promises").then(({ readFile }) =>
+    readFile(new URL("../src/pages/StageThreePage.js", import.meta.url), "utf8"),
+  );
+
+  assert.match(source, /floor-card__index-label/);
+  assert.match(source, /`F-\$\{slot\.index\}`/);
+  assert.match(source, /`F-\$\{floor\.levelOrder \+ 1\}`/);
+  assert.doesNotMatch(source, /`نام طبقه \$\{slot\.index\}`/);
+  assert.doesNotMatch(source, /"تکمیل‌نشده"/);
+  assert.doesNotMatch(source, /"ثبت‌شده"/);
 });

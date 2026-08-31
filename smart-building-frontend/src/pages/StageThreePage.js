@@ -4,7 +4,9 @@ import {
   buildFloorSlots,
   floorCreationPayload,
   getFloorRegistrationState,
+  runFloorBulkOperation,
 } from "../features/stages/stageThree.js";
+import { getStageReviewAccess } from "../features/stages/stageReviewAccess.js";
 import { dwgService } from "../services/dwgService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -257,9 +259,16 @@ const createFloorsForm = ({
 }) => {
   const container = element("section", "floor-definition");
   const slots = buildFloorSlots(totalFloors, floors);
+  const editors = [];
 
   slots.forEach((slot) => {
     if (slot.floor) {
+      editors.push({
+        slot,
+        floor: slot.floor,
+        validateIdentity: () => true,
+        ensureFloor: async () => slot.floor,
+      });
       container.append(
         completedFloorCard({
           floor: slot.floor,
@@ -271,7 +280,7 @@ const createFloorsForm = ({
     const card = element("article", "floor-card floor-card--draft");
     const heading = element("header", "floor-card__header");
     const nameLabel = element("label", "stage-form__field");
-    const nameText = element("span", "stage-form__label", `نام طبقه ${slot.index}`);
+    const nameText = element("span", "stage-form__label", "نام طبقه");
     const name = document.createElement("input");
     const typeGroup = element("fieldset", "floor-card__type-options");
     const typeLegend = element("legend", "stage-form__label", "نوع طبقه");
@@ -286,8 +295,7 @@ const createFloorsForm = ({
     const referenceCheckbox = document.createElement("input");
     const cardFeedback = element("p", "floor-card__feedback");
     heading.append(
-      element("h3", "floor-card__title", `طبقه ${slot.index}`),
-      element("span", "stage-status stage-status--needs_revision", "تکمیل‌نشده"),
+      element("span", "floor-card__index-label", `F-${slot.index}`),
     );
     name.className = "stage-form__control";
     name.placeholder = "نام طبقه را وارد کنید";
@@ -337,6 +345,15 @@ const createFloorsForm = ({
           typical.checked ? typical.value : nonTypical.value,
         ),
       );
+
+    editors.push({
+      slot,
+      get floor() {
+        return null;
+      },
+      validateIdentity,
+      ensureFloor: createFloor,
+    });
 
     upload.addEventListener("click", async () => {
       if (!validateIdentity()) return;
@@ -389,6 +406,115 @@ const createFloorsForm = ({
     card.append(heading, nameLabel, typeGroup, evidence);
     container.append(card);
   });
+
+  if (!disabled && editors.length > 1) {
+    const bulk = element("section", "stage3-bulk-evidence");
+    const bulkCopy = element("div", "stage3-bulk-evidence__copy");
+    const bulkActions = element("div", "stage3-bulk-evidence__actions");
+    const unavailableAll = element(
+      "button",
+      "button button--ghost",
+      "نقشه در اختیار نیست برای همه",
+    );
+    const uploadAll = element(
+      "button",
+      "button button--primary",
+      "انتخاب یک DWG برای همه",
+    );
+    const sharedFile = document.createElement("input");
+    const progress = element("p", "stage3-bulk-evidence__progress");
+    sharedFile.type = "file";
+    sharedFile.accept = ".dwg";
+    sharedFile.hidden = true;
+    unavailableAll.type = uploadAll.type = "button";
+    bulkCopy.append(
+      element("strong", "", "تعیین گروهی نقشه طبقات"),
+      element(
+        "small",
+        "",
+        "نام و نوع همه طبقات را وارد کنید؛ سپس یک وضعیت را برای همه اعمال کنید. گزینه‌های تکی هر کارت همچنان در دسترس است.",
+      ),
+    );
+
+    const validateAll = () => {
+      const invalid = editors.filter((editor) => !editor.validateIdentity());
+      if (invalid.length) {
+        feedback.textContent = `نام ${invalid.length} طبقه هنوز تکمیل نشده است.`;
+        return false;
+      }
+      return true;
+    };
+
+    const setBusy = (busy) => {
+      unavailableAll.disabled = busy;
+      uploadAll.disabled = busy;
+    };
+
+    const executeBulk = async ({ actionLabel, operation }) => {
+      setBusy(true);
+      progress.textContent = `در حال ${actionLabel}: ۰ از ${editors.length}`;
+      const result = await runFloorBulkOperation(
+        editors,
+        async (editor) => {
+          const floor = await editor.ensureFloor();
+          await operation(floor);
+        },
+        ({ completed, total }) => {
+          progress.textContent = `در حال ${actionLabel}: ${completed} از ${total}`;
+        },
+      );
+      const failureMessage = result.failed.length
+        ? `؛ ${result.failed.length} طبقه ناموفق بود: ${result.failed
+            .map(({ item }) => item.slot.code)
+            .join("، ")}`
+        : "";
+      await reload(
+        `${actionLabel} برای ${result.succeeded.length} طبقه انجام شد${failureMessage}.`,
+      );
+    };
+
+    unavailableAll.addEventListener("click", async () => {
+      if (!validateAll()) return;
+      const confirmed = await confirmDialog({
+        title: "تأیید گروهی وضعیت نقشه",
+        message: `تأیید می‌کنید نقشه DWG برای هر ${editors.length} طبقه در اختیار شما نیست یا در مرجع اصلی موجود است؟`,
+        confirmLabel: "تأیید برای همه طبقات",
+        triggerElement: unavailableAll,
+      });
+      if (!confirmed) return;
+      await executeBulk({
+        actionLabel: "ثبت وضعیت نقشه",
+        operation: (floor) => dwgService.setReferenceConfirmation(floor.id, true),
+      });
+    });
+
+    uploadAll.addEventListener("click", () => {
+      if (validateAll()) sharedFile.click();
+    });
+
+    sharedFile.addEventListener("change", async () => {
+      const selectedFile = sharedFile.files[0];
+      if (!selectedFile || !validateAll()) return;
+      const confirmed = await confirmDialog({
+        title: "آپلود یک نقشه برای همه طبقات",
+        message: `فایل «${selectedFile.name}» برای هر ${editors.length} طبقه ثبت شود؟ برای طبقات دارای فایل، یک نسخه جدید ساخته می‌شود.`,
+        confirmLabel: "آپلود برای همه طبقات",
+        triggerElement: uploadAll,
+      });
+      if (!confirmed) {
+        sharedFile.value = "";
+        return;
+      }
+      await executeBulk({
+        actionLabel: "آپلود فایل مشترک",
+        operation: (floor) => dwgService.upload(floor.id, selectedFile),
+      });
+    });
+
+    bulkActions.append(unavailableAll, uploadAll, sharedFile);
+    bulk.append(bulkCopy, bulkActions, progress);
+    container.prepend(bulk);
+  }
   return container;
 };
 
@@ -415,8 +541,7 @@ const completedFloorCard = ({ floor, versions }) => {
   const referenceRadio = document.createElement("input");
 
   heading.append(
-    element("h3", "floor-card__title", `طبقه ${floor.levelOrder + 1}`),
-    element("span", "stage-status stage-status--approved", "ثبت‌شده"),
+    element("span", "floor-card__index-label", `F-${floor.levelOrder + 1}`),
   );
   name.className = "stage-form__control";
   name.value = floor.name;
@@ -492,8 +617,10 @@ export const StageThreePage = ({ pilotId }) => {
   const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
   const canManageDwg = permissions.includes("dwg.manage");
   const canSubmit = permissions.includes("checklists.manage");
-  const canApprove = permissions.includes("gate_approval.approve");
-  const canReject = permissions.includes("gate_approval.reject");
+  const { canApprove, canReject } = getStageReviewAccess(
+    sessionStore.getCurrentUser(),
+    3,
+  );
 
   const renderError = (message) => {
     const state = element("div", "error-state");
