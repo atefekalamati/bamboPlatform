@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.datetimes import UtcDatetime
+
 NotificationCategory = Literal[
     "AUTH",
     "PILOT",
@@ -42,7 +44,7 @@ class NotificationItem(BaseModel):
     action_url: str | None
     payload: dict
     is_read: bool
-    created_at: datetime
+    created_at: UtcDatetime
 
 
 class NotificationList(BaseModel):
@@ -109,9 +111,9 @@ class NotificationDeliveryRead(BaseModel):
     status: DeliveryStatus
     provider_message_id: str | None
     attempt_count: int
-    sent_at: datetime | None
-    delivered_at: datetime | None
-    failed_at: datetime | None
+    sent_at: UtcDatetime | None
+    delivered_at: UtcDatetime | None
+    failed_at: UtcDatetime | None
     failure_code: str | None
     failure_reason: str | None
-    created_at: datetime
+    created_at: UtcDatetime
