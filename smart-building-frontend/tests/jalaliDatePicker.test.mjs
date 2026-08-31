@@ -5,6 +5,8 @@ import {
   parseJalaliDateTimeInput, toBackendUtcDateTime,
 } from "../src/utils/jalaliDateTime.js";
 
+import { readFile } from "node:fs/promises";
+
 test("manual date entry accepts mixed digits and adds separators", () => {
   assert.equal(formatJalaliManualInput("۱۴۰5-٠٥.12"), "۱۴۰۵/۰۵/۱۲");
   assert.equal(formatJalaliManualInput("14050"), "۱۴۰۵/۰");
@@ -52,4 +54,24 @@ test("Esfand length follows the Jalali leap year", () => {
   assert.equal(jalaliMonthLength(1404, 12), 29);
   assert.ok(parseJalaliDateInput("۱۴۰۳/۱۲/۳۰"));
   assert.equal(parseJalaliDateInput("۱۴۰۴/۱۲/۳۰"), null);
+});
+
+test("the shared picker always provides explicit close actions", async () => {
+  const source = await readFile(
+    new URL("../src/components/PersianDatePicker.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /بستن انتخابگر تاریخ/);
+  assert.match(source, /"ثبت و بستن"/);
+  assert.match(source, /minuteSelect\.addEventListener\("change"/);
+  assert.match(source, /this\.selectDay\(current\.day, true\)/);
+  assert.match(source, /this\.selectDay\(this\.today\.day, true\)/);
+  assert.match(source, /if \(returnFocus\) this\.trigger\.focus\(\)/);
+  assert.doesNotMatch(source, /if \(returnFocus\) this\.input\.focus\(\)/);
+  assert.match(source, /submit-date-picker/);
+  assert.match(
+    source,
+    /time\.append\(this\.minuteSelect,[^\n]*this\.hourSelect\)/,
+  );
 });
