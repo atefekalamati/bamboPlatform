@@ -115,12 +115,6 @@ PERMISSIONS = (
     ("dashboard.read_all", "Dashboard", "مشاهده نمای کلی همه پرونده‌ها", True),
     ("dashboard.export", "Dashboard", "خروجی نمای کلی سامانه", False),
     ("notifications.manage", "Notifications", "ثبت و پیگیری اعلان‌های عملیاتی", False),
-    ("calls.read", "Calls", "مشاهده تماس‌های پرونده‌های مجاز", False),
-    ("calls.initiate", "Calls", "آغاز تماس با مشتری", False),
-    ("calls.record_outcome", "Calls", "ثبت نتیجه و خلاصه تماس", False),
-    ("calls.retry", "Calls", "تلاش مجدد تماس", False),
-    ("calls.recording.read", "Calls", "مشاهده مرجع ضبط تماس", True),
-    ("calls.override", "Calls", "Override الزام تماس با دلیل", True),
     ("notifications.read", "Notifications", "مشاهده اعلان‌های کاربر", False),
     ("notifications.mark_read", "Notifications", "خوانده‌شدن یا حذف اعلان‌های کاربر", False),
     ("notifications.manage_preferences", "Notifications", "مدیریت تنظیمات اعلان", False),
@@ -211,12 +205,6 @@ PILOT_MANAGER_PERMISSIONS = {
     "forms.read",
     "forms.print",
     "forms.export_pdf",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
-    "calls.recording.read",
-    "calls.override",
 }
 
 SALES_PERMISSIONS = {
@@ -247,10 +235,6 @@ SALES_PERMISSIONS = {
     "commercial.manage",
     "checklists.manage",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
 }
 
 SETUP_PERMISSIONS = {
@@ -315,10 +299,6 @@ OPERATIONS_PERMISSIONS = {
     "incidents.resolve",
     "incidents.close",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
     "forms.read",
     "forms.print",
     "forms.export_pdf",
@@ -380,12 +360,13 @@ SUPPORT_PERMISSIONS = {
     "forms.f04.read",
     "forms.f05.read",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
 }
 
+# Retired as a standalone role: customer success, support and training are one
+# team, so these permissions are folded into SUPPORT_PERMISSIONS below. The set
+# is kept as its own name because it documents which permissions came from that
+# side of the merge, and because the customer_success.* permission codes
+# themselves remain in use — only the role is gone.
 CUSTOMER_SUCCESS_PERMISSIONS = {
     "pilots.read",
     "stages.read",
@@ -412,11 +393,11 @@ CUSTOMER_SUCCESS_PERMISSIONS = {
     "customer_success.feedback",
     "customer_success.manage",
     "preferences.manage",
-    "calls.read",
-    "calls.initiate",
-    "calls.record_outcome",
-    "calls.retry",
 }
+
+# The merged role carries everything both sides could do, so nobody loses an
+# ability they had before the merge.
+SUPPORT_PERMISSIONS |= CUSTOMER_SUCCESS_PERMISSIONS
 
 TECHNICAL_PERMISSIONS = {
     "pilots.read",
@@ -477,8 +458,7 @@ SYSTEM_ROLES = {
     "setup": ("مسئول راه‌اندازی", SETUP_PERMISSIONS),
     "operations": ("هماهنگ‌کننده عملیات", OPERATIONS_PERMISSIONS),
     "capture_expert": ("کارشناس برداشت", FIELD_EXPERT_PERMISSIONS),
-    "support": ("آموزش/پشتیبانی", SUPPORT_PERMISSIONS),
-    "customer_success": ("موفقیت مشتری", CUSTOMER_SUCCESS_PERMISSIONS),
+    "support": ("پشتیبانی", SUPPORT_PERMISSIONS),
     "technical": ("تیم فنی", TECHNICAL_PERMISSIONS),
     "product_manager": ("مدیر محصول", PRODUCT_MANAGER_PERMISSIONS),
 }
@@ -494,7 +474,6 @@ for role_name, (_, permission_codes) in SYSTEM_ROLES.items():
             "operations",
             "capture_expert",
             "support",
-            "customer_success",
             "technical",
             "product_manager",
         }:

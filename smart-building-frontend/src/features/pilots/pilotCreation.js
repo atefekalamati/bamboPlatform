@@ -1,0 +1,41 @@
+export const PROJECT_PROGRESS_STAGES = Object.freeze([
+  "تخریب ساختمان قدیمی",
+  "تجهیز کارگاه",
+  "خاکبرداری",
+  "سازه نگهبان",
+  "فونداسیون",
+  "دیوارهای حائل",
+  "اجرای سازه بتنی",
+  "اجرای سازه فولادی",
+  "سفتکاری",
+  "کفسازی",
+  "تاسیسات مکانیکی",
+  "تاسیسات الکتریکی",
+  "نازک کاری واحدهای مسکونی",
+  "دکوراسیون",
+  "نصبیات تاسیسات مکانیکی و الکتریکی",
+  "آسانسور",
+  "نمای ساختمان و پنجره ها",
+  "فضای عمومی",
+  "تجهیزات عمومی و زیربنایی تاسیسات",
+  "نظافت و برچیدن کارگاه",
+]);
+
+export const buildPilotCreatePayload = (values) => ({
+  display_name: values.displayName,
+  pilot_year: values.pilotYear || null,
+  owner: {
+    name: values.ownerName,
+    decision_maker_name: values.decisionMakerName,
+    decision_maker_position: values.decisionMakerPosition,
+    primary_mobile: values.primaryMobile,
+  },
+  project: {
+    name: values.displayName,
+    total_floors: values.totalFloors,
+    address: values.address,
+    progress_stage: values.progressStage,
+    customer_need: values.customerNeed,
+    expected_value: values.expectedValue,
+  },
+});

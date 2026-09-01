@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mapIncidentListResponse } from "../src/services/incidentService.js";
+import { mapGlobalIncidentListResponse, mapIncidentListResponse } from "../src/services/incidentService.js";
 
 const backendIncident = {
   id: 7,
@@ -37,4 +37,15 @@ test("fails clearly when the backend list contract is invalid", () => {
 
 test("keeps compatibility with the former array response", () => {
   assert.equal(mapIncidentListResponse([backendIncident])[0].code, "INC-0001");
+});
+
+test("maps the scoped global incident contract and its server summary", () => {
+  const response = mapGlobalIncidentListResponse({
+    items: [{ ...backendIncident, pilot_code: "PIL-1405-001", pilot_display_name: "پرونده تست", sla_due_at: backendIncident.response_due_at }],
+    page: 2, page_size: 20, total: 25, total_pages: 2,
+    summary: { total: 25, open: 4, critical: 1, important: 2, overdue: 1, closed: 21 },
+  });
+  assert.equal(response.items[0].pilotCode, "PIL-1405-001");
+  assert.equal(response.page, 2);
+  assert.equal(response.summary.total, 25);
 });

@@ -1,6 +1,7 @@
 import { StageStepper } from "../components/StageStepper.js";
 import { PilotFormsPanel } from "../components/PilotFormsPanel.js";
 import { PilotIncidentsPanel } from "../components/PilotIncidentsPanel.js";
+import { PhoneCallLink } from "../components/PhoneCallLink.js";
 import { sessionStore } from "../app/sessionStore.js";
 import { pilotService } from "../services/pilotService.js";
 import { formatPersianDate } from "../utils/dateFormatter.js";
@@ -22,9 +23,12 @@ const element = (tag, className, text = "") => {
 
 const summaryItem = (label, value) => {
   const item = element("div", "pilot-summary__item");
+  const content = element("dd", "pilot-summary__value");
+  if (value instanceof Node) content.append(value);
+  else content.textContent = value;
   item.append(
     element("dt", "pilot-summary__label", label),
-    element("dd", "pilot-summary__value", value),
+    content,
   );
   return item;
 };
@@ -55,7 +59,11 @@ const renderDetails = (container, pilot) => {
     summaryItem("نام پروژه", project.name),
     summaryItem("مالک", owner.name),
     summaryItem("تصمیم‌گیرنده", `${owner.decisionMakerName} — ${owner.decisionMakerPosition}`),
-    summaryItem("موبایل اصلی", owner.primaryMobile),
+    summaryItem("موبایل مالک", PhoneCallLink({
+      phoneNumber: owner.primaryMobile,
+      label: owner.primaryMobile,
+      ariaLabel: `تماس با مالک پروژه، ${owner.name}`,
+    })),
     summaryItem("تعداد طبقات", String(project.totalFloors)),
     summaryItem("مرحله پروژه", project.progressStage),
     summaryItem("مرحله پایلوت", `${pilot.currentStage} از ۱۹`),

@@ -13,6 +13,13 @@ import {
 } from "./apiError.js";
 
 const requestUrl = (path) => `${APP_CONFIG.apiBaseUrl}${path}`;
+const REFRESH_PATH = "/auth/refresh";
+const PUBLIC_AUTH_PATHS = new Set([
+  "/auth/otp/request",
+  "/auth/otp/verify",
+  REFRESH_PATH,
+]);
+let refreshPromise = null;
 
 const parsePayload = async (response) => {
   const rawBody = await response.text();
@@ -36,18 +43,19 @@ const parseResponse = async (response) => {
   throw apiErrorFromResponse({ status: response.status, payload });
 };
 
-const handleApiError = (error, { hadToken }) => {
-  reportApiError(error);
+const handleApiError = (error, { hadSession }) => {
+  if (!error.authenticationHandled) reportApiError(error);
 
-  if (error.status === 401 && hadToken) {
+  if (error.status === 401 && hadSession && !error.authenticationHandled) {
     sessionStore.clear();
     reportAuthenticationRequired(error);
+    error.authenticationHandled = true;
   }
 
   throw error;
 };
 
-const executeRequest = async (path, options = {}) => {
+const executeRequest = async (path, options = {}, { includeAuth = true } = {}) => {
   const controller = new AbortController();
   const externalSignal = options.signal;
   const abortFromCaller = () => controller.abort();
@@ -57,7 +65,7 @@ const executeRequest = async (path, options = {}) => {
     didTimeout = true;
     controller.abort();
   }, APP_CONFIG.requestTimeoutMs);
-  const token = sessionStore.getToken();
+  const token = includeAuth ? sessionStore.getToken() : null;
   const isFormData = options.body instanceof FormData;
 
   try {
@@ -83,25 +91,104 @@ const executeRequest = async (path, options = {}) => {
   }
 };
 
+const normalizeRequestError = (error) =>
+  error instanceof ApiError ? error : networkApiError(error);
+
+const endExpiredSession = (error) => {
+  if (!error.authenticationHandled) {
+    const hadSession = sessionStore.hasSession();
+    sessionStore.clear();
+    reportApiError(error);
+    if (hadSession) reportAuthenticationRequired(error);
+    error.authenticationHandled = true;
+  }
+  throw error;
+};
+
+const refreshAccessToken = () => {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refreshToken = sessionStore.getRefreshToken();
+    if (!refreshToken) {
+      throw new ApiError({
+        message: "نشست شما منقضی شده است. دوباره وارد شوید.",
+        status: 401,
+        code: "REFRESH_TOKEN_MISSING",
+      });
+    }
+
+    const response = await executeRequest(
+      REFRESH_PATH,
+      {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      },
+      { includeAuth: false },
+    );
+    const payload = await parseResponse(response);
+    if (
+      typeof payload?.access_token !== "string" ||
+      typeof payload?.refresh_token !== "string"
+    ) {
+      throw invalidResponseApiError({ status: response.status });
+    }
+
+    sessionStore.setSession({
+      accessToken: payload.access_token,
+      refreshToken: payload.refresh_token,
+      expiresIn: payload.expires_in,
+      refreshExpiresIn: payload.refresh_expires_in,
+      user: payload.user,
+    });
+    return payload.access_token;
+  })()
+    .catch((error) => endExpiredSession(normalizeRequestError(error)))
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
+};
+
+const canRefreshRequest = (path) => !PUBLIC_AUTH_PATHS.has(path);
+
+const executeWithRefresh = async (path, options = {}) => {
+  const refreshEligible = canRefreshRequest(path);
+  if (refreshEligible && sessionStore.shouldRefreshAccessToken()) {
+    await refreshAccessToken();
+  }
+
+  const tokenUsed = sessionStore.getToken();
+  let response = await executeRequest(path, options);
+  if (
+    response.status === 401 &&
+    refreshEligible &&
+    sessionStore.getRefreshToken()
+  ) {
+    if (sessionStore.getToken() === tokenUsed) await refreshAccessToken();
+    response = await executeRequest(path, options);
+  }
+  return response;
+};
+
 export const request = async (path, options = {}) => {
-  const hadToken = Boolean(sessionStore.getToken());
+  const hadSession = sessionStore.hasSession();
 
   try {
-    const response = await executeRequest(path, options);
+    const response = await executeWithRefresh(path, options);
     return await parseResponse(response);
   } catch (error) {
     if (error?.name === "AbortError") throw error;
-    const apiError =
-      error instanceof ApiError ? error : networkApiError(error);
-    return handleApiError(apiError, { hadToken });
+    return handleApiError(normalizeRequestError(error), { hadSession });
   }
 };
 
 export const requestBlob = async (path, options = {}) => {
-  const hadToken = Boolean(sessionStore.getToken());
+  const hadSession = sessionStore.hasSession();
 
   try {
-    const response = await executeRequest(path, options);
+    const response = await executeWithRefresh(path, options);
     if (!response.ok) await parseResponse(response);
 
     return {
@@ -112,8 +199,18 @@ export const requestBlob = async (path, options = {}) => {
           ?.match(/filename="?([^";]+)"?/)?.[1] ?? "drawing.dwg",
     };
   } catch (error) {
-    const apiError =
-      error instanceof ApiError ? error : networkApiError(error);
-    return handleApiError(apiError, { hadToken });
+    return handleApiError(normalizeRequestError(error), { hadSession });
+  }
+};
+
+export const requestText = async (path, options = {}) => {
+  const hadSession = sessionStore.hasSession();
+
+  try {
+    const response = await executeWithRefresh(path, options);
+    if (!response.ok) await parseResponse(response);
+    return await response.text();
+  } catch (error) {
+    return handleApiError(normalizeRequestError(error), { hadSession });
   }
 };

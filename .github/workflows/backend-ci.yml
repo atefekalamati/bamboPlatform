@@ -119,6 +119,9 @@ jobs:
 
     env:
       DATABASE_URL: postgresql+psycopg://bambo_ci:bambo_ci_password@localhost:5432/bambo_ci
+      # Names the server, not the database under test. The integration suite
+      # creates its own bambo_test_<id>, migrates it, and drops it afterwards,
+      # so bambo_ci stays clean for the migration-chain step below.
       POSTGRES_TEST_DATABASE_URL: postgresql+psycopg://bambo_ci:bambo_ci_password@localhost:5432/bambo_ci
       APP_ENV: test
       AUTH_SECRET: ci-only-secret-not-for-production
@@ -152,10 +155,33 @@ jobs:
       - name: Check PostgreSQL schema drift
         run: python -m alembic check
 
+      # Twice: a suite that only passes on a pristine database passes the first
+      # run and fails the second. Running it back to back is what proves the
+      # per-session database is really isolated and really torn down.
       - name: Run PostgreSQL integration test
         run: python -m pytest tests/test_postgres_integration.py -q
         env:
           DWG_STORAGE_ROOT: ${{ runner.temp }}/dwg-storage
+
+      - name: Re-run PostgreSQL integration test to prove isolation
+        run: python -m pytest tests/test_postgres_integration.py -q
+        env:
+          DWG_STORAGE_ROOT: ${{ runner.temp }}/dwg-storage
+
+      - name: Assert no throwaway test database survived
+        run: |
+          leftovers=$(psql "postgresql://bambo_ci:bambo_ci_password@localhost:5432/postgres" \
+            -tAc "SELECT count(*) FROM pg_database WHERE datname LIKE 'bambo_test_%'")
+          echo "leftover test databases: $leftovers"
+          test "$leftovers" -eq 0
+
+      - name: Assert the integration suite left bambo_ci alone
+        run: |
+          pilots=$(psql "$DATABASE_URL_PLAIN" -tAc "SELECT count(*) FROM pilots")
+          echo "pilots in bambo_ci: $pilots"
+          test "$pilots" -eq 0
+        env:
+          DATABASE_URL_PLAIN: postgresql://bambo_ci:bambo_ci_password@localhost:5432/bambo_ci
 
       - name: Verify reversible migration chain
         run: |

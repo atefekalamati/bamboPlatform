@@ -5,6 +5,7 @@ import {
   setNavigationGuard,
 } from "../app/navigationGuard.js";
 import { StageOneForm } from "../components/StageOneForm.js";
+import { getStageReviewAccess } from "../features/stages/stageReviewAccess.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
@@ -102,8 +103,10 @@ export const StageOnePage = ({ pilotId }) => {
   const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
   const canEdit = permissions.includes("forms.manage");
   const canSubmit = permissions.includes("checklists.manage");
-  const canApprove = permissions.includes("gate_approval.approve");
-  const canReject = permissions.includes("gate_approval.reject");
+  const { canApprove, canReject } = getStageReviewAccess(
+    sessionStore.getCurrentUser(),
+    1,
+  );
 
   const renderError = (message, retry) => {
     const state = element("div", "error-state");

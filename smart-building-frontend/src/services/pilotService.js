@@ -1,4 +1,5 @@
 import { request } from "./httpClient.js";
+import { buildPilotCreatePayload } from "../features/pilots/pilotCreation.js";
 
 const mapStage = (stage, gates = []) => {
   const gate = gates.find(({ after_stage: afterStage }) => afterStage === stage.number);
@@ -70,24 +71,7 @@ export const pilotService = Object.freeze({
     mapPilotDetail(
       await request("/pilots", {
         method: "POST",
-        body: JSON.stringify({
-          display_name: values.displayName || null,
-          pilot_year: values.pilotYear || null,
-          owner: {
-            name: values.ownerName,
-            decision_maker_name: values.decisionMakerName,
-            decision_maker_position: values.decisionMakerPosition,
-            primary_mobile: values.primaryMobile,
-          },
-          project: {
-            name: values.projectName,
-            total_floors: values.totalFloors,
-            address: values.address,
-            progress_stage: values.progressStage,
-            customer_need: values.customerNeed,
-            expected_value: values.expectedValue,
-          },
-        }),
+        body: JSON.stringify(buildPilotCreatePayload(values)),
       }),
     ),
 });

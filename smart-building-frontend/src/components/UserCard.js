@@ -1,3 +1,5 @@
+import { PhoneCallLink } from "./PhoneCallLink.js";
+
 const element = (tag, className, text = "") => {
   const node = document.createElement(tag);
   node.className = className;
@@ -17,8 +19,18 @@ export const UserCard = ({
   const identity = element("div", "user-card__identity");
   const name = element("h2", "user-card__name", user.displayName);
   const identifier = element("span", "user-card__identifier", `شناسه کاربر: ${user.id}`);
-  const mobile = element("span", "user-card__phone", `شماره ثبت‌شده: ${user.mobile}`);
-  mobile.title = "شماره برای حفظ حریم خصوصی به‌صورت ماسک‌شده نمایش داده می‌شود.";
+  const mobile = element("span", "user-card__phone");
+  mobile.append(
+    element("span", "", "شماره ثبت‌شده: "),
+    PhoneCallLink({
+      phoneNumber: user.mobile,
+      label: user.mobile,
+      ariaLabel: `تماس با ${user.displayName}`,
+    }),
+  );
+  if (String(user.mobile).includes("*")) {
+    mobile.title = "شماره برای حفظ حریم خصوصی به‌صورت ماسک‌شده نمایش داده می‌شود.";
+  }
   const roleNames = user.roles.map(({ displayName }) => displayName).join("، ");
   const roles = element(
     "span",

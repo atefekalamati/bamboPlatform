@@ -45,6 +45,34 @@ def get_int_setting(name: str, default: int) -> int:
     return int(os.getenv(name, str(default)))
 
 
+def get_sms_timeout_seconds() -> float:
+    return float(os.getenv("SMS_TIMEOUT_SECONDS", "10"))
+
+
+def get_sms_retry_count() -> int:
+    return max(0, get_int_setting("SMS_RETRY_COUNT", 0))
+
+
+def get_sms_retry_backoff_seconds() -> float:
+    return max(0.0, float(os.getenv("SMS_RETRY_BACKOFF_SECONDS", "0")))
+
+
+def get_sms_otp_template_id() -> str | None:
+    return os.getenv("SMS_OTP_TEMPLATE_ID") or os.getenv("SMS_TEMPLATE_ID")
+
+
+def get_sms_notification_template_id() -> str | None:
+    return os.getenv("SMS_NOTIFICATION_TEMPLATE_ID") or os.getenv("SMS_TEMPLATE_ID")
+
+
+def get_sms_otp_param_name() -> str:
+    return os.getenv("SMS_OTP_PARAM_NAME", "code")
+
+
+def get_sms_notification_param_name() -> str:
+    return os.getenv("SMS_NOTIFICATION_PARAM_NAME", "message")
+
+
 def get_bootstrap_super_admin_mobile() -> str | None:
     return os.getenv("BOOTSTRAP_SUPER_ADMIN_MOBILE")
 
@@ -55,6 +83,13 @@ def get_cors_origins() -> list[str]:
         "http://127.0.0.1:8080,http://localhost:8080",
     )
     return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+
+def get_cors_origin_regex() -> str | None:
+    """Allow localhost on any port in development without weakening production."""
+    if get_app_env() == "production":
+        return None
+    return r"^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
 
 
 def get_dwg_storage_root() -> Path:
@@ -159,11 +194,6 @@ def validate_production_settings() -> None:
             errors.append("SMS_SENDER must be configured")
         if not os.getenv("SMS_TEMPLATE_ID", "").strip():
             errors.append("SMS_TEMPLATE_ID must be configured")
-    call_provider = os.getenv("CALL_PROVIDER", "").strip().lower()
-    if call_provider != "astel":
-        errors.append("CALL_PROVIDER must be astel in production")
-    else:
-        errors.append("official Astel API and webhook contract is not installed")
     if get_bool_setting("DEBUG"):
         errors.append("DEBUG must be disabled")
     if get_docs_enabled():
@@ -182,6 +212,8 @@ def validate_production_settings() -> None:
         errors.append("FORWARDED_ALLOW_IPS must identify trusted reverse proxies")
     for name, default in (
         ("AUTH_SESSION_TTL_SECONDS", 28800),
+        ("AUTH_ACCESS_TTL_SECONDS", 900),
+        ("AUTH_REFRESH_TTL_SECONDS", 2592000),
         ("OTP_TTL_SECONDS", 300),
         ("OTP_MAX_ATTEMPTS", 5),
         ("OTP_MAX_REQUESTS_PER_WINDOW", 5),

@@ -1,6 +1,14 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { request } from "./httpClient.js";
 
+const bootstrapUser = (payload) => ({
+  ...payload.user,
+  stageAccess: payload.stage_access ?? {},
+  gateAccess: payload.gate_access ?? {},
+  scopes: payload.scopes ?? [],
+  menuAccess: payload.menu_access ?? [],
+});
+
 export const authService = Object.freeze({
   requestOtp: (mobile) =>
     request("/auth/otp/request", {
@@ -15,12 +23,15 @@ export const authService = Object.freeze({
 
     sessionStore.setSession({
       accessToken: response.access_token,
+      refreshToken: response.refresh_token,
+      expiresIn: response.expires_in,
+      refreshExpiresIn: response.refresh_expires_in,
       user: response.user,
     });
 
     return response;
   },
-  getCurrentUser: () => request("/auth/me"),
+  getCurrentUser: async () => bootstrapUser(await request("/auth/bootstrap")),
   updateMyName: async (displayName) => {
     const user = await request("/auth/me", {
       method: "PATCH",
@@ -30,8 +41,14 @@ export const authService = Object.freeze({
     return user;
   },
   logout: async () => {
+    const refreshToken = sessionStore.getRefreshToken();
     try {
-      await request("/auth/logout", { method: "POST" });
+      await request("/auth/logout", {
+        method: "POST",
+        body: refreshToken
+          ? JSON.stringify({ refresh_token: refreshToken })
+          : undefined,
+      });
     } finally {
       sessionStore.clear();
     }

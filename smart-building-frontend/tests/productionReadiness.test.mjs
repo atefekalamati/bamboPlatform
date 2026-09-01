@@ -9,6 +9,29 @@ test("production config cannot enable mock", async () => {
   assert.doesNotMatch(source, /127\.0\.0\.1|localhost/);
 });
 
+test("frontend contains no removed backend call integration", async () => {
+  const files = [
+    "../src/pages/StageTwoPage.js", "../src/pages/StageFivePage.js",
+    "../src/pages/StageElevenPage.js", "../src/pages/StageThirteenPage.js",
+    "../src/pages/StageSixteenPage.js", "../src/pages/StageEighteenPage.js",
+  ];
+  for (const file of files) {
+    const source = await readFile(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /CallsPanel|callService|call_policy_completed/);
+    assert.doesNotMatch(source, /calls\.(read|initiate|retry|override|record_outcome)|calls\.recording\.read/);
+  }
+});
+
+test("Stage 18 contains no legacy call requirement", async () => {
+  const source = await readFile(
+    new URL("../src/pages/StageEighteenPage.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(source, /تماس|Call|VoIP|Astel/i);
+  assert.match(source, /هر پیگیری برای رفع یک مانع مشخص/);
+});
+
 test("sensitive routes require backend permissions", () => {
   assert.equal(requiredPermissionForRoute("#/users"), "users.read");
   assert.equal(requiredPermissionForRoute("#/pilots/2/stages/9"), "pilots.read");
@@ -51,4 +74,18 @@ test("dashboard does not expose the removed Power BI backend contract", async ()
   assert.doesNotMatch(dashboard, /PowerBI|powerbi|reports\.powerbi/i);
   assert.doesNotMatch(service, /getPowerBIEmbed|embed-token/i);
   assert.doesNotMatch(nginx, /powerbi\.com/i);
+});
+
+test("unknown routes render a not-found page instead of the dashboard", async () => {
+  const router = await readFile(new URL("../src/app/router.js", import.meta.url), "utf8");
+  assert.match(router, /page: notFoundPage\(\)/);
+  assert.doesNotMatch(router, /return\s*\{\s*page: DashboardPage\(\),\s*navigationRoute: ROUTES\.dashboard/);
+});
+
+test("dynamic workflow feedback is exposed as a live region", async () => {
+  const bootstrap = await readFile(new URL("../src/app/bootstrap.js", import.meta.url), "utf8");
+  const accessibility = await readFile(new URL("../src/app/accessibility.js", import.meta.url), "utf8");
+  assert.match(bootstrap, /startLiveRegionEnhancements\(\)/);
+  assert.match(accessibility, /\.stage-actions__feedback/);
+  assert.match(accessibility, /aria-live/);
 });

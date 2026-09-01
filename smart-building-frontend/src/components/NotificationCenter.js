@@ -118,6 +118,8 @@ export const NotificationCenter = () => {
   };
 
   const render = (state) => {
+    const hasUnread = state.unreadCount > 0;
+    bell.classList.toggle("notification-bell--active", hasUnread);
     badge.hidden = state.unreadCount <= 0;
     badge.textContent = state.unreadCount > 99 ? "۹۹+" : String(state.unreadCount);
     bell.setAttribute("aria-label", `اعلان‌ها؛ ${state.unreadCount} اعلان خوانده‌نشده`);
@@ -145,18 +147,18 @@ export const NotificationCenter = () => {
   };
 
   const unsubscribe = notificationStore.subscribe(render);
-  void unsubscribe;
   bell.addEventListener("click", () => {
     dropdown.hidden = !dropdown.hidden;
     bell.setAttribute("aria-expanded", String(!dropdown.hidden));
     if (!dropdown.hidden) dropdown.querySelector("[tabindex],button,a")?.focus();
   });
-  document.addEventListener("click", (event) => {
+  const handleDocumentClick = (event) => {
     if (!root.contains(event.target)) {
       dropdown.hidden = true;
       bell.setAttribute("aria-expanded", "false");
     }
-  });
+  };
+  document.addEventListener("click", handleDocumentClick);
   root.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       dropdown.hidden = true;
@@ -165,6 +167,10 @@ export const NotificationCenter = () => {
     }
   });
   root.append(bell, dropdown);
+  root.cleanup = () => {
+    unsubscribe();
+    document.removeEventListener("click", handleDocumentClick);
+  };
   notificationStore.start();
   return root;
 };

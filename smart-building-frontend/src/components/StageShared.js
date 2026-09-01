@@ -1,3 +1,5 @@
+import { sessionStore } from "../app/sessionStore.js";
+import { getStageReviewAccess } from "../features/stages/stageReviewAccess.js";
 import { stageService } from "../services/stageService.js";
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
@@ -44,6 +46,13 @@ export const StageReviewPanel = ({
   reload,
   onApproved,
 }) => {
+  const stageAccess = getStageReviewAccess(
+    sessionStore.getCurrentUser(),
+    stageNumber,
+  );
+  const allowApprove = Boolean(canApprove && stageAccess.canApprove);
+  const allowReject = Boolean(canReject && stageAccess.canReject);
+  if (!allowApprove && !allowReject) return document.createDocumentFragment();
   const panel = stageElement("section", "stage-review");
   const comment = document.createElement("textarea");
   const corrections = document.createElement("textarea");
@@ -64,8 +73,8 @@ export const StageReviewPanel = ({
   comment.placeholder = "توضیح بازبین (اختیاری)";
   corrections.placeholder = "موارد اصلاح؛ هر مورد در یک خط";
   approve.type = reject.type = "button";
-  approve.hidden = !canApprove;
-  reject.hidden = !canReject;
+  approve.hidden = !allowApprove;
+  reject.hidden = !allowReject;
   approve.addEventListener("click", async () => {
     approve.disabled = true;
     try {

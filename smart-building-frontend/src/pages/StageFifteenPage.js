@@ -3,7 +3,6 @@ import { StageReviewPanel, StageSnapshots, stageElement as element } from "../co
 import { evaluationService } from "../services/evaluationService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
-import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
 
 const DIMENSIONS = Object.freeze([
   ["operations", "عملیات", "نتیجه اجرای برداشت، بارگذاری و زمان‌بندی عملیات را بر پایه شواهد ثبت کنید."],
@@ -29,8 +28,6 @@ const field = (labelText, input, help = "") => {
   if (help) label.append(element("small", "draft-info", help));
   return label;
 };
-const localNow = () => formatIranDateTimeLocalValue();
-
 export const StageFifteenPage = ({ pilotId }) => {
   const page = element("div", "stage-workspace");
   const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
@@ -95,7 +92,7 @@ export const StageFifteenPage = ({ pilotId }) => {
         status.value = current?.status ?? "";
         const checkedAt = control();
         checkedAt.type = "datetime-local";
-        checkedAt.value = current?.checked_at ? current.checked_at.slice(0, 16) : localNow();
+        checkedAt.value = current?.checked_at ? current.checked_at.slice(0, 16) : "";
         const result = control("textarea");
         result.rows = 2;
         result.value = current?.result ?? "";

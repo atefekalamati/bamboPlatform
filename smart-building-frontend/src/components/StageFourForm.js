@@ -1,4 +1,13 @@
+import { contactsSummaryFromConfirmation } from "../features/stages/stageFour.js";
+import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
+
+const CONTACTS_SUMMARY_KEY = "contactsSummaryConfirmed";
+
 const CHECKLIST_ITEMS = Object.freeze([
+  {
+    key: CONTACTS_SUMMARY_KEY,
+    label: "اطلاعات افراد و راه‌های ارتباطی بررسی و ثبت شد.",
+  },
   {
     key: "mainProjectRegistered",
     label: "پروژه با نام استاندارد ایجاد شد.",
@@ -57,18 +66,6 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
   const information = document.createElement("fieldset");
   const informationLegend = document.createElement("legend");
   const grid = document.createElement("div");
-  const informationPackage = field({
-    id: "stage4-information-package",
-    label: "بسته اطلاعاتی پروژه",
-    value: values.informationPackage,
-    disabled,
-  });
-  const contactsSummary = field({
-    id: "stage4-contacts-summary",
-    label: "خلاصه افراد و راه‌های ارتباطی",
-    value: values.contactsSummary,
-    disabled,
-  });
   const progressStatus = field({
     id: "stage4-progress-status",
     label: "وضعیت پیشرفت راه‌اندازی",
@@ -105,8 +102,6 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
   informationLegend.textContent = "اطلاعات راه‌اندازی F02";
   grid.className = "stage-form__grid";
   [
-    informationPackage,
-    contactsSummary,
     progressStatus,
     limitation,
     ambiguity,
@@ -114,8 +109,6 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
   ].forEach(({ control }) => control.addEventListener("input", onChange));
   referredAt.control.type = "datetime-local";
   grid.append(
-    informationPackage.wrapper,
-    contactsSummary.wrapper,
     progressStatus.wrapper,
     limitation.wrapper,
     ambiguity.wrapper,
@@ -133,7 +126,9 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
     const text = document.createElement("span");
     item.className = "checklist__item";
     checkbox.type = "checkbox";
-    checkbox.checked = Boolean(values[key]);
+    checkbox.checked = key === CONTACTS_SUMMARY_KEY
+      ? Boolean(values.contactsSummary)
+      : Boolean(values[key]);
     checkbox.disabled = disabled;
     checkbox.addEventListener("change", () => {
       item.classList.remove("checklist__item--invalid");
@@ -148,17 +143,18 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
 
   const getData = () => ({
     ...values,
-    informationPackage: informationPackage.control.value.trim(),
-    contactsSummary: contactsSummary.control.value.trim(),
+    informationPackage: "",
+    contactsSummary: contactsSummaryFromConfirmation(
+      checklistItems.get(CONTACTS_SUMMARY_KEY)?.checkbox.checked,
+    ),
     progressStatus: progressStatus.control.value.trim(),
     limitation: limitation.control.value.trim(),
     ambiguity: ambiguity.control.value.trim(),
     referredAt: referredAt.control.value || null,
     ...Object.fromEntries(
-      [...checklistItems].map(([key, { checkbox }]) => [
-        key,
-        checkbox.checked,
-      ]),
+      [...checklistItems]
+        .filter(([key]) => key !== CONTACTS_SUMMARY_KEY)
+        .map(([key, { checkbox }]) => [key, checkbox.checked]),
     ),
   });
 
@@ -173,4 +169,3 @@ export const StageFourForm = ({ initialData, disabled, onChange }) => {
 
   return { element: form, getData, validate };
 };
-import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";

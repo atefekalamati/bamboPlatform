@@ -1,5 +1,4 @@
 import { INCIDENT_LABELS } from "../features/incidents/incidentConstants.js";
-import { formatIranDateTimeLocalValue } from "../utils/jalaliDateTime.js";
 
 const node = (tag, className = "", text = "") => { const element = document.createElement(tag); element.className = className; element.textContent = text; return element; };
 const field = (labelText, control, required = false) => {
@@ -21,7 +20,7 @@ export const IncidentForm = ({ pilot, missions = [], users = [], initialStage = 
   const pilotValue = document.createElement("input"); pilotValue.value = `${pilot.code} — ${pilot.displayName}`; pilotValue.disabled = true;
   const mission = options(missions.map((item) => [String(item.id), item.code]), "بدون مأموریت");
   const stage = document.createElement("input"); stage.type = "number"; stage.min = "1"; stage.max = "19"; stage.value = initialStage ?? Math.min(pilot.currentStage, 19);
-  const occurredAt = document.createElement("input"); occurredAt.type = "datetime-local"; occurredAt.value = formatIranDateTimeLocalValue();
+  const occurredAt = document.createElement("input"); occurredAt.type = "datetime-local";
   const severity = options(Object.entries(INCIDENT_LABELS.severity)); severity.value = "normal";
   const incidentType = options(Object.entries(INCIDENT_LABELS.type));
   const owner = options(users.filter((user) => user.isActive).map((user) => [String(user.id), user.displayName]), "بدون مسئول");

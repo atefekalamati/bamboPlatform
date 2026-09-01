@@ -15,6 +15,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import (
     get_app_env,
+    get_cors_origin_regex,
     get_cors_origins,
     get_docs_enabled,
     get_dwg_storage_root,
@@ -36,7 +37,6 @@ from app.routers.commercial import router as commercial_router
 from app.routers.security import audit_router, auth_router, roles_router, users_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.reports import router as reports_router
-from app.routers.calls import router as calls_router
 from app.services.security import seed_security_data
 
 
@@ -67,6 +67,7 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=get_trusted_hosts())
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
+    allow_origin_regex=get_cors_origin_regex(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
@@ -85,7 +86,6 @@ app.include_router(forms_router)
 app.include_router(notifications_router)
 app.include_router(dashboard_router)
 app.include_router(reports_router)
-app.include_router(calls_router)
 
 
 @app.exception_handler(WorkflowError)

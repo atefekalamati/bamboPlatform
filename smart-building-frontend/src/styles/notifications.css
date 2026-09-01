@@ -3,6 +3,11 @@
 .notification-bell:hover, .notification-bell:focus-visible { border-color: var(--color-brand-primary); outline: .18rem solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent); }
 .notification-bell svg { width: 1.35rem; fill: none; stroke: currentcolor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .notification-bell__badge { position: absolute; inset-block-start: -.3rem; inset-inline-start: -.35rem; min-width: 1.3rem; height: 1.3rem; padding-inline: .2rem; border: .12rem solid var(--color-surface); border-radius: 999px; background: var(--color-danger); color: #fff; font-size: .65rem; line-height: 1.05rem; text-align: center; }
+@keyframes notification-bell-ring { 0%, 12%, 100% { transform: rotate(0); } 2% { transform: rotate(14deg); } 4% { transform: rotate(-12deg); } 6% { transform: rotate(9deg); } 8% { transform: rotate(-6deg); } 10% { transform: rotate(3deg); } }
+@keyframes notification-badge-pulse { 0%, 55%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-danger) 38%, transparent); } 72% { box-shadow: 0 0 0 .4rem transparent; } }
+.notification-bell--active[aria-expanded="false"] svg { transform-origin: 50% 15%; animation: notification-bell-ring 4.5s ease-in-out infinite; }
+.notification-bell--active[aria-expanded="false"] .notification-bell__badge { animation: notification-badge-pulse 3s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .notification-bell--active svg, .notification-bell--active .notification-bell__badge { animation: none; } }
 .notification-dropdown { position: absolute; z-index: 60; inset-block-start: calc(100% + .6rem); inset-inline-end: 0; width: min(24rem, calc(100vw - 2rem)); max-height: min(38rem, calc(100vh - 6rem)); overflow: auto; border: .0625rem solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: 0 .75rem 2rem rgb(15 23 42 / 18%); }
 .notification-dropdown[hidden] { display: none; }
 .notification-dropdown__header { position: sticky; z-index: 1; inset-block-start: 0; display: flex; justify-content: space-between; align-items: center; padding: var(--space-3); border-block-end: .0625rem solid var(--color-border); background: var(--color-surface); }

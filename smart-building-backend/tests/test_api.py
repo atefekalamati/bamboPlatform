@@ -253,7 +253,7 @@ def test_local_frontend_cors_preflight(client):
 def test_pilot_api_requires_authentication(client):
     response = client.get("/pilots")
     assert response.status_code == 401
-    assert response.json()["code"] == "AUTH_REQUIRED"
+    assert response.json()["code"] == "ACCESS_TOKEN_INVALID"
 
 
 def test_pilot_creation_builds_prd_stage_and_gate_structure(client, super_admin_headers):

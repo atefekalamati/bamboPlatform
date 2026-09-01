@@ -1,0 +1,83 @@
+# Development stack for the BAMBO pilot platform.
+#
+# The database is defined once, in smart-building-backend/compose.yaml, and
+# pulled in here so the stack and a backend-only run always share the same
+# PostgreSQL volume (bambo_pilot_postgres_data).
+#
+#   docker compose up -d
+#   frontend -> http://localhost:8080
+#   backend  -> http://localhost:8000
+#   database -> localhost:5433 (bambo / bambo-development-only)
+
+include:
+  - smart-building-backend/compose.yaml
+
+services:
+  migrate:
+    build:
+      context: ./smart-building-backend
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://bambo:bambo-development-only@db:5432/bambo
+    volumes:
+      - ./smart-building-backend/app:/app/app:ro
+      - ./smart-building-backend/alembic:/app/alembic:ro
+      - ./smart-building-backend/alembic.ini:/app/alembic.ini:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  bambo-backend:
+    restart: unless-stopped
+    build:
+      context: ./smart-building-backend
+    # --reload is deliberately omitted: the watchfiles poller crashes on Windows
+    # bind mounts. Run "docker compose restart bambo-backend" after code edits.
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - 172.16.0.0/12
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://bambo:bambo-development-only@db:5432/bambo
+      AUTH_SECRET: development-only-secret-change-before-production
+      CORS_ORIGINS: http://127.0.0.1:8080,http://localhost:8080
+      TRUSTED_HOSTS: 127.0.0.1,localhost,bambo-backend,testserver
+      FORWARDED_ALLOW_IPS: 172.16.0.0/12
+      DWG_STORAGE_ROOT: /data/dwg
+      DWG_MAX_BYTES: "52428800"
+    volumes:
+      - ./smart-building-backend/app:/app/app:ro
+      - bambo_dwg:/data/dwg
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: smart-building-frontend/Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./smart-building-frontend/index.html:/usr/share/nginx/html/index.html:ro
+      - ./smart-building-frontend/src:/usr/share/nginx/html/src:ro
+    depends_on:
+      - bambo-backend
+
+volumes:
+  bambo_dwg:
+    name: bambo_pilot_dwg_data

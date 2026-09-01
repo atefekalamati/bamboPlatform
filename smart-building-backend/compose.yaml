@@ -1,10 +1,11 @@
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: bambo
       POSTGRES_USER: bambo
-      POSTGRES_PASSWORD: bambo
+      POSTGRES_PASSWORD: bambo-development-only
     ports:
       - "5433:5432"
     volumes:
@@ -16,4 +17,8 @@ services:
       retries: 10
 
 volumes:
+  # The name is pinned so every Compose project resolves to the same storage.
+  # Without it Docker prefixes the project name and each entry point gets its
+  # own empty database.
   bambo_postgres_data:
+    name: bambo_pilot_postgres_data

@@ -1,6 +1,16 @@
 import pytest
 
-from app.config import validate_production_settings
+from app.config import get_cors_origin_regex, validate_production_settings
+
+
+def test_development_cors_accepts_localhost_on_any_port(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    assert get_cors_origin_regex() == r"^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?$"
+
+
+def test_production_cors_has_no_localhost_wildcard(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    assert get_cors_origin_regex() is None
 
 
 def test_production_configuration_fails_closed(monkeypatch, tmp_path):
@@ -70,14 +80,7 @@ def test_production_accepts_complete_ippanel_sms_settings(monkeypatch, tmp_path)
     monkeypatch.setenv("ENABLE_API_DOCS", "false")
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("FORWARDED_ALLOW_IPS", "10.0.0.10")
-    monkeypatch.setenv("CALL_PROVIDER", "astel")
-
-    with pytest.raises(RuntimeError) as exc_info:
-        validate_production_settings()
-
-    message = str(exc_info.value)
-    assert "SMS" not in message
-    assert "Astel" in message
+    validate_production_settings()
 
 
 def test_health_endpoints_and_security_headers(client):

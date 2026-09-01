@@ -180,7 +180,19 @@ def test_stage_reviewer_policy_allows_general_manager_as_substitute():
 
 
 def test_otp_login_masks_mobile_and_logout_revokes_session(client):
-    headers = login_with_otp(client, BOOTSTRAP_MOBILE)
+    login = client.post("/auth/otp/request", json={"mobile": BOOTSTRAP_MOBILE}).json()
+    verified = client.post(
+        "/auth/otp/verify",
+        json={"request_id": login["request_id"], "code": login["debug_code"]},
+    )
+    assert verified.status_code == 200, verified.json()
+    body = verified.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+    assert body["expires_in"] == 900
+    assert body["refresh_expires_in"] > body["expires_in"]
+    assert body["user"]["id"]
+    headers = {"Authorization": f"Bearer {body['access_token']}"}
 
     me = client.get("/auth/me", headers=headers)
     assert me.status_code == 200
@@ -190,7 +202,231 @@ def test_otp_login_masks_mobile_and_logout_revokes_session(client):
 
     logout = client.post("/auth/logout", headers=headers)
     assert logout.status_code == 204
-    assert client.get("/auth/me", headers=headers).status_code == 401
+    repeated_logout = client.post("/auth/logout", headers=headers)
+    assert repeated_logout.status_code == 204
+    revoked_me = client.get("/auth/me", headers=headers)
+    assert revoked_me.status_code == 401
+    assert revoked_me.json()["code"] == "SESSION_REVOKED"
+
+
+def test_refresh_token_rotates_and_rejects_reuse(client, monkeypatch):
+    monkeypatch.setenv("AUTH_ACCESS_TTL_SECONDS", "1")
+    requested = client.post("/auth/otp/request", json={"mobile": "09150000010"}).json()
+    verified = client.post(
+        "/auth/otp/verify",
+        json={"request_id": requested["request_id"], "code": requested["debug_code"]},
+    )
+    assert verified.status_code == 200, verified.json()
+    login_body = verified.json()
+    assert login_body["expires_in"] == 1
+    assert login_body["refresh_token"]
+    assert login_body["refresh_expires_in"] > login_body["expires_in"]
+
+    refreshed = client.post(
+        "/auth/refresh",
+        json={"refresh_token": login_body["refresh_token"]},
+    )
+    assert refreshed.status_code == 200, refreshed.json()
+    refreshed_body = refreshed.json()
+    assert refreshed_body["access_token"] != login_body["access_token"]
+    assert refreshed_body["refresh_token"] != login_body["refresh_token"]
+    assert client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {refreshed_body['access_token']}"},
+    ).status_code == 200
+    old_access = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {login_body['access_token']}"},
+    )
+    assert old_access.status_code == 401
+    assert old_access.json()["code"] == "ACCESS_TOKEN_INVALID"
+
+    reused = client.post(
+        "/auth/refresh",
+        json={"refresh_token": login_body["refresh_token"]},
+    )
+    assert reused.status_code == 401
+    assert reused.json()["code"] == "REFRESH_TOKEN_REVOKED"
+    revoked_family = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {refreshed_body['access_token']}"},
+    )
+    assert revoked_family.status_code == 401
+    assert revoked_family.json()["code"] == "SESSION_REVOKED"
+
+
+def test_logout_with_refresh_token_revokes_session(client):
+    requested = client.post("/auth/otp/request", json={"mobile": "09150000011"}).json()
+    verified = client.post(
+        "/auth/otp/verify",
+        json={"request_id": requested["request_id"], "code": requested["debug_code"]},
+    ).json()
+    headers = {"Authorization": f"Bearer {verified['access_token']}"}
+
+    logout = client.post(
+        "/auth/logout",
+        json={"refresh_token": verified["refresh_token"]},
+        headers=headers,
+    )
+    assert logout.status_code == 204
+    assert client.post(
+        "/auth/logout",
+        json={"refresh_token": verified["refresh_token"]},
+        headers=headers,
+    ).status_code == 204
+    revoked_refresh = client.post(
+        "/auth/refresh",
+        json={"refresh_token": verified["refresh_token"]},
+    )
+    assert revoked_refresh.status_code == 401
+    assert revoked_refresh.json()["code"] == "REFRESH_TOKEN_REVOKED"
+    revoked_access = client.get("/auth/me", headers=headers)
+    assert revoked_access.status_code == 401
+    assert revoked_access.json()["code"] == "SESSION_REVOKED"
+
+
+def test_refresh_rejects_expired_revoked_inactive_and_tampered_tokens(
+    client,
+    super_admin_headers,
+    monkeypatch,
+):
+    from app.database import get_session
+    from app.models import AuthSession, User
+    from app.services.security import _token_hash, utc_now
+
+    monkeypatch.setenv("AUTH_REFRESH_TTL_SECONDS", "1")
+    requested = client.post("/auth/otp/request", json={"mobile": "09150000012"}).json()
+    expired_login = client.post(
+        "/auth/otp/verify",
+        json={"request_id": requested["request_id"], "code": requested["debug_code"]},
+    ).json()
+    with get_session() as db:
+        session = db.query(AuthSession).filter(AuthSession.refresh_token_hash == _token_hash(expired_login["refresh_token"])).one()
+        session.refresh_expires_at = utc_now()
+        db.commit()
+    expired = client.post("/auth/refresh", json={"refresh_token": expired_login["refresh_token"]})
+    assert expired.status_code == 401
+    assert expired.json()["code"] == "REFRESH_TOKEN_EXPIRED"
+
+    requested = client.post("/auth/otp/request", json={"mobile": "09150000013"}).json()
+    active_login = client.post(
+        "/auth/otp/verify",
+        json={"request_id": requested["request_id"], "code": requested["debug_code"]},
+    ).json()
+    with get_session() as db:
+        session = db.query(AuthSession).filter(AuthSession.refresh_token_hash == _token_hash(active_login["refresh_token"])).one()
+        session.revoked_at = utc_now()
+        db.commit()
+    revoked = client.post("/auth/refresh", json={"refresh_token": active_login["refresh_token"]})
+    assert revoked.status_code == 401
+    assert revoked.json()["code"] == "REFRESH_TOKEN_REVOKED"
+
+    role = next(item for item in client.get("/roles", headers=super_admin_headers).json() if item["name"] == "sales")
+    created = client.post(
+        "/users",
+        json={"mobile": "09150000014", "display_name": "کاربر غیرفعال", "role_ids": [role["id"]]},
+        headers=super_admin_headers,
+    ).json()
+    requested = client.post("/auth/otp/request", json={"mobile": "09150000014"}).json()
+    inactive_login = client.post(
+        "/auth/otp/verify",
+        json={"request_id": requested["request_id"], "code": requested["debug_code"]},
+    ).json()
+    with get_session() as db:
+        user = db.get(User, created["id"])
+        user.is_active = False
+        user.locked_at = utc_now()
+        db.commit()
+    inactive = client.post("/auth/refresh", json={"refresh_token": inactive_login["refresh_token"]})
+    assert inactive.status_code == 401
+    assert inactive.json()["code"] == "SESSION_REVOKED"
+
+    tampered = client.post(
+        "/auth/refresh",
+        json={"refresh_token": "not-a-real-refresh-token-value-with-valid-length"},
+    )
+    assert tampered.status_code == 401
+    assert tampered.json()["code"] == "REFRESH_TOKEN_INVALID"
+
+
+def test_access_token_error_codes_and_permission_status(
+    client,
+):
+    from app.database import get_session
+    from app.models import AuthSession
+    from app.services.security import _token_hash, utc_now
+
+    login = client.post("/auth/otp/request", json={"mobile": "09150000016"}).json()
+    verified = client.post(
+        "/auth/otp/verify",
+        json={"request_id": login["request_id"], "code": login["debug_code"]},
+    ).json()
+    headers = {"Authorization": f"Bearer {verified['access_token']}"}
+
+    with get_session() as db:
+        session = (
+            db.query(AuthSession)
+            .filter(AuthSession.token_hash == _token_hash(verified["access_token"]))
+            .one()
+        )
+        session.expires_at = utc_now()
+        db.commit()
+    expired = client.get("/auth/me", headers=headers)
+    assert expired.status_code == 401
+    assert expired.json()["code"] == "ACCESS_TOKEN_EXPIRED"
+
+    invalid = client.get(
+        "/auth/me",
+        headers={"Authorization": "Bearer invalid-access-token"},
+    )
+    assert invalid.status_code == 401
+    assert invalid.json()["code"] == "ACCESS_TOKEN_INVALID"
+
+    fresh_headers = login_with_otp(client, "09150000017")
+    denied = client.get("/users", headers=fresh_headers)
+    assert denied.status_code == 403
+    assert denied.json()["code"] == "PERMISSION_DENIED"
+
+
+def test_auth_me_internal_failure_remains_500(client, super_admin_headers):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    # test_models reloads app.database, so app.database.get_db is no longer the
+    # object the routers were wired to. Take it from the module they imported.
+    from app.services.security import get_db
+
+    def broken_db():
+        raise RuntimeError("simulated database outage")
+        yield  # pragma: no cover
+
+    app.dependency_overrides[get_db] = broken_db
+    try:
+        with TestClient(app, raise_server_exceptions=False) as failing_client:
+            response = failing_client.get("/auth/me", headers=super_admin_headers)
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert response.status_code == 500
+    assert response.status_code != 401
+
+
+def test_refresh_tokens_are_hashed_and_not_exposed_in_audit(client, super_admin_headers):
+    from app.database import get_session
+    from app.models import AuditLog, AuthSession
+    from app.services.security import _token_hash
+
+    requested = client.post("/auth/otp/request", json={"mobile": "09150000015"}).json()
+    verified = client.post(
+        "/auth/otp/verify",
+        json={"request_id": requested["request_id"], "code": requested["debug_code"]},
+    ).json()
+    with get_session() as db:
+        session = db.query(AuthSession).filter(AuthSession.refresh_token_hash == _token_hash(verified["refresh_token"])).one()
+        assert session.refresh_token_hash != verified["refresh_token"]
+        assert session.token_hash != verified["access_token"]
+        audits = db.query(AuditLog).all()
+        assert verified["refresh_token"] not in str([(item.action, item.new_data, item.old_data) for item in audits])
+        assert verified["access_token"] not in str([(item.action, item.new_data, item.old_data) for item in audits])
 
 
 def test_user_preferences_are_persisted_and_audited(client, super_admin_headers):
@@ -261,8 +497,19 @@ def test_permission_groups_and_role_access_preview_expose_granular_rbac(
     assert "stages.submit" in permissions_by_group["Stages"]
     assert "gates.override" in permissions_by_group["Gates"]
     assert "users.assign_roles" in permissions_by_group["Users"]
+    assert "Calls" not in permissions_by_group
+    assert not any(
+        permission.startswith("calls.")
+        for permissions in permissions_by_group.values()
+        for permission in permissions
+    )
 
     roles = client.get("/roles", headers=super_admin_headers).json()
+    assert not any(
+        permission["code"].startswith("calls.")
+        for role in roles
+        for permission in role["permissions"]
+    )
     capture_role = next(role for role in roles if role["name"] == "capture_expert")
     preview = client.get(
         f"/roles/{capture_role['id']}/access-preview",

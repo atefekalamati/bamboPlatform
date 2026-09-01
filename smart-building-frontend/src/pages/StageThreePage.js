@@ -1,5 +1,12 @@
 import { sessionStore } from "../app/sessionStore.js";
 import { confirmDialog } from "../components/AppDialog.js";
+import {
+  buildFloorSlots,
+  floorCreationPayload,
+  getFloorRegistrationState,
+  runFloorBulkOperation,
+} from "../features/stages/stageThree.js";
+import { getStageReviewAccess } from "../features/stages/stageReviewAccess.js";
 import { dwgService } from "../services/dwgService.js";
 import { pilotService } from "../services/pilotService.js";
 import { stageService } from "../services/stageService.js";
@@ -241,62 +248,321 @@ const floorCard = ({
   return card;
 };
 
-const createFloorForm = ({ pilotId, nextIndex, disabled, feedback, reload }) => {
-  const form = document.createElement("form");
-  const code = document.createElement("input");
-  const name = document.createElement("input");
-  const order = document.createElement("input");
-  const type = document.createElement("select");
-  const submit = element("button", "button button--primary", "افزودن طبقه");
-  const controls = [
-    [code, "کد مانند F01"],
-    [name, "نام طبقه"],
-    [order, "ترتیب طبقه"],
-  ];
-  form.className = "floor-create";
-  controls.forEach(([control, placeholder]) => {
-    control.className = "stage-form__control";
-    control.placeholder = placeholder;
-    control.disabled = disabled;
-  });
-  code.value = `F${String(nextIndex).padStart(2, "0")}`;
-  code.pattern = "F\\d{2,3}";
-  name.required = true;
-  order.type = "number";
-  order.min = "-20";
-  order.max = "500";
-  order.value = String(nextIndex - 1);
-  type.className = "stage-form__control";
-  type.disabled = disabled;
-  type.append(new Option("غیرتیپ", "non_typical"), new Option("تیپ", "typical"));
-  submit.type = "submit";
-  submit.disabled = disabled;
-  form.append(code, name, order, type, submit);
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const validCode = /^F\d{2,3}$/i.test(code.value.trim());
-    const validName = name.value.trim().length > 0;
-    code.setAttribute("aria-invalid", String(!validCode));
-    name.setAttribute("aria-invalid", String(!validName));
-    if (!validCode || !validName) {
-      feedback.textContent = "فیلدهای قرمز طبقه را اصلاح کنید.";
+const createFloorsForm = ({
+  pilotId,
+  totalFloors,
+  floors,
+  versionsByFloorId,
+  disabled,
+  feedback,
+  reload,
+}) => {
+  const container = element("section", "floor-definition");
+  const slots = buildFloorSlots(totalFloors, floors);
+  const editors = [];
+
+  slots.forEach((slot) => {
+    if (slot.floor) {
+      editors.push({
+        slot,
+        floor: slot.floor,
+        validateIdentity: () => true,
+        ensureFloor: async () => slot.floor,
+      });
+      container.append(
+        completedFloorCard({
+          floor: slot.floor,
+          versions: versionsByFloorId.get(slot.floor.id) ?? [],
+        }),
+      );
       return;
     }
-    submit.disabled = true;
-    try {
-      await dwgService.createFloor(pilotId, {
-        code: code.value.trim(),
-        name: name.value.trim(),
-        levelOrder: order.value,
-        floorType: type.value,
-      });
-      await reload("طبقه جدید ثبت شد.");
-    } catch (error) {
-      feedback.textContent = error.message;
-      submit.disabled = false;
-    }
+    const card = element("article", "floor-card floor-card--draft");
+    const heading = element("header", "floor-card__header");
+    const nameLabel = element("label", "stage-form__field");
+    const nameText = element("span", "stage-form__label", "نام طبقه");
+    const name = document.createElement("input");
+    const typeGroup = element("fieldset", "floor-card__type-options");
+    const typeLegend = element("legend", "stage-form__label", "نوع طبقه");
+    const typicalLabel = element("label", "floor-card__radio");
+    const typical = document.createElement("input");
+    const nonTypicalLabel = element("label", "floor-card__radio");
+    const nonTypical = document.createElement("input");
+    const evidence = element("section", "floor-card__evidence floor-card__evidence--compact");
+    const file = document.createElement("input");
+    const upload = element("button", "button button--primary", "انتخاب فایل و ثبت طبقه");
+    const reference = element("label", "floor-card__radio floor-card__no-map");
+    const referenceCheckbox = document.createElement("input");
+    const cardFeedback = element("p", "floor-card__feedback");
+    heading.append(
+      element("span", "floor-card__index-label", `F-${slot.index}`),
+    );
+    name.className = "stage-form__control";
+    name.placeholder = "نام طبقه را وارد کنید";
+    name.required = true;
+    name.disabled = disabled;
+    typical.type = nonTypical.type = "radio";
+    typical.name = nonTypical.name = `floor-type-${slot.index}`;
+    typical.value = "typical";
+    nonTypical.value = "non_typical";
+    nonTypical.checked = true;
+    typical.disabled = nonTypical.disabled = disabled;
+    typicalLabel.append(typical, document.createTextNode("تیپ"));
+    nonTypicalLabel.append(nonTypical, document.createTextNode("غیرتیپ"));
+    typeGroup.append(typeLegend, typicalLabel, nonTypicalLabel);
+    name.addEventListener("input", () => name.removeAttribute("aria-invalid"));
+    nameLabel.append(nameText, name);
+    file.type = "file";
+    file.accept = ".dwg";
+    file.className = "floor-card__file-input";
+    file.disabled = disabled;
+    upload.type = "button";
+    upload.disabled = disabled;
+    referenceCheckbox.type = "radio";
+    referenceCheckbox.name = `floor-evidence-${slot.index}`;
+    referenceCheckbox.value = "unavailable";
+    referenceCheckbox.disabled = disabled;
+    referenceCheckbox.dataset.navigationGuardIgnore = "true";
+    reference.append(referenceCheckbox, document.createTextNode("نقشه در اختیار من نیست"));
+    evidence.append(file, upload, reference, cardFeedback);
+
+    const validateIdentity = () => {
+      const valid = Boolean(name.value.trim());
+      name.setAttribute("aria-invalid", String(!valid));
+      if (!valid) {
+        cardFeedback.textContent = "ابتدا نام این طبقه را وارد کنید.";
+        name.focus();
+      }
+      return valid;
+    };
+
+    const createFloor = () =>
+      dwgService.createFloor(
+        pilotId,
+        floorCreationPayload(
+          slot,
+          name.value,
+          typical.checked ? typical.value : nonTypical.value,
+        ),
+      );
+
+    editors.push({
+      slot,
+      get floor() {
+        return null;
+      },
+      validateIdentity,
+      ensureFloor: createFloor,
+    });
+
+    upload.addEventListener("click", async () => {
+      if (!validateIdentity()) return;
+      referenceCheckbox.checked = false;
+      file.click();
+    });
+
+    file.addEventListener("change", async () => {
+      const selectedFile = file.files[0];
+      if (!selectedFile) return;
+      upload.disabled = true;
+      referenceCheckbox.disabled = true;
+      upload.textContent = "در حال ثبت...";
+      try {
+        const createdFloor = await createFloor();
+        await dwgService.upload(createdFloor.id, selectedFile);
+        await reload(`اطلاعات و فایل DWG طبقه ${slot.index} ثبت شد.`);
+      } catch (error) {
+        await reload(`ثبت طبقه ${slot.index} متوقف شد: ${error.message}`);
+      }
+    });
+
+    referenceCheckbox.addEventListener("change", async () => {
+      if (!referenceCheckbox.checked) return;
+      if (!validateIdentity()) {
+        referenceCheckbox.checked = false;
+        return;
+      }
+      if (
+        !(await confirmDialog({
+          title: "تأیید وجود نقشه DWG",
+          message: `تأیید می‌کنید نقشه DWG طبقه ${name.value.trim()} در مرجع اصلی موجود است یا فایل در اختیار شما نیست؟`,
+          triggerElement: referenceCheckbox,
+        }))
+      ) {
+        referenceCheckbox.checked = false;
+        return;
+      }
+      referenceCheckbox.disabled = true;
+      upload.disabled = true;
+      try {
+        const createdFloor = await createFloor();
+        await dwgService.setReferenceConfirmation(createdFloor.id, true);
+        await reload(`اطلاعات و وجود نقشه طبقه ${slot.index} تأیید شد.`);
+      } catch (error) {
+        await reload(`ثبت طبقه ${slot.index} متوقف شد: ${error.message}`);
+      }
+    });
+
+    card.append(heading, nameLabel, typeGroup, evidence);
+    container.append(card);
   });
-  return form;
+
+  if (!disabled && editors.length > 1) {
+    const bulk = element("section", "stage3-bulk-evidence");
+    const bulkCopy = element("div", "stage3-bulk-evidence__copy");
+    const bulkActions = element("div", "stage3-bulk-evidence__actions");
+    const unavailableAll = element(
+      "button",
+      "button button--ghost",
+      "نقشه در اختیار نیست برای همه",
+    );
+    const uploadAll = element(
+      "button",
+      "button button--primary",
+      "انتخاب یک DWG برای همه",
+    );
+    const sharedFile = document.createElement("input");
+    const progress = element("p", "stage3-bulk-evidence__progress");
+    sharedFile.type = "file";
+    sharedFile.accept = ".dwg";
+    sharedFile.hidden = true;
+    unavailableAll.type = uploadAll.type = "button";
+    bulkCopy.append(
+      element("strong", "", "تعیین گروهی نقشه طبقات"),
+      element(
+        "small",
+        "",
+        "نام و نوع همه طبقات را وارد کنید؛ سپس یک وضعیت را برای همه اعمال کنید. گزینه‌های تکی هر کارت همچنان در دسترس است.",
+      ),
+    );
+
+    const validateAll = () => {
+      const invalid = editors.filter((editor) => !editor.validateIdentity());
+      if (invalid.length) {
+        feedback.textContent = `نام ${invalid.length} طبقه هنوز تکمیل نشده است.`;
+        return false;
+      }
+      return true;
+    };
+
+    const setBusy = (busy) => {
+      unavailableAll.disabled = busy;
+      uploadAll.disabled = busy;
+    };
+
+    const executeBulk = async ({ actionLabel, operation }) => {
+      setBusy(true);
+      progress.textContent = `در حال ${actionLabel}: ۰ از ${editors.length}`;
+      const result = await runFloorBulkOperation(
+        editors,
+        async (editor) => {
+          const floor = await editor.ensureFloor();
+          await operation(floor);
+        },
+        ({ completed, total }) => {
+          progress.textContent = `در حال ${actionLabel}: ${completed} از ${total}`;
+        },
+      );
+      const failureMessage = result.failed.length
+        ? `؛ ${result.failed.length} طبقه ناموفق بود: ${result.failed
+            .map(({ item }) => item.slot.code)
+            .join("، ")}`
+        : "";
+      await reload(
+        `${actionLabel} برای ${result.succeeded.length} طبقه انجام شد${failureMessage}.`,
+      );
+    };
+
+    unavailableAll.addEventListener("click", async () => {
+      if (!validateAll()) return;
+      const confirmed = await confirmDialog({
+        title: "تأیید گروهی وضعیت نقشه",
+        message: `تأیید می‌کنید نقشه DWG برای هر ${editors.length} طبقه در اختیار شما نیست یا در مرجع اصلی موجود است؟`,
+        confirmLabel: "تأیید برای همه طبقات",
+        triggerElement: unavailableAll,
+      });
+      if (!confirmed) return;
+      await executeBulk({
+        actionLabel: "ثبت وضعیت نقشه",
+        operation: (floor) => dwgService.setReferenceConfirmation(floor.id, true),
+      });
+    });
+
+    uploadAll.addEventListener("click", () => {
+      if (validateAll()) sharedFile.click();
+    });
+
+    sharedFile.addEventListener("change", async () => {
+      const selectedFile = sharedFile.files[0];
+      if (!selectedFile || !validateAll()) return;
+      const confirmed = await confirmDialog({
+        title: "آپلود یک نقشه برای همه طبقات",
+        message: `فایل «${selectedFile.name}» برای هر ${editors.length} طبقه ثبت شود؟ برای طبقات دارای فایل، یک نسخه جدید ساخته می‌شود.`,
+        confirmLabel: "آپلود برای همه طبقات",
+        triggerElement: uploadAll,
+      });
+      if (!confirmed) {
+        sharedFile.value = "";
+        return;
+      }
+      await executeBulk({
+        actionLabel: "آپلود فایل مشترک",
+        operation: (floor) => dwgService.upload(floor.id, selectedFile),
+      });
+    });
+
+    bulkActions.append(unavailableAll, uploadAll, sharedFile);
+    bulk.append(bulkCopy, bulkActions, progress);
+    container.prepend(bulk);
+  }
+  return container;
+};
+
+const completedFloorCard = ({ floor, versions }) => {
+  const card = element("article", "floor-card floor-card--draft floor-card--completed");
+  const heading = element("header", "floor-card__header");
+  const nameLabel = element("label", "stage-form__field");
+  const nameText = element("span", "stage-form__label", "نام طبقه");
+  const name = document.createElement("input");
+  const typeGroup = element("fieldset", "floor-card__type-options");
+  const typeLegend = element("legend", "stage-form__label", "نوع طبقه");
+  const typicalLabel = element("label", "floor-card__radio");
+  const typical = document.createElement("input");
+  const nonTypicalLabel = element("label", "floor-card__radio");
+  const nonTypical = document.createElement("input");
+  const evidence = element("section", "floor-card__evidence floor-card__evidence--compact");
+  const latestVersion = versions.at(-1);
+  const filename = element(
+    "span",
+    "floor-card__filename",
+    latestVersion?.originalFilename ?? "فایل DWG آپلود نشده است",
+  );
+  const reference = element("label", "floor-card__radio floor-card__no-map");
+  const referenceRadio = document.createElement("input");
+
+  heading.append(
+    element("span", "floor-card__index-label", `F-${floor.levelOrder + 1}`),
+  );
+  name.className = "stage-form__control";
+  name.value = floor.name;
+  name.disabled = true;
+  nameLabel.append(nameText, name);
+  typical.type = nonTypical.type = "radio";
+  typical.name = nonTypical.name = `saved-floor-type-${floor.id}`;
+  typical.checked = floor.floorType === "typical";
+  nonTypical.checked = floor.floorType !== "typical";
+  typical.disabled = nonTypical.disabled = true;
+  typicalLabel.append(typical, document.createTextNode("تیپ"));
+  nonTypicalLabel.append(nonTypical, document.createTextNode("غیرتیپ"));
+  typeGroup.append(typeLegend, typicalLabel, nonTypicalLabel);
+  filename.title = latestVersion?.originalFilename ?? "";
+  referenceRadio.type = "radio";
+  referenceRadio.checked = floor.dwgReferenceConfirmed;
+  referenceRadio.disabled = true;
+  reference.append(referenceRadio, document.createTextNode("نقشه در اختیار من نیست"));
+  evidence.append(filename, reference);
+  card.append(heading, nameLabel, typeGroup, evidence);
+  return card;
 };
 
 const reviewPanel = ({ pilotId, canApprove, canReject, reload }) => {
@@ -351,8 +617,10 @@ export const StageThreePage = ({ pilotId }) => {
   const permissions = sessionStore.getCurrentUser()?.permissions ?? [];
   const canManageDwg = permissions.includes("dwg.manage");
   const canSubmit = permissions.includes("checklists.manage");
-  const canApprove = permissions.includes("gate_approval.approve");
-  const canReject = permissions.includes("gate_approval.reject");
+  const { canApprove, canReject } = getStageReviewAccess(
+    sessionStore.getCurrentUser(),
+    3,
+  );
 
   const renderError = (message) => {
     const state = element("div", "error-state");
@@ -381,6 +649,9 @@ export const StageThreePage = ({ pilotId }) => {
       const versions = await Promise.all(
         floors.map((floor) => dwgService.getVersions(floor.id)),
       );
+      const versionsByFloorId = new Map(
+        floors.map((floor, index) => [floor.id, versions[index]]),
+      );
       const editable =
         ["open", "needs_revision"].includes(stage.status) && canManageDwg;
       const manageable =
@@ -390,9 +661,13 @@ export const StageThreePage = ({ pilotId }) => {
       const back = element("a", "back-link", "بازگشت به جزئیات پرونده");
       const header = element("header", "stage-workspace__header");
       const identity = element("div", "stage-workspace__identity");
+      const floorRegistration = getFloorRegistrationState(
+        pilot.project.totalFloors,
+        floors,
+      );
       const complete =
-        floors.length === pilot.project.totalFloors &&
-        floors.every((floor) => floor.hasValidDwg);
+        floorRegistration.isComplete && floors.every((floor) => floor.hasValidDwg);
+      const completedFloorCount = floors.filter((floor) => floor.hasValidDwg).length;
       back.href = `#/pilots/${pilot.id}`;
       identity.append(
         element("span", "page-heading__eyebrow", `${pilot.code} — Stage 3 از ۱۹`),
@@ -409,131 +684,74 @@ export const StageThreePage = ({ pilotId }) => {
       );
       const content = element("section", "floor-workspace");
       content.append(element("h2", "stage-form__legend", "طبقات پروژه"));
-      const requirements = element("fieldset", "checklist stage3-requirements");
-      const requirementsLegend = element(
-        "legend",
-        "checklist__legend",
-        "شرایط عبور از Stage 3",
+      content.append(
+        element(
+          "p",
+          "floor-card__meta stage3-floor-count",
+          `تعداد کل طبقات این پرونده: ${pilot.project.totalFloors}`,
+        ),
       );
-      const floorRequirement = element(
-        "label",
-        `checklist__item${
-          floors.length === pilot.project.totalFloors
-            ? ""
-            : " checklist__item--invalid"
+      const registrationStatus = element(
+        "section",
+        `stage3-registration-status${
+          complete ? " stage3-registration-status--complete" : ""
         }`,
       );
-      const floorRequirementInput = document.createElement("input");
-      const floorRequirementText = element(
-        "span",
-        "",
-        floors.length === pilot.project.totalFloors
-          ? `تمام ${pilot.project.totalFloors} طبقه پروژه ثبت شده‌اند.`
-          : `${pilot.project.totalFloors - floors.length} طبقه دیگر باید ثبت شود (${floors.length} از ${pilot.project.totalFloors}).`,
+      const registrationText = element("div", "stage3-registration-status__text");
+      registrationText.append(
+        element(
+          "strong",
+          "",
+          complete
+            ? "اطلاعات و نقشه همه طبقات تکمیل شده است"
+            : "تکمیل اطلاعات و نقشه طبقات الزامی است",
+        ),
+        element(
+          "small",
+          "",
+          complete
+            ? "اکنون می‌توانید Stage 3 را برای بررسی ارسال کنید."
+            : `${completedFloorCount} از ${floorRegistration.totalCount} طبقه کامل است؛ برای هر طبقه نام، نوع و فایل DWG یا تأیید وجود نقشه را ثبت کنید.`,
+        ),
       );
-      floorRequirementInput.type = "checkbox";
-      floorRequirementInput.checked =
-        floors.length === pilot.project.totalFloors;
-      floorRequirementInput.disabled = true;
-      floorRequirement.append(floorRequirementInput, floorRequirementText);
-
-      const referenceRequirement = element(
-        "label",
-        `checklist__item${
-          floors.length && floors.every((floor) => floor.hasValidDwg)
-            ? ""
-            : " checklist__item--invalid"
-        }`,
+      const registrationProgress = element("progress", "stage3-registration-status__progress");
+      registrationProgress.max = Math.max(1, floorRegistration.totalCount);
+      registrationProgress.value = completedFloorCount;
+      registrationProgress.setAttribute(
+        "aria-label",
+        `پیشرفت تکمیل طبقات: ${completedFloorCount} از ${floorRegistration.totalCount}`,
       );
-      const referenceRequirementInput = document.createElement("input");
+      registrationStatus.append(registrationText, registrationProgress);
+      content.append(registrationStatus);
       const invalidReferenceFloors = floors.filter(
         (floor) => !floor.hasValidDwg,
       );
-      const referenceRequirementText = element(
-        "span",
-        "",
-        invalidReferenceFloors.length
-          ? `وجود DWG برای ${invalidReferenceFloors.length} طبقه بدون فایل را در مرجع اصلی تأیید می‌کنم.`
-          : "برای تمام طبقات، فایل آپلود یا وجود DWG در مرجع اصلی تأیید شده است.",
-      );
-      referenceRequirementInput.type = "checkbox";
-      referenceRequirementInput.dataset.navigationGuardIgnore = "true";
-      referenceRequirementInput.checked =
-        floors.length > 0 && invalidReferenceFloors.length === 0;
-      referenceRequirementInput.disabled = !manageable || !floors.length;
-      referenceRequirementInput.addEventListener("change", async () => {
-        const confirmed = referenceRequirementInput.checked;
-        if (
-          confirmed &&
-          !(await confirmDialog({
-            title: "تأیید وجود فایل DWG",
-            message:
-              "تأیید می‌کنید فایل DWG تمام طبقات ثبت‌شده‌ای که فایل ندارند در مرجع اصلی وجود دارد یا در اختیار شما نیست؟",
-            triggerElement: referenceRequirementInput,
-          }))
-        ) {
-          referenceRequirementInput.checked = false;
-          return;
-        }
-        referenceRequirementInput.disabled = true;
-        try {
-          const targets = floors.filter(
-            (floor) =>
-              !floor.hasDwg &&
-              floor.dwgReferenceConfirmed !== confirmed,
-          );
-          await Promise.all(
-            targets.map((floor) =>
-              dwgService.setReferenceConfirmation(floor.id, confirmed),
-            ),
-          );
-          await load(
-            confirmed
-              ? "وجود DWG برای همه طبقات ثبت‌شده تأیید شد."
-              : "تأیید مرجع DWG از طبقات بدون فایل برداشته شد.",
-          );
-        } catch (error) {
-          referenceRequirementInput.checked = !confirmed;
-          referenceRequirementInput.disabled = false;
-          feedback.textContent = error.message;
-        }
-      });
-      referenceRequirement.append(
-        referenceRequirementInput,
-        referenceRequirementText,
-      );
-      requirements.append(
-        requirementsLegend,
-        floorRequirement,
-        referenceRequirement,
-      );
-      content.append(requirements);
-      if (editable && floors.length < pilot.project.totalFloors) {
+      if (["open", "needs_revision"].includes(stage.status)) {
         content.append(
-          createFloorForm({
+          createFloorsForm({
             pilotId: pilot.id,
-            nextIndex: floors.length + 1,
-            disabled: false,
+            totalFloors: pilot.project.totalFloors,
+            floors,
+            versionsByFloorId,
+            disabled: !editable,
             feedback,
             reload: load,
           }),
         );
+      } else {
+        floors.forEach((floor, index) => {
+          content.append(
+            floorCard({
+              floor,
+              versions: versions[index],
+              editable: manageable,
+              canDownload: canManageDwg,
+              feedback,
+              reload: load,
+            }),
+          );
+        });
       }
-      if (!floors.length) {
-        content.append(element("p", "draft-info", "هنوز طبقه‌ای ثبت نشده است."));
-      }
-      floors.forEach((floor, index) => {
-        content.append(
-          floorCard({
-            floor,
-            versions: versions[index],
-            editable: manageable,
-            canDownload: canManageDwg,
-            feedback,
-            reload: load,
-          }),
-        );
-      });
       page.replaceChildren(back, header, feedback, content);
 
       if (editable) {
@@ -541,6 +759,19 @@ export const StageThreePage = ({ pilotId }) => {
         const submit = element("button", "button button--primary", "ارسال Stage 3 برای بررسی");
         submit.type = "button";
         submit.hidden = !canSubmit;
+        submit.disabled = !complete;
+        submit.setAttribute(
+          "aria-describedby",
+          "stage3-submit-guidance",
+        );
+        const submitGuidance = element(
+          "p",
+          "stage-actions__hint",
+          complete
+            ? "پس از ارسال، مرحله برای بررسی مدیر پایلوت یا سوپرادمین آماده می‌شود."
+            : "برای فعال‌شدن این دکمه، نام و نوع همه طبقات را تکمیل و برای هر طبقه فایل DWG یا تأیید وجود نقشه را ثبت کنید.",
+        );
+        submitGuidance.id = "stage3-submit-guidance";
         submit.addEventListener("click", async () => {
           if (!complete) {
             const missingFloors = pilot.project.totalFloors - floors.length;
@@ -559,7 +790,7 @@ export const StageThreePage = ({ pilotId }) => {
             submit.disabled = false;
           }
         });
-        actions.append(submit);
+        actions.append(submitGuidance, submit);
         page.append(actions);
       }
       if (stage.status === "submitted" && (canApprove || canReject)) {

@@ -1,6 +1,7 @@
 import { request } from "./httpClient.js";
+import { API_BASE_PATHS } from "../config/apiRoutes.js";
 
-const DASHBOARD_BASE = "/api/v1/dashboard";
+const DASHBOARD_BASE = API_BASE_PATHS.dashboard;
 const BREAKDOWNS = new Set(["stages", "gates", "missions", "incidents", "sla", "forms", "commercial", "activities"]);
 
 export const dashboardQueryString = (params = {}) => {

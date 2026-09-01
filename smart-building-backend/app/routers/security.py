@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -25,6 +26,7 @@ from app.schemas.security import (
     OtpVerifyInput,
     PermissionGroupRead,
     PermissionRead,
+    RefreshTokenInput,
     RoleClone,
     RoleCreate,
     RolePermissionsUpdate,
@@ -45,10 +47,12 @@ from app.services.security import (
     add_audit_log,
     effective_permissions,
     get_auth_context,
+    bearer_scheme,
+    logout_sessions,
     mask_mobile,
     request_otp,
     require_permission,
-    revoke_session,
+    refresh_session,
     utc_now,
     update_user_profile,
     update_own_name_edit_permission,
@@ -166,8 +170,41 @@ def otp_verify_endpoint(
     request: Request,
     db: Session = Depends(get_db),
 ) -> AuthToken:
-    token, expires_in, user = verify_otp(db, payload.request_id, payload.code, client_ip(request))
-    return AuthToken(access_token=token, expires_in=expires_in, user=user_read(user))
+    access_token, refresh_token, expires_in, refresh_expires_in, user = verify_otp(
+        db,
+        payload.request_id,
+        payload.code,
+        client_ip(request),
+        request.headers.get("user-agent"),
+    )
+    return AuthToken(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=expires_in,
+        refresh_expires_in=refresh_expires_in,
+        user=user_read(user),
+    )
+
+
+@auth_router.post("/refresh", response_model=AuthToken)
+def refresh_endpoint(
+    payload: RefreshTokenInput,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AuthToken:
+    access_token, refresh_token, expires_in, refresh_expires_in, user = refresh_session(
+        db,
+        payload.refresh_token,
+        ip_address=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+    return AuthToken(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=expires_in,
+        refresh_expires_in=refresh_expires_in,
+        user=user_read(user),
+    )
 
 
 @auth_router.get("/me", response_model=UserRead)
@@ -228,10 +265,22 @@ def bootstrap(
 
 @auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
-    context: AuthContext = Depends(get_auth_context),
+    request: Request,
+    payload: RefreshTokenInput | None = None,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> None:
-    revoke_session(db, context)
+    logout_sessions(
+        db,
+        access_token=(
+            credentials.credentials
+            if credentials and credentials.scheme.lower() == "bearer"
+            else None
+        ),
+        refresh_token=payload.refresh_token if payload else None,
+        ip_address=client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
 
 
 @auth_router.get("/preferences", response_model=UserPreferenceRead)

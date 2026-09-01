@@ -124,6 +124,7 @@ See `docs/implementation-status.md` for PRD coverage and remaining work.
 
 - `POST /auth/otp/request`
 - `POST /auth/otp/verify`
+- `POST /auth/refresh`
 - `GET /auth/me`
 - `POST /auth/logout`
 - `GET /users`
@@ -157,13 +158,15 @@ OTP provider and `debug_code` response are enabled only in development/test.
 Production intentionally rejects OTP requests until an approved SMS provider
 adapter is configured.
 
-Each successful OTP verification creates an independent opaque session. A user
-may have multiple active sessions, and logout revokes only the presented
+Each successful OTP verification creates an independent opaque session with a
+short-lived access token and a longer-lived refresh token. Both are stored only
+as SHA-256 hashes in the database. `POST /auth/refresh` rotates the refresh
+token, replaces the access token, and rejects reuse of a previous refresh token.
+A user may have multiple active sessions, and logout revokes only the presented
 session. Sessions are persisted in the database (not process memory), so this
 policy works across application instances. PostgreSQL transaction locks make
 OTP rate checks atomic, prevent concurrent reuse of one OTP, and serialize
-first login for the same mobile number. Refresh tokens are not part of the
-current API.
+first login for the same mobile number.
 
 Mission notifications are recorded independently from the mission transaction.
 Development/test marks the console adapter as delivered. Production records a

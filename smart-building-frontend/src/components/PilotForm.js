@@ -1,10 +1,11 @@
+import { PROJECT_PROGRESS_STAGES } from "../features/pilots/pilotCreation.js";
 import {
   isValidIranianMobile,
   normalizeDigits,
   normalizePhoneNumber,
 } from "../utils/phoneNumber.js";
 
-const field = ({ id, label, type = "text", optional = false }) => {
+const field = ({ id, label, type = "text" }) => {
   const wrapper = document.createElement("div");
   const labelNode = document.createElement("label");
   const control = document.createElement(type === "textarea" ? "textarea" : "input");
@@ -12,9 +13,40 @@ const field = ({ id, label, type = "text", optional = false }) => {
   wrapper.className = "form-field";
   labelNode.className = "form-field__label";
   labelNode.htmlFor = id;
-  labelNode.textContent = `${label}`;
+  labelNode.textContent = label;
   control.id = id;
   control.className = "form-field__input";
+  error.className = "form-field__error";
+  error.id = `${id}-error`;
+  control.setAttribute("aria-describedby", error.id);
+  wrapper.append(labelNode, control, error);
+  return { wrapper, control, error };
+};
+
+const selectField = ({ id, label, options }) => {
+  const wrapper = document.createElement("div");
+  const labelNode = document.createElement("label");
+  const control = document.createElement("select");
+  const placeholder = document.createElement("option");
+  const error = document.createElement("p");
+  wrapper.className = "form-field";
+  labelNode.className = "form-field__label";
+  labelNode.htmlFor = id;
+  labelNode.textContent = label;
+  control.id = id;
+  control.className = "form-field__input";
+  control.required = true;
+  placeholder.value = "";
+  placeholder.textContent = "مرحله پیشرفت پروژه را انتخاب کنید";
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  control.append(placeholder);
+  options.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    control.append(option);
+  });
   error.className = "form-field__error";
   error.id = `${id}-error`;
   control.setAttribute("aria-describedby", error.id);
@@ -30,16 +62,8 @@ const setError = (target, message = "") => {
 export const PilotForm = ({ onSubmit, onCancel }) => {
   const form = document.createElement("form");
   const feedback = document.createElement("div");
-  const displayName = field({
-    id: "pilot-display-name",
-    label: "عنوان پرونده",
-    optional: true,
-  });
-  const pilotYear = field({
-    id: "pilot-year",
-    label: "سال پایلوت",
-    optional: true,
-  });
+  const displayName = field({ id: "pilot-display-name", label: "عنوان پرونده" });
+  const pilotYear = field({ id: "pilot-year", label: "سال پایلوت" });
   const ownerName = field({ id: "owner-name", label: "نام مالک" });
   const decisionMakerName = field({
     id: "decision-maker-name",
@@ -49,16 +73,13 @@ export const PilotForm = ({ onSubmit, onCancel }) => {
     id: "decision-maker-position",
     label: "سمت تصمیم‌گیرنده",
   });
-  const primaryMobile = field({
-    id: "owner-mobile",
-    label: "موبایل اصلی",
-  });
-  const projectName = field({ id: "project-name", label: "نام پروژه" });
+  const primaryMobile = field({ id: "owner-mobile", label: "موبایل مالک" });
   const totalFloors = field({ id: "total-floors", label: "تعداد طبقات" });
   const address = field({ id: "project-address", label: "آدرس", type: "textarea" });
-  const progressStage = field({
+  const progressStage = selectField({
     id: "progress-stage",
     label: "مرحله پیشرفت پروژه",
+    options: PROJECT_PROGRESS_STAGES,
   });
   const customerNeed = field({
     id: "customer-need",
@@ -74,12 +95,11 @@ export const PilotForm = ({ onSubmit, onCancel }) => {
   const submit = document.createElement("button");
   const cancel = document.createElement("button");
   const requiredTextFields = [
+    { target: displayName, min: 2, max: 160 },
     { target: ownerName, min: 2, max: 160 },
     { target: decisionMakerName, min: 2, max: 120 },
     { target: decisionMakerPosition, min: 2, max: 120 },
-    { target: projectName, min: 2, max: 160 },
     { target: address, min: 5, max: 500 },
-    { target: progressStage, min: 2, max: 160 },
     { target: customerNeed, min: 2, max: 4000 },
     { target: expectedValue, min: 2, max: 4000 },
   ];
@@ -119,18 +139,17 @@ export const PilotForm = ({ onSubmit, onCancel }) => {
     const mobileValid = isValidIranianMobile(mobile);
     const floorsValid = Number.isInteger(floors) && floors >= 1 && floors <= 500;
     const yearValid = year === null || (year >= 1300 && year <= 2000);
-    const displayNameValid =
-      !displayName.control.value.trim() ||
-      (displayName.control.value.trim().length >= 2 &&
-        displayName.control.value.trim().length <= 255);
+    const progressStageValid = PROJECT_PROGRESS_STAGES.includes(
+      progressStage.control.value,
+    );
     setError(primaryMobile, mobileValid ? "" : "شماره موبایل معتبر وارد کنید.");
     setError(totalFloors, floorsValid ? "" : "عددی بین ۱ تا ۵۰۰ وارد کنید.");
     setError(pilotYear, yearValid ? "" : "سال باید بین ۱۳۰۰ تا ۲۰۰۰ باشد.");
     setError(
-      displayName,
-      displayNameValid ? "" : "عنوان باید بین ۲ تا ۲۵۵ کاراکتر باشد.",
+      progressStage,
+      progressStageValid ? "" : "یکی از مراحل پیشرفت تعریف‌شده را انتخاب کنید.",
     );
-    valid &&= mobileValid && floorsValid && yearValid && displayNameValid;
+    valid &&= mobileValid && floorsValid && yearValid && progressStageValid;
     primaryMobile.control.value = mobile;
     if (!valid) return;
 
@@ -145,10 +164,9 @@ export const PilotForm = ({ onSubmit, onCancel }) => {
         decisionMakerName: decisionMakerName.control.value.trim(),
         decisionMakerPosition: decisionMakerPosition.control.value.trim(),
         primaryMobile: mobile,
-        projectName: projectName.control.value.trim(),
         totalFloors: floors,
         address: address.control.value.trim(),
-        progressStage: progressStage.control.value.trim(),
+        progressStage: progressStage.control.value,
         customerNeed: customerNeed.control.value.trim(),
         expectedValue: expectedValue.control.value.trim(),
       });
@@ -171,7 +189,6 @@ export const PilotForm = ({ onSubmit, onCancel }) => {
     decisionMakerName.wrapper,
     decisionMakerPosition.wrapper,
     primaryMobile.wrapper,
-    projectName.wrapper,
     totalFloors.wrapper,
     address.wrapper,
     progressStage.wrapper,

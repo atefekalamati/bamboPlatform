@@ -1,4 +1,10 @@
-from conftest import BOOTSTRAP_MOBILE, login_with_otp, prepare_pilot_through_g2
+from conftest import (
+    BOOTSTRAP_MOBILE,
+    login_with_otp,
+    prepare_pilot_through_g2,
+    sample_pilot_payload,
+    save_valid_f01,
+)
 from app.database import get_session
 from app.models import User
 from app.services.notifications import (
@@ -22,7 +28,10 @@ def test_ippanel_provider_sends_pattern_payload(monkeypatch):
             return False
 
         def read(self):
-            return b'{"message_id":"ippanel-message-1","status":"accepted"}'
+            return (
+                b'{"meta":{"status":true,"message_code":"200"},'
+                b'"data":{"message_outbox_ids":["ippanel-message-1"]}}'
+            )
 
     def fake_urlopen(request, timeout):
         captured["url"] = request.full_url
@@ -62,6 +71,7 @@ def test_ippanel_provider_sends_pattern_payload(monkeypatch):
         "from_number": "+983000505",
         "code": "spuueljew7dxi3z",
         "recipients": ["+989120000000"],
+        "params": {"message": "ignored by IPPanel pattern adapter"},
     }
 
 
@@ -79,6 +89,72 @@ def create_capture_expert(client, headers, mobile="09156667777"):
     )
     assert response.status_code == 201, response.json()
     return response.json()
+
+
+def create_role_user(client, headers, role_name, mobile):
+    roles = client.get("/roles", headers=headers).json()
+    role_id = next(role["id"] for role in roles if role["name"] == role_name)
+    response = client.post(
+        "/users",
+        json={
+            "mobile": mobile,
+            "display_name": f"کاربر {role_name}",
+            "role_ids": [role_id],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201, response.json()
+    return response.json()
+
+
+def test_stage_transitions_notify_the_next_responsible_users(
+    client,
+    super_admin_headers,
+):
+    create_role_user(client, super_admin_headers, "pilot_manager", "09157770001")
+    create_role_user(client, super_admin_headers, "sales", "09157770002")
+    manager_headers = login_with_otp(client, "09157770001")
+    sales_headers = login_with_otp(client, "09157770002")
+    pilot = client.post(
+        "/pilots",
+        json=sample_pilot_payload(),
+        headers=super_admin_headers,
+    ).json()
+    save_valid_f01(client, pilot["id"], super_admin_headers)
+
+    submitted = client.post(
+        f"/pilots/{pilot['id']}/stages/1/submit",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert submitted.status_code == 200, submitted.json()
+    manager_inbox = client.get("/notifications", headers=manager_headers).json()
+    assert manager_inbox["items"][0]["type"] == "stage.review_required"
+    assert manager_inbox["items"][0]["action_url"] == f"/pilots/{pilot['id']}/stages/1"
+
+    rejected = client.post(
+        f"/pilots/{pilot['id']}/stages/1/reject",
+        json={"reason": "اصلاح اطلاعات"},
+        headers=super_admin_headers,
+    )
+    assert rejected.status_code == 200, rejected.json()
+    sales_inbox = client.get("/notifications", headers=sales_headers).json()
+    assert sales_inbox["items"][0]["type"] == "stage.revision_required"
+
+    assert client.post(
+        f"/pilots/{pilot['id']}/stages/1/submit",
+        json={},
+        headers=super_admin_headers,
+    ).status_code == 200
+    approved = client.post(
+        f"/pilots/{pilot['id']}/stages/1/approve",
+        json={},
+        headers=super_admin_headers,
+    )
+    assert approved.status_code == 200, approved.json()
+    sales_inbox = client.get("/notifications", headers=sales_headers).json()
+    assert sales_inbox["items"][0]["type"] == "stage.action_required"
+    assert sales_inbox["items"][0]["action_url"] == f"/pilots/{pilot['id']}/stages/2"
 
 
 def mission_payload(expert_id, floor_ids):

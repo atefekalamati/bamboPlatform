@@ -3,7 +3,7 @@
 import math
 from datetime import timedelta
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -24,14 +24,18 @@ from app.schemas.experience import (
     ExternalEvidenceUpdate,
     ExternalPlatformUpdate,
     FormF04Patch,
+    GlobalIncidentList,
+    GlobalIncidentRead,
     IncidentClose,
     IncidentCreate,
     IncidentList,
     IncidentPatch,
+    IncidentRead,
     OutputNotificationCreate,
 )
+from app.services.access import scoped_incident_pilot_query
 from app.services.notifications import create_notification
-from app.services.security import add_audit_log, mask_mobile, utc_now
+from app.services.security import AuthContext, add_audit_log, mask_mobile, utc_now
 from app.services.workflow import invalidate_from_stage
 
 ISSUE_ROUTES = {
@@ -58,6 +62,15 @@ INCIDENT_SORT_COLUMNS = {
     "severity": Incident.severity,
     "status": Incident.status,
     "stage_number": Incident.stage_number,
+}
+
+GLOBAL_INCIDENT_SORT_COLUMNS = {
+    "occurred_at": Incident.occurred_at,
+    "severity": Incident.severity,
+    "status": Incident.status,
+    # The established reporting contract treats response_due_at as the
+    # incident SLA deadline.
+    "sla_due_at": Incident.response_due_at,
 }
 
 
@@ -574,6 +587,126 @@ def _incident_response_due_at(occurred_at, severity: str):
     if severity == "important":
         return occurred_at + timedelta(hours=4)
     return occurred_at.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+
+def list_global_incidents(
+    db: Session,
+    context: AuthContext,
+    *,
+    page: int,
+    page_size: int,
+    q: str | None = None,
+    status: str | None = None,
+    severity: str | None = None,
+    incident_type: str | None = None,
+    pilot_id: int | None = None,
+    stage_number: int | None = None,
+    assignee_id: int | None = None,
+    overdue: bool | None = None,
+    occurred_from=None,
+    occurred_to=None,
+    sort: str = "-occurred_at",
+) -> GlobalIncidentList:
+    scoped_pilot_ids = (
+        scoped_incident_pilot_query(db, context)
+        .with_entities(Pilot.id.label("pilot_id"))
+        .subquery()
+    )
+    query = (
+        db.query(Incident)
+        .join(Pilot, Pilot.id == Incident.pilot_id)
+        .filter(Incident.pilot_id.in_(select(scoped_pilot_ids.c.pilot_id)))
+    )
+    if q:
+        pattern = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Incident.code.ilike(pattern),
+                Pilot.code.ilike(pattern),
+                Pilot.display_name.ilike(pattern),
+                Incident.description.ilike(pattern),
+            )
+        )
+    if status:
+        query = query.filter(Incident.status == status)
+    if severity:
+        query = query.filter(Incident.severity == severity)
+    if incident_type:
+        query = query.filter(Incident.incident_type == incident_type)
+    if pilot_id is not None:
+        query = query.filter(Incident.pilot_id == pilot_id)
+    if stage_number is not None:
+        query = query.filter(Incident.stage_number == stage_number)
+    if assignee_id is not None:
+        query = query.filter(Incident.owner_user_id == assignee_id)
+    if occurred_from is not None:
+        query = query.filter(Incident.occurred_at >= occurred_from)
+    if occurred_to is not None:
+        query = query.filter(Incident.occurred_at <= occurred_to)
+
+    now = utc_now()
+    overdue_expression = and_(
+        Incident.status != "closed",
+        or_(
+            and_(Incident.responded_at.is_(None), Incident.response_due_at < now),
+            and_(
+                Incident.correction_due_at.is_not(None),
+                Incident.correction_due_at < now,
+            ),
+        ),
+    )
+    if overdue is True:
+        query = query.filter(overdue_expression)
+    elif overdue is False:
+        query = query.filter(~overdue_expression)
+
+    aggregate = query.with_entities(
+        func.count(Incident.id).label("total"),
+        func.sum(case((Incident.status == "open", 1), else_=0)).label("open"),
+        func.sum(case((Incident.severity == "critical", 1), else_=0)).label("critical"),
+        func.sum(case((Incident.severity == "important", 1), else_=0)).label("important"),
+        func.sum(case((overdue_expression, 1), else_=0)).label("overdue"),
+        func.sum(case((Incident.status == "closed", 1), else_=0)).label("closed"),
+    ).one()
+    total = int(aggregate.total or 0)
+
+    descending = sort.startswith("-")
+    sort_name = sort[1:] if descending else sort
+    sort_column = GLOBAL_INCIDENT_SORT_COLUMNS[sort_name]
+    sort_expression = sort_column.desc() if descending else sort_column.asc()
+    rows = (
+        query.with_entities(Incident, Pilot.code, Pilot.display_name)
+        .order_by(sort_expression, Incident.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    items = []
+    for incident, pilot_code, pilot_display_name in rows:
+        incident_data = IncidentRead.model_validate(incident).model_dump()
+        items.append(
+            GlobalIncidentRead(
+                **incident_data,
+                pilot_code=pilot_code,
+                pilot_display_name=pilot_display_name,
+                sla_due_at=incident.response_due_at,
+            )
+        )
+    return GlobalIncidentList(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+        total_pages=math.ceil(total / page_size) if total else 0,
+        summary={
+            "total": total,
+            "open": int(aggregate.open or 0),
+            "critical": int(aggregate.critical or 0),
+            "important": int(aggregate.important or 0),
+            "overdue": int(aggregate.overdue or 0),
+            "closed": int(aggregate.closed or 0),
+        },
+    )
 
 
 def list_incidents(

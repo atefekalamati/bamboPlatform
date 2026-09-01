@@ -15,7 +15,13 @@ from app.exceptions import SecurityError
 from app.models import Notification, NotificationDelivery, User, UserPreference
 from app.providers.sms import get_sms_provider
 from app.schemas.security import normalize_mobile
-from app.schemas.notifications import NotificationPreferences
+from app.schemas.notifications import (
+    DEFAULT_CRITICAL_SMS_ENABLED,
+    DEFAULT_IN_APP_ENABLED,
+    DEFAULT_SMS_CATEGORIES as SCHEMA_DEFAULT_SMS_CATEGORIES,
+    DEFAULT_SMS_ENABLED,
+    NotificationPreferences,
+)
 from app.services.security import mask_mobile, utc_now
 
 IN_APP_ACTION_REQUIRED_SMS_BASE = (
@@ -26,16 +32,9 @@ PLATFORM_CONTRACT_REVIEW_TEMPLATE = "platform_contract_review_reminder"
 PLATFORM_CONTRACT_REVIEW_TITLE = "یادآوری بررسی قرارداد پلتفرم"
 PLATFORM_CONTRACT_REVIEW_SMS_BASE = IN_APP_ACTION_REQUIRED_SMS_BASE
 
-DEFAULT_SMS_CATEGORIES = {
-    "AUTH": False,
-    "PILOT": False,
-    "STAGE": False,
-    "MISSION": True,
-    "INCIDENT": True,
-    "SLA": True,
-    "COMMERCIAL": True,
-    "SYSTEM": False,
-}
+# Re-exported so existing importers keep working; the policy itself lives with
+# the schema so preference defaults have exactly one definition.
+DEFAULT_SMS_CATEGORIES = SCHEMA_DEFAULT_SMS_CATEGORIES
 
 
 def get_platform_login_url() -> str | None:
@@ -52,15 +51,31 @@ def build_platform_contract_review_sms() -> str:
     return build_in_app_action_required_sms()
 
 
+def _merge_sms_categories(stored: object) -> dict[str, bool]:
+    """Explicit per-category choices win; unset categories keep their default.
+
+    Rows written before the defaults were shared can hold ``{}``, which must not
+    be read as "every category is off".
+    """
+    merged = dict(DEFAULT_SMS_CATEGORIES)
+    if isinstance(stored, dict):
+        merged.update(
+            {key: bool(value) for key, value in stored.items() if key in merged}
+        )
+    return merged
+
+
 def _preferences_dict(user: User | None) -> dict:
     if user is None or user.preferences is None:
-        return NotificationPreferences(sms_categories=DEFAULT_SMS_CATEGORIES).model_dump()
+        return NotificationPreferences().model_dump()
     raw = user.preferences.notification_preferences or {}
+    # A missing key means the user never made a choice, so fall back to the
+    # shared defaults. Only an explicitly stored value overrides them.
     return NotificationPreferences(
-        in_app_enabled=raw.get("in_app_enabled", True),
-        sms_enabled=raw.get("sms_enabled", False),
-        sms_categories=raw.get("sms_categories", DEFAULT_SMS_CATEGORIES),
-        critical_sms_enabled=raw.get("critical_sms_enabled", True),
+        in_app_enabled=raw.get("in_app_enabled", DEFAULT_IN_APP_ENABLED),
+        sms_enabled=raw.get("sms_enabled", DEFAULT_SMS_ENABLED),
+        sms_categories=_merge_sms_categories(raw.get("sms_categories")),
+        critical_sms_enabled=raw.get("critical_sms_enabled", DEFAULT_CRITICAL_SMS_ENABLED),
         quiet_hours_start=raw.get("quiet_hours_start"),
         quiet_hours_end=raw.get("quiet_hours_end"),
     ).model_dump()
@@ -206,6 +221,11 @@ def _create_sms_delivery(
         status = "SKIPPED"
         failure_code = "SMS_DISABLED_FOR_EVENT"
         failure_reason = "SMS delivery was not requested for this event"
+    elif recipient_user is not None and not recipient_user.is_active:
+        # Keep the in-app record for history; a disabled account gets no SMS.
+        status = "SKIPPED"
+        failure_code = "USER_INACTIVE"
+        failure_reason = "Recipient account is disabled"
     elif not mobile:
         status = "SKIPPED"
         failure_code = "SMS_RECIPIENT_MISSING"

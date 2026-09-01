@@ -152,6 +152,16 @@ def test_experience_openapi_contract():
         "/pilots/{pilot_id}/final-outcome/approve",
     ):
         assert path in schema["paths"]
+    for removed_path in (
+        "/api/v1/pilots/{pilot_id}/stages/{stage_number}/calls",
+        "/api/v1/calls/{call_id}",
+        "/api/v1/calls/{call_id}/outcome",
+        "/api/v1/calls/{call_id}/retry",
+        "/api/v1/calls/{call_id}/override",
+        "/api/v1/calls/{call_id}/recording-reference",
+        "/api/v1/integrations/astel/webhooks",
+    ):
+        assert removed_path not in schema["paths"]
     for name in (
         "ExternalPlatformUpdate",
         "FormF04Patch",
@@ -1426,34 +1436,22 @@ def test_stages_17_to_19_full_commercial_workflow(
         "day_5",
         "day_7_10",
     ]
-    missing_required_call = client.post(
+    stage_18_without_call = client.post(
         f"/pilots/{pilot_id}/stages/18/submit",
         json={},
         headers=super_admin_headers,
     )
-    assert missing_required_call.status_code == 422
-    assert any(
-        item["field"] == "checklist.call_policy_completed"
-        for item in missing_required_call.json()["errors"]
-    )
-    stage_18_call = client.post(
-        f"/api/v1/pilots/{pilot_id}/stages/18/calls",
-        json={"idempotency_key": "commercial-stage-18-call"},
+    assert stage_18_without_call.status_code == 200, stage_18_without_call.text
+    assert stage_18_without_call.json()["submission"]["checklist"] == {
+        "follow_up_registered": True
+    }
+    stage_18_approval = client.post(
+        f"/pilots/{pilot_id}/stages/18/approve",
+        json={},
         headers=super_admin_headers,
     )
-    assert stage_18_call.status_code == 201, stage_18_call.text
-    override = client.post(
-        f"/api/v1/calls/{stage_18_call.json()['public_id']}/override",
-        json={"reason": "Manager confirmed an approved offline customer conversation."},
-        headers=super_admin_headers,
-    )
-    assert override.status_code == 200, override.text
-    stage_18 = submit_and_approve_stage(
-        client,
-        pilot_id,
-        18,
-        super_admin_headers,
-    )
+    assert stage_18_approval.status_code == 200, stage_18_approval.text
+    stage_18 = stage_18_approval.json()
     assert len(
         stage_18["snapshot"]["content"]["submission"]["form_data"]["follow_ups"]
     ) == 4
@@ -1494,8 +1492,10 @@ def test_stages_17_to_19_full_commercial_workflow(
     assert unapproved_outcome.status_code == 422
 
     roles = client.get("/roles", headers=super_admin_headers).json()
+    # customer_success was merged into support; the point of the check is that
+    # a non-pilot-manager cannot approve the final outcome.
     customer_success_role = next(
-        role for role in roles if role["name"] == "customer_success"
+        role for role in roles if role["name"] == "support"
     )
     customer_success_user = client.post(
         "/users",

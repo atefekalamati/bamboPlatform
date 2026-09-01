@@ -2,6 +2,7 @@ import {
   PERSIAN_MONTHS, PERSIAN_WEEKDAYS, formatJalaliDateInput, formatJalaliDateTimeInput,
   formatJalaliManualInput, getIranJalaliParts, jalaliMonthLength, jalaliWeekdayIndex,
   parseJalaliDateInput, parseJalaliDateTimeInput, toLatinDigits, toPersianDigits,
+  resolveDateInputValue,
 } from "../utils/jalaliDateTime.js";
 
 const nativeValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
@@ -33,7 +34,9 @@ class PersianDatePicker {
     this.required = input.required;
     this.minimum = input.min;
     this.maximum = input.max;
-    this.initialValue = nativeValue.get.call(input);
+    const currentValue = nativeValue.get.call(input);
+    this.initialValue = currentValue;
+    this.fallbackToNow = !input.disabled && !input.readOnly;
     this.today = getIranJalaliParts();
     this.view = { year: this.today.year, month: this.today.month };
     this.build();
@@ -49,7 +52,13 @@ class PersianDatePicker {
     input.dataset.dateTimezone = "Asia/Tehran";
     input.inputMode = "numeric";
     input.autocomplete = "off";
-    input.placeholder = this.dateTime ? "۱۴۰۵/۰۵/۱۲ ۱۴:۳۰" : "۱۴۰۵/۰۵/۱۲";
+    input.placeholder = this.dateTime
+      ? "انتخاب تاریخ و ساعت — در صورت خالی، زمان فعلی ثبت می‌شود"
+      : "انتخاب تاریخ — در صورت خالی، تاریخ امروز ثبت می‌شود";
+    if (this.required && this.fallbackToNow) {
+      input.required = false;
+      input.setAttribute("aria-required", "true");
+    }
     this.wrapper = element("div", "persian-date-picker");
     input.parentNode.insertBefore(this.wrapper, input);
     this.wrapper.append(input);
@@ -99,7 +108,11 @@ class PersianDatePicker {
   visibleValue() { return nativeValue.get.call(this.input); }
   parser() { return this.dateTime ? parseJalaliDateTimeInput : parseJalaliDateInput; }
   formatter() { return this.dateTime ? formatJalaliDateTimeInput : formatJalaliDateInput; }
-  apiValue() { const value = this.visibleValue(); return value.trim() ? this.parser()(value) ?? "" : ""; }
+  apiValue() {
+    const value = this.visibleValue();
+    if (value.trim()) return this.parser()(value) ?? "";
+    return resolveDateInputValue(this.originalType, "", this.fallbackToNow);
+  }
   setApiValue(value) { nativeValue.set.call(this.input, this.formatter()(value)); this.input.setCustomValidity(""); this.syncView(); }
 
   syncView() {
@@ -146,6 +159,8 @@ class PersianDatePicker {
     if (this.input.disabled || this.input.readOnly) return;
     if (openPicker && openPicker !== this) openPicker.close();
     openPicker = this;
+    this.today = getIranJalaliParts();
+    if (!this.selectedParts()) this.view = { year: this.today.year, month: this.today.month };
     this.syncView(); this.render();
     this.popover.hidden = false; this.backdrop.hidden = false;
     this.trigger.setAttribute("aria-expanded", "true");
@@ -155,7 +170,7 @@ class PersianDatePicker {
     this.popover.hidden = true; this.backdrop.hidden = true;
     this.trigger.setAttribute("aria-expanded", "false");
     if (openPicker === this) openPicker = null;
-    if (returnFocus) this.input.focus();
+    if (returnFocus) this.trigger.focus();
   }
 
   moveMonth(offset) {
@@ -191,12 +206,13 @@ class PersianDatePicker {
     const header = element("header", "persian-date-picker__header");
     const previous = element("button", "persian-date-picker__nav", "‹"); previous.type = "button"; previous.setAttribute("aria-label", "ماه قبل"); previous.onclick = () => this.moveMonth(-1);
     const next = element("button", "persian-date-picker__nav", "›"); next.type = "button"; next.setAttribute("aria-label", "ماه بعد"); next.onclick = () => this.moveMonth(1);
+    const close = element("button", "persian-date-picker__close", "×"); close.type = "button"; close.setAttribute("aria-label", "بستن انتخابگر تاریخ"); close.onclick = () => this.close(true);
     const month = element("select", "persian-date-picker__select"); month.setAttribute("aria-label", "ماه");
     PERSIAN_MONTHS.forEach((name, index) => { const option = new Option(name, String(index + 1), false, index + 1 === this.view.month); month.add(option); });
     month.onchange = () => { this.view.month = +month.value; this.render(); };
     const year = element("input", "persian-date-picker__year"); year.type = "number"; year.min = "1200"; year.max = "1600"; year.value = String(this.view.year); year.setAttribute("aria-label", "سال");
     year.onchange = () => { const value = Math.max(1200, Math.min(1600, +year.value || this.today.year)); this.view.year = value; this.render(); };
-    header.append(next, month, year, previous);
+    header.append(next, month, year, previous, close);
     const grid = element("div", "persian-date-picker__grid"); grid.setAttribute("role", "grid");
     PERSIAN_WEEKDAYS.forEach((name) => { const weekday = element("span", "persian-date-picker__weekday", name); weekday.setAttribute("role", "columnheader"); grid.append(weekday); });
     const offset = jalaliWeekdayIndex(this.view.year, this.view.month);
@@ -220,19 +236,26 @@ class PersianDatePicker {
       this.minuteSelect = element("select", "persian-date-picker__select"); this.minuteSelect.setAttribute("aria-label", "دقیقه");
       for (let hour = 0; hour < 24; hour += 1) this.hourSelect.add(new Option(toPersianDigits(pad(hour)), String(hour), false, hour === (selected?.hour ?? this.today.hour)));
       for (let minute = 0; minute < 60; minute += 1) this.minuteSelect.add(new Option(toPersianDigits(pad(minute)), String(minute), false, minute === (selected?.minute ?? this.today.minute)));
-      time.append(this.hourSelect, element("span", "persian-date-picker__time-separator", ":"), this.minuteSelect); footer.append(time);
+      this.minuteSelect.addEventListener("change", () => {
+        const current = this.selectedParts();
+        if (current?.day) this.selectDay(current.day, true);
+      });
+      time.append(this.minuteSelect, element("span", "persian-date-picker__time-separator", ":"), this.hourSelect); footer.append(time);
     }
     const actions = element("div", "persian-date-picker__actions");
     if (this.dateTime) {
-      const confirm = element("button", "button button--primary", "تأیید تاریخ و ساعت");
+      const confirm = element("button", "button button--primary", "ثبت و بستن");
       confirm.type = "button";
+      confirm.dataset.action = "submit-date-picker";
+      confirm.setAttribute("aria-label", "ثبت تاریخ و ساعت انتخاب‌شده و بستن تقویم");
       confirm.disabled = !selected?.day;
       confirm.onclick = () => { const current = this.selectedParts(); if (current?.day) this.selectDay(current.day, true); };
       actions.append(confirm);
     }
-    const today = element("button", "button button--ghost", "امروز"); today.type = "button"; today.onclick = () => { this.view = { year: this.today.year, month: this.today.month }; this.render(); this.selectDay(this.today.day, !this.dateTime); };
+    const today = element("button", "button button--ghost", "امروز"); today.type = "button"; today.onclick = () => { this.view = { year: this.today.year, month: this.today.month }; this.render(); this.selectDay(this.today.day, true); };
     actions.append(today);
     if (!this.required) { const clear = element("button", "button button--ghost", "پاک‌کردن"); clear.type = "button"; clear.onclick = () => { nativeValue.set.call(this.input, ""); this.input.setCustomValidity(""); this.input.dispatchEvent(new Event("change", { bubbles: true })); this.close(true); }; actions.append(clear); }
+    const cancel = element("button", "button button--ghost", "بستن"); cancel.type = "button"; cancel.onclick = () => this.close(true); actions.append(cancel);
     footer.append(actions);
     this.popover.replaceChildren(header, grid, footer);
   }
