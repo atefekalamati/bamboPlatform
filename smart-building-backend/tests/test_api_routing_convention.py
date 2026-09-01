@@ -37,7 +37,12 @@ INFRASTRUCTURE_PATHS = frozenset({"/health", "/health/live", "/health/ready", "/
 
 # Endpoint counts at the time the convention was frozen. The totals move only
 # when someone edits this file, which keeps legacy growth visible in review.
-LEGACY_ENDPOINT_COUNT = 81
+#
+# 81 -> 84: the three bulk Stage 3 endpoints. They extend the existing
+# /pilots tree rather than starting a new root, because splitting floor and
+# DWG registration across two API versions would be worse than keeping the
+# resource whole.
+LEGACY_ENDPOINT_COUNT = 84
 VERSIONED_ENDPOINT_COUNT = 14
 
 

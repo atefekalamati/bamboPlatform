@@ -159,6 +159,40 @@ def finalize_upload(
     )
 
 
+def finalize_shared_upload(staged: StagedDwg, *, pilot_code: str) -> StoredDwg:
+    """Store one drawing that several floors will reference.
+
+    The per-floor path in :func:`finalize_upload` encodes a single owner, so a
+    shared file lives under the pilot instead. The bytes land once; each floor
+    gets its own ``DwgVersion`` row pointing at this one key.
+    """
+    root = get_dwg_storage_root()
+    try:
+        target_directory = (root / pilot_code / "shared").resolve()
+        if not target_directory.is_relative_to(root):
+            raise _file_error(
+                "DWG_STORAGE_ERROR",
+                "مسیر ذخیره فایل معتبر نیست.",
+                "unsafe_path",
+            )
+        target_directory.mkdir(parents=True, exist_ok=True)
+        jalali_date = JalaliDate.today().strftime("%Y-%m-%d")
+        standardized_filename = f"{pilot_code}_SHARED_{staged.sha256[:12]}_{jalali_date}.dwg"
+        storage_filename = f"{uuid4().hex}_{standardized_filename}"
+        target_path = target_directory / storage_filename
+        staged.path.replace(target_path)
+    except Exception:
+        discard_staged_upload(staged)
+        raise
+    with suppress(OSError):
+        staged.path.parent.rmdir()
+    return StoredDwg(
+        absolute_path=target_path,
+        storage_key=target_path.relative_to(root).as_posix(),
+        standardized_filename=standardized_filename,
+    )
+
+
 def resolve_storage_key(storage_key: str) -> Path:
     root = get_dwg_storage_root()
     resolved = (root / storage_key).resolve()

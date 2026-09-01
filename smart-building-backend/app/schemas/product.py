@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.security import normalize_mobile
 
@@ -149,3 +149,88 @@ class DwgVersionRead(BaseModel):
     uploaded_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# --------------------------------------------------------------- bulk stage 3
+#
+# Stage 3 registers every floor of a building and its drawing. Doing that one
+# floor at a time meant a request per floor, the same file stored repeatedly,
+# and a run that could stop halfway. These contracts describe the grouped
+# operations; the single-floor endpoints they complement are unchanged.
+
+
+class FloorBulkCreate(BaseModel):
+    floors: list[FloorCreate] = Field(min_length=1, max_length=200)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def reject_duplicates_within_the_request(self) -> "FloorBulkCreate":
+        codes = [floor.code for floor in self.floors]
+        orders = [floor.level_order for floor in self.floors]
+        if len(set(codes)) != len(codes):
+            raise ValueError("floor codes must be unique within the request")
+        if len(set(orders)) != len(orders):
+            raise ValueError("level_order values must be unique within the request")
+        return self
+
+
+class FloorBulkCreateResult(BaseModel):
+    pilot_id: int
+    total: int
+    created: int
+    floors: list[FloorRead]
+
+
+class FloorDwgReferenceBulkUpdate(BaseModel):
+    floor_ids: list[int] = Field(min_length=1, max_length=200)
+    confirmed: bool
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("floor_ids")
+    @classmethod
+    def reject_repeated_ids(cls, value: list[int]) -> list[int]:
+        if len(set(value)) != len(value):
+            raise ValueError("floor_ids must not repeat")
+        return value
+
+
+class FloorDwgReferenceBulkItem(BaseModel):
+    id: int
+    dwg_reference_confirmed: bool
+    has_valid_dwg: bool
+
+
+class FloorDwgReferenceBulkResult(BaseModel):
+    pilot_id: int
+    total: int
+    updated: int
+    floors: list[FloorDwgReferenceBulkItem]
+
+
+class SharedDwgFileSummary(BaseModel):
+    """The one stored file, described once rather than per floor."""
+
+    original_filename: str
+    standardized_filename: str
+    storage_key: str
+    mime_type: str
+    size_bytes: int
+    sha256: str
+
+
+class SharedDwgVersionItem(BaseModel):
+    floor_id: int
+    floor_code: str
+    version_id: int
+    version: int
+    has_valid_dwg: bool
+
+
+class SharedDwgUploadResult(BaseModel):
+    pilot_id: int
+    file: SharedDwgFileSummary
+    total: int
+    uploaded: int
+    versions: list[SharedDwgVersionItem]
