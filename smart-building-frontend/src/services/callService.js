@@ -7,6 +7,29 @@ export const CALL_OUTCOMES = Object.freeze([
   "contract_follow_up", "follow_up_completed",
 ]);
 
+const CALL_ERROR_MESSAGES = Object.freeze({
+  CALL_NOT_ENABLED: "تماس برای این مرحله فعال نیست.",
+  CALL_NOT_FOUND: "تماس موردنظر پیدا نشد.",
+  CALL_OUTCOME_NOT_ALLOWED: "وضعیت فنی تماس هنوز برای ثبت نتیجه آماده نیست.",
+  CALL_OVERRIDE_NOT_ALLOWED: "عبور مدیریتی برای این تماس مجاز نیست.",
+  CALL_PHONE_INVALID: "شماره تماس مالک پرونده معتبر نیست.",
+  CALL_PROVIDER_UNAVAILABLE: "سرویس تماس در حال حاضر در دسترس نیست.",
+  CALL_RECORDING_NOT_ALLOWED: "ضبط تماس برای این مرحله فعال نیست.",
+  CALL_RETRY_LIMIT: "حداکثر تعداد تلاش تماس انجام شده است.",
+  CALL_RETRY_NOT_ALLOWED: "تلاش مجدد در وضعیت فعلی تماس مجاز نیست.",
+  CALL_ROLE_DENIED: "نقش شما اجازه تماس در این مرحله را ندارد.",
+  CALL_STAGE_INVALID: "وضعیت فعلی مرحله برای تماس مجاز نیست.",
+  CALL_IDEMPOTENCY_CONFLICT: "درخواست تماس تکراری یا متعلق به عملیات دیگری است.",
+});
+
+export const callErrorMessage = (error) => {
+  const message = CALL_ERROR_MESSAGES[error?.code] ?? error?.message ?? "عملیات تماس انجام نشد.";
+  return error?.traceId ? `${message} شناسه پیگیری: ${error.traceId}` : message;
+};
+
+export const shouldPollCallStatus = (calls) => calls.some(({ technicalStatus }) =>
+  ["pending", "initiating", "ringing", "answered"].includes(technicalStatus));
+
 export const mapCall = (call) => ({
   id: call.public_id,
   pilotId: call.pilot_id,
@@ -32,8 +55,8 @@ const idempotencyKey = () => globalThis.crypto?.randomUUID?.()
   ?? `call-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 export const callService = Object.freeze({
-  list: async (pilotId, stageNumber) => {
-    const response = await request(`/api/v1/pilots/${pilotId}/stages/${stageNumber}/calls`);
+  list: async (pilotId, stageNumber, options = {}) => {
+    const response = await request(`/api/v1/pilots/${pilotId}/stages/${stageNumber}/calls`, options);
     if (!Array.isArray(response)) throw new TypeError("پاسخ فهرست تماس‌ها معتبر نیست.");
     return response.map(mapCall);
   },

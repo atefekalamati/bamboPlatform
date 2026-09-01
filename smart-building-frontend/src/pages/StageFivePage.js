@@ -236,7 +236,8 @@ export const StageFivePage = ({ pilotId }) => {
   const page = element("div", "stage-workspace");
   const user = sessionStore.getCurrentUser();
   const permissions = user?.permissions ?? [];
-  const canCoordinate = canManageMissionAssignments(permissions);
+  const roles = user?.roles ?? [];
+  const canCoordinate = canManageMissionAssignments(permissions, roles);
   const canSubmit = permissions.includes("checklists.manage");
   const canApprove = permissions.includes("gate_approval.approve");
   const canReject = permissions.includes("gate_approval.reject");
@@ -363,6 +364,7 @@ export const StageFivePage = ({ pilotId }) => {
           currentUserId: user?.id,
           expertUserId: mission.expertUserId,
           permissions,
+          roles,
         });
         const isManagerOverride = canAcceptAssignment && !isAssignedExpert;
         if (!mission.formF03.assignment_accepted) {

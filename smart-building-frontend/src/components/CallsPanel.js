@@ -1,5 +1,5 @@
 import { Modal } from "./Modal.js";
-import { callService, CALL_OUTCOMES } from "../services/callService.js";
+import { callErrorMessage, callService, CALL_OUTCOMES, shouldPollCallStatus } from "../services/callService.js";
 import { formatPersianDateTime } from "../utils/dateFormatter.js";
 
 const node = (tag, className = "", text = "") => {
@@ -25,6 +25,8 @@ const OUTCOME_LABELS = Object.freeze({
 const RETRY_STATUSES = new Set(["no_answer", "busy", "failed", "retry_required"]);
 const OUTCOME_STATUSES = new Set(["answered", "completed", "no_answer", "busy", "failed"]);
 const NEXT_ACTION_OUTCOMES = new Set(["callback_requested", "revision_requested", "contract_follow_up"]);
+const POLL_INTERVAL_MS = 8_000;
+const MAX_POLL_ATTEMPTS = 15;
 
 const field = (labelText, control, help = "") => {
   const label = node("label", "stage-form__field");
@@ -56,11 +58,22 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
   const canRetry = permissions.includes("calls.retry");
   const canOverride = permissions.includes("calls.override");
   const canReadRecording = permissions.includes("calls.recording.read");
+  let listController = null;
+  let pollTimer = null;
+  let pollAttempts = 0;
+  let latestCalls = [];
+  let initiateButton = null;
 
-  const showError = (error) => { feedback.textContent = error?.message ?? "عملیات تماس انجام نشد."; };
+  const showError = (error, localFeedback = feedback) => { localFeedback.textContent = callErrorMessage(error); };
 
   const openInitiate = (trigger) => {
     const form = modalForm();
+    const confirmation = node("div", "calls-confirmation");
+    const lastDestination = latestCalls[0]?.destinationMasked;
+    confirmation.append(
+      node("p", "", lastDestination ? `مخاطب پرونده: ${lastDestination}` : "شماره مالک از اطلاعات معتبر پرونده توسط بک‌اند انتخاب می‌شود."),
+      node("p", "draft-info", `مرحله مرتبط: ${stageNumber} — تماس فقط از طریق سرویس بک‌اند بامبو برقرار می‌شود.`),
+    );
     const purpose = document.createElement("input"); purpose.className = "stage-form__control";
     purpose.value = stageNumber === 18 ? "پیگیری تجاری" : "هماهنگی با مشتری";
     const consent = document.createElement("input"); consent.type = "checkbox";
@@ -68,7 +81,8 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
     const footer = node("div", "modal__actions");
     const cancel = node("button", "button button--ghost", "لغو"); cancel.type = "button";
     const submit = node("button", "button button--primary", "آغاز تماس"); submit.type = "submit";
-    footer.append(cancel, submit); form.append(field("هدف تماس", purpose), consentLabel, footer);
+    const modalFeedback = node("p", "form-field__error"); modalFeedback.setAttribute("aria-live", "assertive");
+    footer.append(cancel, submit); form.append(confirmation, field("هدف تماس", purpose), consentLabel, modalFeedback, footer);
     let modal;
     cancel.addEventListener("click", () => modal.close());
     form.addEventListener("submit", async (event) => {
@@ -76,9 +90,9 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
       try {
         await callService.initiate(pilotId, stageNumber, { purpose: purpose.value, recordingConsent: consent.checked });
         modal.close(); await load("درخواست تماس ثبت شد.");
-      } catch (error) { showError(error); submit.disabled = false; }
+      } catch (error) { showError(error, modalFeedback); submit.disabled = false; }
     });
-    modal = Modal({ title: "آغاز تماس با مشتری", content: form, triggerElement: trigger, centered: true });
+    modal = Modal({ title: "تأیید شروع تماس", content: form, triggerElement: trigger, centered: true });
   };
 
   const openOutcome = (call, trigger) => {
@@ -100,8 +114,9 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
     const footer = node("div", "modal__actions");
     const cancel = node("button", "button button--ghost", "لغو"); cancel.type = "button";
     const submit = node("button", "button button--primary", "ثبت نتیجه تماس"); submit.type = "submit";
+    const modalFeedback = node("p", "form-field__error"); modalFeedback.setAttribute("aria-live", "assertive");
     footer.append(cancel, submit);
-    form.append(field("نتیجه تماس", outcome), field("خلاصه تماس", summary), field("اقدام بعدی", nextAction), callbackField, footer);
+    form.append(field("نتیجه تماس", outcome), field("خلاصه تماس", summary), field("اقدام بعدی", nextAction), callbackField, modalFeedback, footer);
     let modal;
     cancel.addEventListener("click", () => modal.close());
     form.addEventListener("submit", async (event) => {
@@ -117,7 +132,7 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
       try {
         await callService.recordOutcome(call.id, { outcome: outcome.value, summary: summary.value, nextAction: nextAction.value, callbackAt: callbackAt.value });
         modal.close(); await load("نتیجه تماس ثبت شد.");
-      } catch (error) { showError(error); submit.disabled = false; }
+      } catch (error) { showError(error, modalFeedback); submit.disabled = false; }
     });
     modal = Modal({ title: "ثبت نتیجه تماس", content: form, triggerElement: trigger, centered: true });
   };
@@ -128,7 +143,8 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
     const footer = node("div", "modal__actions");
     const cancel = node("button", "button button--ghost", "لغو"); cancel.type = "button";
     const submit = node("button", "button button--danger", "ثبت Override"); submit.type = "submit";
-    footer.append(cancel, submit); form.append(field("دلیل مدیریتی", reason, "حداقل ۱۰ نویسه؛ این عملیات در Audit ثبت می‌شود."), footer);
+    const modalFeedback = node("p", "form-field__error"); modalFeedback.setAttribute("aria-live", "assertive");
+    footer.append(cancel, submit); form.append(field("دلیل مدیریتی", reason, "حداقل ۱۰ نویسه؛ این عملیات در Audit ثبت می‌شود."), modalFeedback, footer);
     let modal;
     cancel.addEventListener("click", () => modal.close());
     form.addEventListener("submit", async (event) => {
@@ -136,7 +152,7 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
       reason.setAttribute("aria-invalid", String(invalid)); if (invalid) return;
       submit.disabled = true;
       try { await callService.override(call.id, reason.value); modal.close(); await load("Override مدیریتی ثبت شد."); }
-      catch (error) { showError(error); submit.disabled = false; }
+      catch (error) { showError(error, modalFeedback); submit.disabled = false; }
     });
     modal = Modal({ title: "عبور مدیریتی از الزام تماس", content: form, triggerElement: trigger, centered: true });
   };
@@ -154,6 +170,8 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
       ["نتیجه", call.businessOutcome ? OUTCOME_LABELS[call.businessOutcome] ?? "نتیجه نامشخص" : "ثبت نشده"],
       ["خلاصه", call.summary || "ثبت نشده"],
       ["تعداد تلاش", String(call.attempts.length)],
+      ["مدت تماس", Number.isFinite(call.durationSeconds) ? `${call.durationSeconds} ثانیه` : "ثبت نشده"],
+      ["تماس مجدد", call.callbackAt ? formatPersianDateTime(call.callbackAt) : "ثبت نشده"],
     ].forEach(([label, value]) => { details.append(node("dt", "", label), node("dd", "", value)); });
     const cardActions = node("div", "calls-card__actions");
     if (canRecord && OUTCOME_STATUSES.has(call.technicalStatus)) {
@@ -175,17 +193,40 @@ export const CallsPanel = ({ pilotId, stageNumber, permissions = [], required = 
     card.append(header, details, cardActions); return card;
   };
 
-  const load = async (notice = "") => {
+  const stopPolling = () => { window.clearTimeout(pollTimer); pollTimer = null; };
+  const schedulePolling = (calls) => {
+    stopPolling();
+    if (!shouldPollCallStatus(calls) || pollAttempts >= MAX_POLL_ATTEMPTS) {
+      if (pollAttempts >= MAX_POLL_ATTEMPTS && shouldPollCallStatus(calls)) feedback.textContent = "وضعیت نهایی تماس هنوز از سرور دریافت نشده است؛ برای بررسی دوباره از دکمه به‌روزرسانی استفاده کنید.";
+      return;
+    }
+    pollTimer = window.setTimeout(async () => {
+      if (!section.isConnected) { listController?.abort(); stopPolling(); return; }
+      if (document.visibilityState === "hidden") { schedulePolling(calls); return; }
+      pollAttempts += 1; await load("", false);
+    }, POLL_INTERVAL_MS);
+  };
+
+  const load = async (notice = "", resetPolling = true) => {
+    if (resetPolling) pollAttempts = 0;
+    listController?.abort(); listController = new AbortController();
     feedback.textContent = notice; list.replaceChildren(node("p", "loading-state", "در حال دریافت تماس‌ها..."));
     try {
-      const calls = await callService.list(pilotId, stageNumber);
+      const calls = await callService.list(pilotId, stageNumber, { signal: listController.signal });
+      latestCalls = calls;
+      const hasOpenCall = shouldPollCallStatus(calls);
+      if (initiateButton) { initiateButton.disabled = hasOpenCall; initiateButton.title = hasOpenCall ? "تا تعیین وضعیت تماس جاری، تماس جدید قابل آغاز نیست." : ""; }
       list.replaceChildren(...(calls.length ? calls.map(renderCall) : [node("p", "empty-state", "هنوز تماسی برای این مرحله ثبت نشده است.")]));
-    } catch (error) { list.replaceChildren(node("p", "error-state__message", error.message ?? "دریافت تماس‌ها انجام نشد.")); }
+      schedulePolling(calls);
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      stopPolling(); list.replaceChildren(node("p", "error-state__message", callErrorMessage(error)));
+    }
   };
 
   if (canInitiate) {
-    const initiate = node("button", "button button--primary", "آغاز تماس"); initiate.type = "button";
-    initiate.addEventListener("click", () => openInitiate(initiate)); actions.append(initiate);
+    initiateButton = node("button", "button button--primary", "آغاز تماس"); initiateButton.type = "button";
+    initiateButton.addEventListener("click", () => openInitiate(initiateButton)); actions.append(initiateButton);
   }
   if (canRead) {
     const refresh = node("button", "button button--ghost", "به‌روزرسانی وضعیت تماس‌ها");

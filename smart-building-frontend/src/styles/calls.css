@@ -8,6 +8,8 @@
 .calls-card__details dt { color: var(--color-text-secondary); }
 .calls-card__details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
 .calls-modal-form { display: grid; gap: var(--space-4); }
+.calls-confirmation { display: grid; gap: var(--space-2); padding: var(--space-3); border: .0625rem solid var(--color-border); border-radius: var(--radius-md); background: var(--color-background); }
+.calls-confirmation p { margin: 0; }
 .calls-consent { display: flex; align-items: flex-start; gap: var(--space-2); }
 @media (max-width: 40rem) {
   .calls-panel__heading, .calls-card__header { align-items: stretch; flex-direction: column; }

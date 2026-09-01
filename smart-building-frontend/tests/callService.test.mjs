@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CALL_OUTCOMES, mapCall } from "../src/services/callService.js";
+import { callErrorMessage, CALL_OUTCOMES, mapCall, shouldPollCallStatus } from "../src/services/callService.js";
 import { stageEighteenSubmissionErrorMessage } from "../src/pages/StageEighteenPage.js";
 
 test("maps the backend call contract without exposing a full destination", () => {
@@ -33,4 +33,18 @@ test("explains the backend Stage 18 call requirement without changing its gate",
   assert.match(message, /تماس پاسخ‌داده‌شده یا تکمیل‌شده/);
   assert.match(message, /Override/);
   assert.equal(stageEighteenSubmissionErrorMessage({ message: "خطای دیگر" }), "خطای دیگر");
+});
+
+test("polls only backend call states that may still change", () => {
+  assert.equal(shouldPollCallStatus([{ technicalStatus: "initiating" }]), true);
+  assert.equal(shouldPollCallStatus([{ technicalStatus: "answered" }]), true);
+  assert.equal(shouldPollCallStatus([{ technicalStatus: "completed" }]), false);
+  assert.equal(shouldPollCallStatus([{ technicalStatus: "failed" }]), false);
+  assert.equal(shouldPollCallStatus([{ technicalStatus: "unknown-provider-state" }]), false);
+});
+
+test("maps only official backend call errors and keeps a trace id", () => {
+  assert.equal(callErrorMessage({ code: "CALL_PHONE_INVALID" }), "شماره تماس مالک پرونده معتبر نیست.");
+  assert.match(callErrorMessage({ code: "CALL_PROVIDER_UNAVAILABLE", traceId: "trace-12" }), /trace-12/);
+  assert.equal(callErrorMessage({ code: "UNKNOWN", message: "خطای کنترل‌شده" }), "خطای کنترل‌شده");
 });
