@@ -5,7 +5,12 @@ const REFRESH_EXPIRES_AT_KEY = "bambo_refresh_expires_at";
 const USER_KEY = "bambo_user_summary";
 const REFRESH_LEEWAY_MS = 60_000;
 
-const storage = () => globalThis.window?.sessionStorage ?? null;
+// localStorage, not sessionStorage: sessionStorage is dropped when the tab
+// closes, so every browser restart signed the user out even though the refresh
+// token was still valid for thirty days. It is also per-tab, so a second tab
+// started from scratch. localStorage keeps the session until the user signs out
+// or the refresh token stops being accepted.
+const storage = () => globalThis.window?.localStorage ?? null;
 
 const expiresAt = (seconds) => {
   const ttl = Number(seconds);

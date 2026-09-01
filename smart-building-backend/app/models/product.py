@@ -137,8 +137,10 @@ class DwgVersion(Base):
     dwg_file_id = Column(Integer, ForeignKey("dwg_files.id"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     original_filename = Column(String(255), nullable=False)
-    standardized_filename = Column(String(255), nullable=False, unique=True)
-    storage_key = Column(String(500), nullable=False, unique=True)
+    # Not globally unique: a shared upload gives several floors one stored
+    # file. Per-floor uniqueness lives in __table_args__ below.
+    standardized_filename = Column(String(255), nullable=False, index=True)
+    storage_key = Column(String(500), nullable=False, index=True)
     mime_type = Column(String(120), nullable=False)
     size_bytes = Column(Integer, nullable=False)
     sha256 = Column(String(64), nullable=False, index=True)

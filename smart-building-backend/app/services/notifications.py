@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 from datetime import timedelta
 from uuid import uuid4
 
-from sqlalchemy import func
+from sqlalchemy import event, func
 from sqlalchemy.orm import Session
 
 from app.config import get_app_env, get_bool_setting
+from app.database import get_session
 from app.exceptions import SecurityError
 from app.models import Notification, NotificationDelivery, User, UserPreference
-from app.providers.sms import get_sms_provider
+from app.providers.sms import SmsSendResult, get_sms_provider
 from app.schemas.security import normalize_mobile
 from app.schemas.notifications import (
     DEFAULT_CRITICAL_SMS_ENABLED,
@@ -200,6 +202,87 @@ def create_notification(
     return notification
 
 
+_PENDING_SMS_KEY = "bambo_pending_sms"
+
+
+def _queue_sms_dispatch(db: Session, **job) -> None:
+    """Hold a send until the caller's transaction actually commits."""
+    db.info.setdefault(_PENDING_SMS_KEY, []).append(job)
+
+
+def _record_sms_result(delivery_id: int, result) -> None:
+    """Write the provider's answer in its own short transaction.
+
+    The business transaction is already committed by the time this runs, so a
+    failure here must not raise into the caller — it only leaves the delivery
+    row describing what happened.
+    """
+    now = utc_now()
+    with get_session() as recorder:
+        delivery = recorder.get(NotificationDelivery, delivery_id)
+        if delivery is None:
+            return
+        delivery.status = "DELIVERED" if result.accepted else "FAILED"
+        delivery.provider = result.provider
+        delivery.provider_message_id = result.provider_message_id
+        delivery.attempt_count = 1
+        delivery.next_retry_at = now + timedelta(minutes=5) if result.retryable else None
+        delivery.sent_at = now if result.accepted else None
+        delivery.delivered_at = now if result.accepted else None
+        delivery.failed_at = None if result.accepted else now
+        delivery.failure_code = result.failure_code
+        delivery.failure_reason = result.failure_reason
+
+        notification = recorder.get(Notification, delivery.notification_id)
+        if notification is not None:
+            notification.status = "delivered" if result.accepted else "failed"
+            notification.provider_status = result.provider_status
+            notification.attempts = 1
+            notification.last_error = result.failure_reason
+            notification.sent_at = delivery.sent_at
+        recorder.commit()
+
+
+@event.listens_for(Session, "after_commit")
+def _dispatch_pending_sms(session: Session) -> None:
+    jobs = session.info.pop(_PENDING_SMS_KEY, None)
+    if not jobs:
+        return
+    provider = get_sms_provider()
+    for job in jobs:
+        delivery_id = job["delivery_id"]
+        try:
+            result = provider.send_notification(
+                mobile=job["mobile"],
+                template_code=job["template_code"],
+                body=job["body"],
+            )
+        except Exception:  # noqa: BLE001 - the business data is already committed
+            logging.getLogger("bambo.notifications").exception(
+                "sms_dispatch_failed", extra={"delivery_id": delivery_id}
+            )
+            result = SmsSendResult(
+                accepted=False,
+                provider="bambo",
+                provider_status="dispatch_error",
+                failure_code="SMS_DISPATCH_ERROR",
+                failure_reason="SMS dispatch raised before reaching the provider",
+                retryable=True,
+            )
+        try:
+            _record_sms_result(delivery_id, result)
+        except Exception:  # noqa: BLE001 - never break a committed business action
+            logging.getLogger("bambo.notifications").exception(
+                "sms_result_not_recorded", extra={"delivery_id": delivery_id}
+            )
+
+
+@event.listens_for(Session, "after_rollback")
+def _drop_pending_sms(session: Session) -> None:
+    """A rolled-back notification must not text anyone."""
+    session.info.pop(_PENDING_SMS_KEY, None)
+
+
 def _create_sms_delivery(
     db: Session,
     *,
@@ -246,14 +329,10 @@ def _create_sms_delivery(
             failure_code = "SMS_RECIPIENT_INVALID"
             failure_reason = "Recipient mobile is invalid"
         if normalized_mobile:
-            result = get_sms_provider().send_notification(
-                mobile=normalized_mobile,
-                template_code=template_code,
-                body=body,
-            )
-            status = "DELIVERED" if result.accepted else "FAILED"
-            failure_code = result.failure_code
-            failure_reason = result.failure_reason
+            # Hand the send to the post-commit dispatcher. Calling the provider
+            # here would text someone about a notification the caller may still
+            # roll back.
+            status = "PENDING"
 
     provider = result.provider if result else "bambo"
     provider_status = result.provider_status if result else status.lower()
@@ -275,7 +354,22 @@ def _create_sms_delivery(
     )
     db.add(delivery)
 
-    notification.status = "delivered" if status in {"DELIVERED", "SKIPPED"} else "failed"
+    if status == "PENDING":
+        # The row needs an id before the commit so the dispatcher can find it.
+        db.flush()
+        _queue_sms_dispatch(
+            db,
+            delivery_id=delivery.id,
+            mobile=normalized_mobile,
+            template_code=template_code,
+            body=body,
+        )
+
+    notification.status = (
+        "pending" if status == "PENDING"
+        else "delivered" if status in {"DELIVERED", "SKIPPED"}
+        else "failed"
+    )
     notification.provider_status = provider_status
     notification.attempts = delivery.attempt_count
     notification.last_error = failure_reason
