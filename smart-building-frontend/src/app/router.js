@@ -44,22 +44,26 @@ import {
   installStageNavigationGuard,
 } from "./navigationGuard.js";
 import { sessionStore } from "./sessionStore.js";
-import { canAccessRoute, requiredPermissionForRoute } from "./routePermissions.js";
+import { accessDeniedReason, canAccessRoute } from "./routePermissions.js";
 import { installStageActionLayout } from "./stageActionLayout.js";
 import { matchStageRoute, normalizeRoutePath } from "./routeMatcher.js";
 
-const accessDeniedPage = (route) => {
+const accessDeniedPage = (route, permissions = [], roles = []) => {
+  const reason = accessDeniedReason(route, permissions, roles);
   const page = document.createElement("main");
   const heading = document.createElement("h1");
   const message = document.createElement("p");
-  const back = document.createElement("a");
   page.className = "page error-state";
-  heading.textContent = "دسترسی به این صفحه امکان‌پذیر نیست";
-  message.textContent = `مجوز لازم برای این مسیر (${requiredPermissionForRoute(route) ?? "نامشخص"}) در حساب شما وجود ندارد.`;
-  back.className = "button button--primary";
-  back.href = ROUTES.dashboard;
-  back.textContent = "بازگشت به نمای کلی";
-  page.append(heading, message, back);
+  heading.textContent = reason.title;
+  message.textContent = reason.message;
+  page.append(heading, message);
+  if (reason.returnRoute) {
+    const back = document.createElement("a");
+    back.className = "button button--primary";
+    back.href = reason.returnRoute;
+    back.textContent = "بازگشت به نمای کلی";
+    page.append(back);
+  }
   return page;
 };
 
@@ -101,7 +105,7 @@ const resolveRoute = (currentRoute) => {
   const permissions = user?.permissions ?? [];
   const roles = user?.roles ?? [];
   if (!canAccessRoute(currentRoute, permissions, roles)) {
-    return { page: accessDeniedPage(currentRoute), navigationRoute: "" };
+    return { page: accessDeniedPage(currentRoute, permissions, roles), navigationRoute: "" };
   }
   const routePath = normalizeRoutePath(currentRoute);
   const exactPageFactory = ROUTE_FACTORIES[routePath];
