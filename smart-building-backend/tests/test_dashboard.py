@@ -43,6 +43,29 @@ def test_dashboard_summary_and_pilot_list(client, super_admin_headers):
     assert listing.json()["items"][0]["progress_percent"] == 0
 
 
+def test_server_paginated_users_and_pilots(client, super_admin_headers):
+    first = client.post("/pilots", json=sample_pilot_payload(), headers=super_admin_headers)
+    assert first.status_code == 201
+
+    created_pilot = first.json()
+    pilot_page = client.get(
+        f"/api/v1/pilots?page=1&page_size=20&q={created_pilot['code']}&status={created_pilot['status']}",
+        headers=super_admin_headers,
+    )
+    assert pilot_page.status_code == 200, pilot_page.text
+    assert pilot_page.json()["total"] == 1
+    assert pilot_page.json()["items"][0]["id"] == created_pilot["id"]
+
+    expert = _create_capture_expert(client, super_admin_headers, "09156667777")
+    user_page = client.get(
+        "/api/v1/users?page=1&page_size=20&q=09156667777&status=active",
+        headers=super_admin_headers,
+    )
+    assert user_page.status_code == 200, user_page.text
+    assert user_page.json()["total"] == 1
+    assert user_page.json()["items"][0]["id"] == expert["id"]
+
+
 def test_dashboard_sections_and_actions(client, super_admin_headers):
     created = client.post("/pilots", json=sample_pilot_payload(), headers=super_admin_headers)
     assert created.status_code == 201

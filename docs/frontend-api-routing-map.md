@@ -39,9 +39,9 @@ http://127.0.0.1:8000 + /api/v1/reports/overview
 |---|---|---|---|---|
 | `authService` | `/auth` | Legacy | `app/routers/security.py`؛ `auth_router` | OTP، اطلاعات کاربر جاری و Logout. Refresh نیز در `httpClient` با `/auth/refresh` انجام می‌شود. |
 | `preferenceService` | `/auth/preferences` | Legacy | `app/routers/security.py`؛ `auth_router` | تنظیمات کاربر جاری. |
-| `userService` | `/users` | Legacy | `app/routers/security.py`؛ `users_router` | فهرست، ایجاد، نام، وضعیت و نقش‌های کاربر. |
+| `userService` | `/users` و `/api/v1/users` | Legacy + Versioned v1 | `app/routers/security.py`؛ `users_router` و `users_v1_router` | عملیات ویرایش Legacy باقی مانده؛ فهرست مدیریت کاربران از endpoint صفحه‌بندی‌شده v1 استفاده می‌کند. |
 | `roleService` | `/roles` | Legacy | `app/routers/security.py`؛ `roles_router` | نقش‌ها، Permissionها، Clone و Access Preview. |
-| `pilotService` | `/pilots` | Legacy | `app/routers/pilots.py` | فهرست، جزئیات و ایجاد پرونده پایلوت. |
+| `pilotService` | `/pilots` و `/api/v1/pilots` | Legacy + Versioned v1 | `app/routers/pilots.py`؛ `router` و `versioned_router` | جزئیات و ایجاد Legacy باقی مانده؛ صفحه پرونده‌ها از فهرست صفحه‌بندی‌شده و Scope-aware نسخه v1 استفاده می‌کند. |
 | `stageService` | `/pilots/{pilotId}/forms` و `/pilots/{pilotId}/stages` | Legacy | `app/routers/product.py` و `app/routers/pilots.py` | F01/F02 و عملیات Submit/Approve/Reject/Snapshot مراحل. |
 | `dwgService` | `/pilots/{pilotId}/floors`، `/floors` و `/dwg/versions` | Legacy | `app/routers/product.py` | طبقات، DWG، تأیید مرجع و دانلود نسخه. |
 | `missionService` | `/missions` و `/pilots/{pilotId}/missions` | Legacy | `app/routers/operations.py` | مأموریت، کارشناس برداشت، F03 و وضعیت طبقات مأموریت. |

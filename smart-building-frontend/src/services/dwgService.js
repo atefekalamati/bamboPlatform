@@ -10,13 +10,15 @@ const mapFloor = (floor) => ({
   hasDwg: floor.has_dwg,
   hasValidDwg: floor.has_valid_dwg,
   latestDwgVersion: floor.latest_dwg_version,
+  dwgVersions: (floor.dwg_versions ?? []).map(mapVersion),
   dwgReferenceConfirmed: floor.dwg_reference_confirmed,
   dwgReferenceConfirmedAt: floor.dwg_reference_confirmed_at,
   dwgReferenceConfirmedByUserId:
     floor.dwg_reference_confirmed_by_user_id,
 });
 
-const mapVersion = (version) => ({
+function mapVersion(version) {
+  return {
   id: version.id,
   version: version.version,
   originalFilename: version.original_filename,
@@ -28,7 +30,8 @@ const mapVersion = (version) => ({
   isReadable: version.is_readable,
   uploadedByUserId: version.uploaded_by_user_id,
   uploadedAt: version.uploaded_at,
-});
+  };
+}
 
 export const dwgService = Object.freeze({
   getFloors: async (pilotId) =>

@@ -24,16 +24,6 @@ const element = (tag, className, text = "") => {
   return node;
 };
 
-const matches = (pilot, query, status) => {
-  const normalized = normalizeDigits(query).trim().toLocaleLowerCase("fa-IR");
-  const queryMatches =
-    !normalized ||
-    [pilot.code, pilot.displayName, pilot.projectSystemName].some((value) =>
-      value.toLocaleLowerCase("fa-IR").includes(normalized),
-    );
-  return queryMatches && (!status || pilot.status === status);
-};
-
 export const PilotsPage = () => {
   const page = element("div", "page");
   const heading = element("header", "page-heading");
@@ -51,6 +41,9 @@ export const PilotsPage = () => {
     ?.permissions.includes("pilots.create");
   let pilots = [];
   let currentPage = 1;
+  let totalPilots = 0;
+  let totalPages = 1;
+  let loadVersion = 0;
 
   heading.append(
     element("p", "page-heading__eyebrow", "مدیریت فرایند"),
@@ -89,13 +82,7 @@ export const PilotsPage = () => {
   };
 
   const render = () => {
-    const filtered = pilots.filter((pilot) =>
-      matches(pilot, search.value, status.value),
-    );
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    currentPage = Math.min(currentPage, totalPages);
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const visible = filtered.slice(start, start + PAGE_SIZE);
+    const visible = pilots;
     if (!visible.length) {
       region.replaceChildren(
         EmptyState({
@@ -108,7 +95,7 @@ export const PilotsPage = () => {
                 search.value = "";
                 status.value = "";
                 currentPage = 1;
-                render();
+                load();
                 search.focus();
               },
             },
@@ -121,7 +108,7 @@ export const PilotsPage = () => {
     const list = element("ul", "pilot-list");
     visible.forEach((pilot) => list.append(PilotCard({ pilot })));
     region.replaceChildren(
-      element("p", "results-count", `${filtered.length} پرونده`),
+      element("p", "results-count", `${totalPilots} پرونده`),
       list,
     );
     if (totalPages > 1) {
@@ -131,7 +118,7 @@ export const PilotsPage = () => {
           totalPages,
           onPageChange: (pageNumber) => {
             currentPage = pageNumber;
-            render();
+            load();
           },
         }),
       );
@@ -139,13 +126,25 @@ export const PilotsPage = () => {
   };
 
   const load = async () => {
+    const version = ++loadVersion;
     region.replaceChildren(
       element("p", "loading-state", "در حال دریافت پرونده‌ها..."),
     );
     try {
-      pilots = await pilotService.getPilots();
+      const result = await pilotService.getPilotsPage({
+        page: currentPage,
+        page_size: PAGE_SIZE,
+        q: normalizeDigits(search.value).trim(),
+        status: status.value,
+      });
+      if (version !== loadVersion) return;
+      pilots = result.items;
+      totalPilots = result.total;
+      totalPages = result.total_pages;
+      currentPage = result.page;
       render();
     } catch (error) {
+      if (version !== loadVersion) return;
       renderError(error.message ?? "دریافت پرونده‌ها انجام نشد.", load);
     }
   };
@@ -169,7 +168,7 @@ export const PilotsPage = () => {
 
   const refresh = debounce(() => {
     currentPage = 1;
-    render();
+    load();
   }, 300);
   search.addEventListener("input", refresh);
   status.addEventListener("change", refresh);

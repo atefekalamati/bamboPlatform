@@ -50,6 +50,14 @@ class PilotRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PilotPage(BaseModel):
+    items: list[PilotRead]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
 class PilotDetail(PilotRead):
     project: ProjectRead
     stages: list[StageRead]

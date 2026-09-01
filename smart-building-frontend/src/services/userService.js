@@ -1,4 +1,13 @@
 import { request } from "./httpClient.js";
+import { API_BASE_PATHS } from "../config/apiRoutes.js";
+
+const queryString = (params = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
+  });
+  return query.toString();
+};
 
 const mapRole = (role) => ({
   id: role.id,
@@ -19,6 +28,10 @@ const mapUser = (user) => ({
 
 export const userService = Object.freeze({
   getUsers: async () => (await request("/users")).map(mapUser),
+  getUsersPage: async (params, options) => {
+    const result = await request(`${API_BASE_PATHS.users}?${queryString(params)}`, options);
+    return { ...result, items: result.items.map(mapUser) };
+  },
   createUser: async ({ mobile, displayName, roleIds, isActive }) =>
     mapUser(
       await request("/users", {

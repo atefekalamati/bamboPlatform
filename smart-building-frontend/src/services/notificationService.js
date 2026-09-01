@@ -14,7 +14,7 @@ const queryString = (params = {}) => {
 /** @typedef {{id:string,type:string,category:NotificationCategory,priority:NotificationPriority,title:string,body:string,short_body:string|null,entity_type:string|null,entity_id:string|null,pilot_id:number|null,action_url:string|null,payload:Record<string, unknown>,is_read:boolean,created_at:string}} NotificationItem */
 
 export const notificationService = Object.freeze({
-  getNotifications: (params) => request(`/notifications${queryString(params)}`),
+  getNotifications: (params, options) => request(`/notifications${queryString(params)}`, options),
   getUnreadCount: () => request("/notifications/unread-count"),
   getNotification: (id) => request(`/notifications/${encodeURIComponent(id)}`),
   markAsRead: (id) => request(`/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" }),

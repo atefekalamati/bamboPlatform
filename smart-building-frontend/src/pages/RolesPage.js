@@ -8,7 +8,7 @@ const GROUP_LABELS = Object.freeze({
   Projects: "پروژه و طبقات", Stages: "مراحل ۱۹گانه", "Stage 1": "مرحله اول",
   Gates: "گیت‌های تأیید", "Gate Approval": "تأیید مرحله و گیت", Forms: "فرم‌های رسمی",
   DWG: "نقشه‌های DWG", Missions: "مأموریت‌ها", Checklists: "چک‌لیست‌ها",
-  Incidents: "رخدادها", "Customer Success": "موفقیت مشتری", Commercial: "فروش و امور تجاری",
+  Incidents: "رخدادها", "Customer Success": "پشتیبانی", Commercial: "فروش و امور تجاری",
   Reports: "گزارش‌ها", Notifications: "اعلان‌ها", Audit: "تاریخچه تغییرات",
   System: "تنظیمات سامانه", Preferences: "تنظیمات شخصی", "External Platform": "پلتفرم اصلی",
 });
@@ -20,7 +20,7 @@ const ACTION_LABELS = Object.freeze({
   clone: "ساخت نسخه مشابه", start: "شروع", review: "بازبینی", escalate: "ارجاع فوری",
 });
 const SCOPE_LABELS = Object.freeze({ ALL: "همه اطلاعات", ASSIGNED: "فقط موارد تخصیص‌یافته", CREATED_BY_ME: "ایجادشده توسط کاربر", ROLE_RELATED: "مرتبط با مسئولیت نقش", PILOT_MEMBER: "پایلوت‌های تحت مسئولیت", READ_ONLY: "فقط مشاهده" });
-const MENU_LABELS = Object.freeze({ pilots: "پایلوت‌ها", projects: "پروژه‌ها", stages: "مراحل", gates: "گیت‌ها", forms: "فرم‌ها", reports: "گزارش‌ها", incidents: "رخدادها", users: "کاربران", roles: "نقش‌ها", access: "دسترسی‌ها", missions: "مأموریت‌ها", checklists: "چک‌لیست‌ها", commercial: "فروش", notifications: "اعلان‌ها", training: "آموزش", feedback: "بازخورد", "customer-success": "موفقیت مشتری", "external-platform": "پلتفرم اصلی", "*": "تمام بخش‌های سامانه" });
+const MENU_LABELS = Object.freeze({ pilots: "پایلوت‌ها", projects: "پروژه‌ها", stages: "مراحل", gates: "گیت‌ها", forms: "فرم‌ها", reports: "گزارش‌ها", incidents: "رخدادها", users: "کاربران", roles: "نقش‌ها", access: "دسترسی‌ها", missions: "مأموریت‌ها", checklists: "چک‌لیست‌ها", commercial: "فروش", notifications: "اعلان‌ها", training: "آموزش", feedback: "بازخورد", "customer-success": "پشتیبانی", "external-platform": "پلتفرم اصلی", "*": "تمام بخش‌های سامانه" });
 
 const node = (tag, className = "", text = "") => { const element = document.createElement(tag); element.className = className; element.textContent = text; return element; };
 const permissionTitle = (permission) => {
@@ -210,6 +210,6 @@ export const RolesPage = () => {
     actions.append(save, reset, edit, clone, toggleStatus, remove);
     workspace.append(workspaceHeader, notice, tools, feedback, matrixHost, previewHost, actions); refreshMatrix(); content.replaceChildren(selectorPanel, workspace);
   };
-  const load = async () => { content.replaceChildren(node("p", "loading-state", "در حال دریافت نقش‌ها و مسئولیت‌ها…")); try { [roles, permissions] = await Promise.all([roleService.getRoles(), roleService.getPermissions()]); activeRoleId = roles[0]?.id ?? null; render(); } catch (error) { const retry = node("button", "button button--primary", "تلاش مجدد"); retry.type = "button"; retry.addEventListener("click", load); content.replaceChildren(node("p", "error-state__message", error.message ?? "دریافت نقش‌ها انجام نشد."), retry); } };
+  const load = async () => { content.replaceChildren(node("p", "loading-state", "در حال دریافت نقش‌ها و مسئولیت‌ها…")); try { const [fetchedRoles, fetchedPermissions] = await Promise.all([roleService.getRoles(), roleService.getPermissions()]); roles = fetchedRoles.filter(({ isActive }) => isActive); permissions = fetchedPermissions; activeRoleId = roles[0]?.id ?? null; render(); } catch (error) { const retry = node("button", "button button--primary", "تلاش مجدد"); retry.type = "button"; retry.addEventListener("click", load); content.replaceChildren(node("p", "error-state__message", error.message ?? "دریافت نقش‌ها انجام نشد."), retry); } };
   load(); return page;
 };

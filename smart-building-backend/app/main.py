@@ -26,7 +26,7 @@ from app.config import (
 )
 from app.database import ensure_schema, get_session
 from app.exceptions import SecurityError, WorkflowError
-from app.routers.pilots import router as pilots_router
+from app.routers.pilots import router as pilots_router, versioned_router as pilots_v1_router
 from app.routers.product import router as product_router
 from app.routers.operations import router as operations_router
 from app.routers.experience import router as experience_router
@@ -34,7 +34,7 @@ from app.routers.evaluation import router as evaluation_router
 from app.routers.forms import router as forms_router
 from app.routers.notifications import router as notifications_router
 from app.routers.commercial import router as commercial_router
-from app.routers.security import audit_router, auth_router, roles_router, users_router
+from app.routers.security import audit_router, auth_router, roles_router, users_router, users_v1_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.reports import router as reports_router
 from app.services.security import seed_security_data
@@ -74,9 +74,11 @@ app.add_middleware(
 )
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(users_v1_router)
 app.include_router(roles_router)
 app.include_router(audit_router)
 app.include_router(pilots_router)
+app.include_router(pilots_v1_router)
 app.include_router(product_router)
 app.include_router(operations_router)
 app.include_router(experience_router)

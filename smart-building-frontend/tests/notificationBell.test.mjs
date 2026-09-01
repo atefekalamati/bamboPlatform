@@ -22,5 +22,9 @@ test("notification center releases its subscription and document listener", asyn
   assert.match(source, /root\.cleanup\s*=\s*\(\)\s*=>/);
   assert.match(source, /unsubscribe\(\)/);
   assert.match(source, /document\.removeEventListener\("click",\s*handleDocumentClick\)/);
-  assert.match(store, /if \(pollTimer\) return;/);
+  assert.match(store, /if \(isRunning\) return;/);
+  assert.match(store, /syncController\?\.abort\(\)/);
+  assert.match(store, /unreadCount: list\.unread_count/);
+  assert.doesNotMatch(store, /notificationService\.getUnreadCount\(\)/);
+  assert.match(store, /document\.hidden/);
 });

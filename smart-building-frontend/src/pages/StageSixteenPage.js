@@ -71,7 +71,7 @@ export const StageSixteenPage = ({ pilotId }) => {
         element("span", "page-heading__eyebrow", `${pilot.code} — Stage 16 از ۱۹`),
         element("h1", "page-heading__title", "جلسه جمع‌بندی با مالک"),
         element("p", "draft-info", "هدف: تبدیل تجربه پایلوت به ارزش قابل بیان و نیاز قابل پیشنهاد."),
-        element("p", "draft-info", "مسئول: موفقیت مشتری/فروش | زمان: پس از چند خروجی | مدت پیشنهادی: ۲۰ تا ۳۰ دقیقه"),
+        element("p", "draft-info", "مسئول: پشتیبانی/فروش | زمان: پس از چند خروجی | مدت پیشنهادی: ۲۰ تا ۳۰ دقیقه"),
         element("p", "draft-info", "شرط عبور: ارزش دریافت‌شده، دامنه نیاز، تصمیم‌گیرنده و مانع خرید روشن باشد."),
       );
       header.append(identity, element("span", "status-badge stage-workspace__status", STATUS_LABELS[stage.status] ?? stage.status));

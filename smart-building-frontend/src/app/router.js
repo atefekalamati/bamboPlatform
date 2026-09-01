@@ -1,42 +1,5 @@
 import { ROUTES } from "../constants/routes.js";
 import { AppShell } from "../layouts/AppShell.js";
-import { DashboardPage } from "../pages/DashboardPage.js";
-import { PilotDetailsPage } from "../pages/PilotDetailsPage.js";
-import { PilotsPage } from "../pages/PilotsPage.js";
-import { RolesPage } from "../pages/RolesPage.js";
-import { StageOnePage } from "../pages/StageOnePage.js";
-import { StageTwoPage } from "../pages/StageTwoPage.js";
-import { StageThreePage } from "../pages/StageThreePage.js";
-import { StageFourPage } from "../pages/StageFourPage.js";
-import { StageFivePage } from "../pages/StageFivePage.js";
-import { StageSixPage } from "../pages/StageSixPage.js";
-import { StageSevenPage } from "../pages/StageSevenPage.js";
-import { StageEightPage } from "../pages/StageEightPage.js";
-import { StageNinePage } from "../pages/StageNinePage.js";
-import { StageTenPage } from "../pages/StageTenPage.js";
-import { StageElevenPage } from "../pages/StageElevenPage.js";
-import { StageTwelvePage } from "../pages/StageTwelvePage.js";
-import { StageThirteenPage } from "../pages/StageThirteenPage.js";
-import { StageFourteenPage } from "../pages/StageFourteenPage.js";
-import { StageFifteenPage } from "../pages/StageFifteenPage.js";
-import { StageSixteenPage } from "../pages/StageSixteenPage.js";
-import { StageSeventeenPage } from "../pages/StageSeventeenPage.js";
-import { StageEighteenPage } from "../pages/StageEighteenPage.js";
-import { StageNineteenPage } from "../pages/StageNineteenPage.js";
-import { UsersPage } from "../pages/UsersPage.js";
-import { NotificationsPage } from "../pages/NotificationsPage.js";
-import { NotificationPreferencesPage } from "../pages/NotificationPreferencesPage.js";
-import { IncidentsPage } from "../pages/IncidentsPage.js";
-import { IncidentCreatePage } from "../pages/IncidentCreatePage.js";
-import { IncidentDetailPage } from "../pages/IncidentDetailPage.js";
-import {
-  ReportsOverviewPage,
-  PilotProgressReportPage,
-  ActionsReportPage,
-  KpiReportPage,
-  IncidentReportPage,
-  PilotOnePageReportPage,
-} from "../pages/ReportsPage.js";
 import {
   canLeaveCurrentPage,
   clearNavigationGuard,
@@ -79,24 +42,51 @@ const notFoundPage = () => {
   return page;
 };
 
-const ROUTE_FACTORIES = Object.freeze({
-  [ROUTES.dashboard]: DashboardPage,
-  [ROUTES.pilots]: PilotsPage,
-  [ROUTES.users]: UsersPage,
-  [ROUTES.roles]: RolesPage,
-  [ROUTES.notifications]: NotificationsPage,
-  [ROUTES.notificationSettings]: NotificationPreferencesPage,
-  [ROUTES.incidents]: IncidentsPage,
-  [ROUTES.reports]: ReportsOverviewPage,
-  [ROUTES.reportPilots]: PilotProgressReportPage,
-  [ROUTES.reportActions]: ActionsReportPage,
-  [ROUTES.reportKpis]: KpiReportPage,
-  [ROUTES.reportIncidents]: IncidentReportPage,
+const pageLoader = (path, exportName) => async (props) => {
+  const module = await import(path);
+  return module[exportName](props);
+};
+
+const ROUTE_LOADERS = Object.freeze({
+  [ROUTES.dashboard]: pageLoader("../pages/DashboardPage.js", "DashboardPage"),
+  [ROUTES.pilots]: pageLoader("../pages/PilotsPage.js", "PilotsPage"),
+  [ROUTES.users]: pageLoader("../pages/UsersPage.js", "UsersPage"),
+  [ROUTES.roles]: pageLoader("../pages/RolesPage.js", "RolesPage"),
+  [ROUTES.notifications]: pageLoader("../pages/NotificationsPage.js", "NotificationsPage"),
+  [ROUTES.notificationSettings]: pageLoader("../pages/NotificationPreferencesPage.js", "NotificationPreferencesPage"),
+  [ROUTES.incidents]: pageLoader("../pages/IncidentsPage.js", "IncidentsPage"),
+  [ROUTES.reports]: pageLoader("../pages/ReportsPage.js", "ReportsOverviewPage"),
+  [ROUTES.reportPilots]: pageLoader("../pages/ReportsPage.js", "PilotProgressReportPage"),
+  [ROUTES.reportActions]: pageLoader("../pages/ReportsPage.js", "ActionsReportPage"),
+  [ROUTES.reportKpis]: pageLoader("../pages/ReportsPage.js", "KpiReportPage"),
+  [ROUTES.reportIncidents]: pageLoader("../pages/ReportsPage.js", "IncidentReportPage"),
 });
+
+const STAGE_LOADERS = Object.freeze([
+  pageLoader("../pages/StageOnePage.js", "StageOnePage"),
+  pageLoader("../pages/StageTwoPage.js", "StageTwoPage"),
+  pageLoader("../pages/StageThreePage.js", "StageThreePage"),
+  pageLoader("../pages/StageFourPage.js", "StageFourPage"),
+  pageLoader("../pages/StageFivePage.js", "StageFivePage"),
+  pageLoader("../pages/StageSixPage.js", "StageSixPage"),
+  pageLoader("../pages/StageSevenPage.js", "StageSevenPage"),
+  pageLoader("../pages/StageEightPage.js", "StageEightPage"),
+  pageLoader("../pages/StageNinePage.js", "StageNinePage"),
+  pageLoader("../pages/StageTenPage.js", "StageTenPage"),
+  pageLoader("../pages/StageElevenPage.js", "StageElevenPage"),
+  pageLoader("../pages/StageTwelvePage.js", "StageTwelvePage"),
+  pageLoader("../pages/StageThirteenPage.js", "StageThirteenPage"),
+  pageLoader("../pages/StageFourteenPage.js", "StageFourteenPage"),
+  pageLoader("../pages/StageFifteenPage.js", "StageFifteenPage"),
+  pageLoader("../pages/StageSixteenPage.js", "StageSixteenPage"),
+  pageLoader("../pages/StageSeventeenPage.js", "StageSeventeenPage"),
+  pageLoader("../pages/StageEighteenPage.js", "StageEighteenPage"),
+  pageLoader("../pages/StageNineteenPage.js", "StageNineteenPage"),
+]);
 
 const getCurrentRoute = () => window.location.hash || ROUTES.dashboard;
 
-const resolveRoute = (currentRoute) => {
+const resolveRoute = async (currentRoute) => {
   const user = sessionStore.getCurrentUser();
   const permissions = user?.permissions ?? [];
   const roles = user?.roles ?? [];
@@ -104,18 +94,21 @@ const resolveRoute = (currentRoute) => {
     return { page: accessDeniedPage(currentRoute), navigationRoute: "" };
   }
   const routePath = normalizeRoutePath(currentRoute);
-  const exactPageFactory = ROUTE_FACTORIES[routePath];
+  const exactPageLoader = ROUTE_LOADERS[routePath];
 
-  if (exactPageFactory) {
+  if (exactPageLoader) {
     return {
-      page: exactPageFactory(),
+      page: await exactPageLoader(),
       navigationRoute: routePath.startsWith("#/reports") ? ROUTES.reports : routePath,
     };
   }
 
   const reportPilotMatch = routePath.match(/^#\/reports\/pilots\/([^/?#]+)$/);
   if (reportPilotMatch) {
-    return { page: PilotOnePageReportPage({ pilotId: reportPilotMatch[1] }), navigationRoute: ROUTES.reports };
+    return {
+      page: await pageLoader("../pages/ReportsPage.js", "PilotOnePageReportPage")({ pilotId: reportPilotMatch[1] }),
+      navigationRoute: ROUTES.reports,
+    };
   }
 
   const pilotDetailsMatch = routePath.match(/^#\/pilots\/([^/]+)$/);
@@ -126,42 +119,35 @@ const resolveRoute = (currentRoute) => {
 
   if (incidentCreateMatch) {
     return {
-      page: IncidentCreatePage({ pilotId: incidentCreateMatch[1] }),
+      page: await pageLoader("../pages/IncidentCreatePage.js", "IncidentCreatePage")({ pilotId: incidentCreateMatch[1] }),
       navigationRoute: ROUTES.incidents,
     };
   }
 
   if (incidentDetailMatch) {
     return {
-      page: IncidentDetailPage({ incidentId: incidentDetailMatch[1] }),
+      page: await pageLoader("../pages/IncidentDetailPage.js", "IncidentDetailPage")({ incidentId: incidentDetailMatch[1] }),
       navigationRoute: ROUTES.incidents,
     };
   }
 
   if (notificationDetailsMatch) {
     return {
-      page: NotificationsPage({ notificationId: decodeURIComponent(notificationDetailsMatch[1]) }),
+      page: await pageLoader("../pages/NotificationsPage.js", "NotificationsPage")({ notificationId: decodeURIComponent(notificationDetailsMatch[1]) }),
       navigationRoute: ROUTES.notifications,
     };
   }
 
   if (stageMatch) {
-    const stagePages = [
-      StageOnePage, StageTwoPage, StageThreePage, StageFourPage, StageFivePage,
-      StageSixPage, StageSevenPage, StageEightPage, StageNinePage, StageTenPage,
-      StageElevenPage, StageTwelvePage, StageThirteenPage, StageFourteenPage,
-      StageFifteenPage, StageSixteenPage, StageSeventeenPage, StageEighteenPage,
-      StageNineteenPage,
-    ];
     return {
-      page: stagePages[stageMatch.stageNumber - 1]({ pilotId: stageMatch.pilotId }),
+      page: await STAGE_LOADERS[stageMatch.stageNumber - 1]({ pilotId: stageMatch.pilotId }),
       navigationRoute: ROUTES.pilots,
     };
   }
 
   if (pilotDetailsMatch) {
     return {
-      page: PilotDetailsPage({ pilotId: pilotDetailsMatch[1] }),
+      page: await pageLoader("../pages/PilotDetailsPage.js", "PilotDetailsPage")({ pilotId: pilotDetailsMatch[1] }),
       navigationRoute: ROUTES.pilots,
     };
   }
@@ -175,13 +161,20 @@ const resolveRoute = (currentRoute) => {
 let cleanupStageNavigationGuard = () => {};
 let cleanupStageActionLayout = () => {};
 let cleanupAppShell = () => {};
+let renderVersion = 0;
 
-const renderRoute = (appRoot) => {
+const renderRoute = async (appRoot) => {
+  const version = ++renderVersion;
   cleanupStageNavigationGuard();
   cleanupStageActionLayout();
   cleanupAppShell();
   const currentRoute = getCurrentRoute();
-  const resolvedRoute = resolveRoute(currentRoute);
+  const loading = document.createElement("main");
+  loading.className = "page loading-state";
+  loading.textContent = "در حال بارگذاری صفحه…";
+  appRoot.replaceChildren(loading);
+  const resolvedRoute = await resolveRoute(currentRoute);
+  if (version !== renderVersion) return;
   cleanupStageNavigationGuard = installStageNavigationGuard(
     resolvedRoute.page,
     currentRoute,
@@ -203,7 +196,7 @@ export const startRouter = (appRoot) => {
   let renderedRoute = getCurrentRoute();
   let isRestoringRoute = false;
 
-  renderRoute(appRoot);
+  renderRoute(appRoot).catch(() => window.dispatchEvent(new Event("error")));
   const handleHashChange = async () => {
     if (isRestoringRoute) {
       isRestoringRoute = false;
@@ -219,7 +212,7 @@ export const startRouter = (appRoot) => {
 
     clearNavigationGuard();
     renderedRoute = nextRoute;
-    renderRoute(appRoot);
+    await renderRoute(appRoot);
   };
   const handleBeforeUnload = (event) => {
     if (!hasNavigationGuard()) return;
@@ -230,6 +223,7 @@ export const startRouter = (appRoot) => {
   window.addEventListener("hashchange", handleHashChange);
   window.addEventListener("beforeunload", handleBeforeUnload);
   return () => {
+    renderVersion += 1;
     window.removeEventListener("hashchange", handleHashChange);
     window.removeEventListener("beforeunload", handleBeforeUnload);
     cleanupStageNavigationGuard();

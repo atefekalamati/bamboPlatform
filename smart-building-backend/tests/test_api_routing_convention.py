@@ -38,7 +38,9 @@ INFRASTRUCTURE_PATHS = frozenset({"/health", "/health/live", "/health/ready", "/
 # Endpoint counts at the time the convention was frozen. The totals move only
 # when someone edits this file, which keeps legacy growth visible in review.
 LEGACY_ENDPOINT_COUNT = 81
-VERSIONED_ENDPOINT_COUNT = 14
+# Two server-paginated list endpoints were deliberately added for Users and
+# Pilots so their management pages no longer load every accessible row.
+VERSIONED_ENDPOINT_COUNT = 16
 
 
 def api_paths() -> list[str]:

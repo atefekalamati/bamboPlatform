@@ -63,6 +63,14 @@ class UserRead(BaseModel):
     permissions: list[str]
 
 
+class UserPage(BaseModel):
+    items: list[UserRead]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
 class AuthToken(BaseModel):
     access_token: str
     refresh_token: str

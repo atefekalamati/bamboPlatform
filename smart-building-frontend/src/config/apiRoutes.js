@@ -15,4 +15,6 @@ export const API_PREFIXES = Object.freeze({
 export const API_BASE_PATHS = Object.freeze({
   dashboard: `${API_PREFIXES.v1}/dashboard`,
   reports: `${API_PREFIXES.v1}/reports`,
+  users: `${API_PREFIXES.v1}/users`,
+  pilots: `${API_PREFIXES.v1}/pilots`,
 });

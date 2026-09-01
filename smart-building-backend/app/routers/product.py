@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.exceptions import SecurityError
@@ -231,6 +231,7 @@ def floor_read(floor: Floor) -> FloorRead:
         has_dwg=bool(versions),
         has_valid_dwg=has_readable_dwg or floor.dwg_reference_confirmed,
         latest_dwg_version=versions[-1].version if versions else None,
+        dwg_versions=[DwgVersionRead.model_validate(version) for version in versions],
         dwg_reference_confirmed=floor.dwg_reference_confirmed,
         dwg_reference_confirmed_at=floor.dwg_reference_confirmed_at,
         dwg_reference_confirmed_by_user_id=(
@@ -298,7 +299,14 @@ def list_floors(
     db: Session = Depends(get_db),
 ) -> list[FloorRead]:
     pilot = get_pilot(db, pilot_id)
-    return [floor_read(floor) for floor in pilot.project.floors]
+    floors = (
+        db.query(Floor)
+        .filter(Floor.project_id == pilot.project.id)
+        .options(selectinload(Floor.dwg_file).selectinload(DwgFile.versions))
+        .order_by(Floor.level_order)
+        .all()
+    )
+    return [floor_read(floor) for floor in floors]
 
 
 @router.put("/floors/{floor_id}/dwg-reference", response_model=FloorRead)

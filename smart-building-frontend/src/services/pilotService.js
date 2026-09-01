@@ -1,5 +1,14 @@
 import { request } from "./httpClient.js";
 import { buildPilotCreatePayload } from "../features/pilots/pilotCreation.js";
+import { API_BASE_PATHS } from "../config/apiRoutes.js";
+
+const queryString = (params = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
+  });
+  return query.toString();
+};
 
 const mapStage = (stage, gates = []) => {
   const gate = gates.find(({ after_stage: afterStage }) => afterStage === stage.number);
@@ -65,6 +74,10 @@ const mapPilotDetail = (pilot) => ({
 
 export const pilotService = Object.freeze({
   getPilots: async (options) => (await request("/pilots", options)).map(mapPilot),
+  getPilotsPage: async (params, options) => {
+    const result = await request(`${API_BASE_PATHS.pilots}?${queryString(params)}`, options);
+    return { ...result, items: result.items.map(mapPilot) };
+  },
   getPilotById: async (pilotId, options) =>
     mapPilotDetail(await request(`/pilots/${pilotId}`, options)),
   createPilot: async (values) =>

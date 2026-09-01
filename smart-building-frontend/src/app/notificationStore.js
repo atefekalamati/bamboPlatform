@@ -5,6 +5,9 @@ const listeners = new Set();
 const pendingReads = new Map();
 let pollTimer = null;
 let syncing = null;
+let syncController = null;
+let isRunning = false;
+let lifecycleVersion = 0;
 let state = {
   items: [],
   unreadCount: 0,
@@ -20,10 +23,11 @@ const update = (changes) => {
 };
 
 const schedule = () => {
+  if (!isRunning || document.hidden || !navigator.onLine) return;
   window.clearTimeout(pollTimer);
   pollTimer = window.setTimeout(async () => {
     await notificationStore.sync().catch(() => null);
-    schedule();
+    if (isRunning) schedule();
   }, POLL_INTERVAL_MS);
 };
 
@@ -36,15 +40,18 @@ export const notificationStore = Object.freeze({
   },
   sync: async () => {
     if (syncing) return syncing;
+    const version = lifecycleVersion;
+    syncController = new AbortController();
     update({ connectionStatus: "syncing", error: null });
-    syncing = Promise.all([
-      notificationService.getNotifications({ page: 1, page_size: 10 }),
-      notificationService.getUnreadCount(),
-    ])
-      .then(([list, count]) => {
+    syncing = notificationService.getNotifications(
+      { page: 1, page_size: 10 },
+      { signal: syncController.signal },
+    )
+      .then((list) => {
+        if (version !== lifecycleVersion) return state;
         update({
           items: list.items,
-          unreadCount: count.unread_count,
+          unreadCount: list.unread_count,
           connectionStatus: "polling",
           lastSyncTime: new Date().toISOString(),
           error: null,
@@ -52,20 +59,33 @@ export const notificationStore = Object.freeze({
         return state;
       })
       .catch((error) => {
+        if (version !== lifecycleVersion || error?.name === "AbortError") return state;
         update({ connectionStatus: navigator.onLine ? "error" : "offline", error });
         throw error;
       })
-      .finally(() => { syncing = null; });
+      .finally(() => {
+        if (version === lifecycleVersion) {
+          syncing = null;
+          syncController = null;
+        }
+      });
     return syncing;
   },
   start: () => {
-    if (pollTimer) return;
+    if (isRunning) return;
+    isRunning = true;
+    lifecycleVersion += 1;
     notificationStore.sync().catch(() => null);
     schedule();
   },
   stop: () => {
+    isRunning = false;
+    lifecycleVersion += 1;
     window.clearTimeout(pollTimer);
     pollTimer = null;
+    syncController?.abort();
+    syncController = null;
+    syncing = null;
     pendingReads.clear();
     state = { items: [], unreadCount: 0, connectionStatus: "idle", lastSyncTime: null, error: null };
     emit();
@@ -108,5 +128,14 @@ export const notificationStore = Object.freeze({
   },
 });
 
-window.addEventListener("online", () => notificationStore.sync().catch(() => null));
+window.addEventListener("online", () => {
+  if (!isRunning) return;
+  notificationStore.sync().catch(() => null).finally(schedule);
+});
 window.addEventListener("offline", () => update({ connectionStatus: "offline" }));
+document.addEventListener("visibilitychange", () => {
+  window.clearTimeout(pollTimer);
+  pollTimer = null;
+  if (!isRunning || document.hidden) return;
+  notificationStore.sync().catch(() => null).finally(schedule);
+});
