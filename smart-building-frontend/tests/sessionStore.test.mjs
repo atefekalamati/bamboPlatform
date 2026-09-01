@@ -3,7 +3,7 @@ import test from "node:test";
 
 const storage = new Map();
 globalThis.window = {
-  sessionStorage: {
+  localStorage: {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value),
     removeItem: (key) => storage.delete(key),
