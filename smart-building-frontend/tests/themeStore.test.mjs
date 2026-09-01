@@ -9,6 +9,8 @@ globalThis.window = {
   localStorage: {
     getItem: (key) => local.get(key) ?? null,
     setItem: (key, value) => local.set(key, String(value)),
+    // sessionStore keeps the auth session here too, and clearing it removes keys.
+    removeItem: (key) => local.delete(key),
   },
   sessionStorage: {
     getItem: (key) => session.get(key) ?? null,

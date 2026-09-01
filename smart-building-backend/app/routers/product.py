@@ -1,9 +1,11 @@
 """F01/F02, Floor, and secure DWG APIs."""
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+import json
+
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.exceptions import SecurityError
@@ -19,9 +21,17 @@ from app.models import (
 )
 from app.schemas.product import (
     DwgVersionRead,
+    FloorBulkCreate,
+    FloorBulkCreateResult,
     FloorCreate,
+    FloorDwgReferenceBulkItem,
+    FloorDwgReferenceBulkResult,
+    FloorDwgReferenceBulkUpdate,
     FloorDwgReferenceUpdate,
     FloorRead,
+    SharedDwgFileSummary,
+    SharedDwgUploadResult,
+    SharedDwgVersionItem,
     FormF01Read,
     FormF01Update,
     FormF02Read,
@@ -34,6 +44,7 @@ from app.services.workflow import invalidate_from_stage
 from app.storage.dwg import (
     delete_storage_key,
     discard_staged_upload,
+    finalize_shared_upload,
     finalize_upload,
     resolve_storage_key,
     stage_upload,
@@ -231,6 +242,7 @@ def floor_read(floor: Floor) -> FloorRead:
         has_dwg=bool(versions),
         has_valid_dwg=has_readable_dwg or floor.dwg_reference_confirmed,
         latest_dwg_version=versions[-1].version if versions else None,
+        dwg_versions=[DwgVersionRead.model_validate(version) for version in versions],
         dwg_reference_confirmed=floor.dwg_reference_confirmed,
         dwg_reference_confirmed_at=floor.dwg_reference_confirmed_at,
         dwg_reference_confirmed_by_user_id=(
@@ -298,7 +310,14 @@ def list_floors(
     db: Session = Depends(get_db),
 ) -> list[FloorRead]:
     pilot = get_pilot(db, pilot_id)
-    return [floor_read(floor) for floor in pilot.project.floors]
+    floors = (
+        db.query(Floor)
+        .filter(Floor.project_id == pilot.project.id)
+        .options(selectinload(Floor.dwg_file).selectinload(DwgFile.versions))
+        .order_by(Floor.level_order)
+        .all()
+    )
+    return [floor_read(floor) for floor in floors]
 
 
 @router.put("/floors/{floor_id}/dwg-reference", response_model=FloorRead)
@@ -388,8 +407,17 @@ def delete_floor(
     )
     db.delete(floor)
     db.commit()
+    # A shared upload gives several floors one stored file, so a key may still
+    # belong to a surviving floor. Only unlink what nothing references any more.
     for storage_key in storage_keys:
-        delete_storage_key(storage_key)
+        still_referenced = (
+            db.query(DwgVersion.id)
+            .filter(DwgVersion.storage_key == storage_key)
+            .first()
+            is not None
+        )
+        if not still_referenced:
+            delete_storage_key(storage_key)
 
 
 @router.post(
@@ -506,4 +534,356 @@ def download_dwg(
         resolve_storage_key(version.storage_key),
         media_type=version.mime_type,
         filename=version.standardized_filename,
+    )
+
+
+# --------------------------------------------------------------- bulk stage 3
+#
+# Stage 3 registers a building's floors and their drawings. One floor at a time
+# meant a request per floor, the same file stored once per floor, and a run that
+# could stop halfway leaving Stage 3 half-recorded. These endpoints do the same
+# work in one transaction. The single-floor endpoints above are unchanged and
+# remain the way to correct one floor.
+
+
+def _parse_floor_ids(raw: str) -> list[int]:
+    """Accept a JSON array or a comma-separated list, since multipart is text."""
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("empty")
+    if text.startswith("["):
+        parsed = json.loads(text)
+        if not isinstance(parsed, list):
+            raise ValueError("not_a_list")
+        values = parsed
+    else:
+        values = [part for part in text.split(",") if part.strip()]
+    try:
+        ids = [int(value) for value in values]
+    except (TypeError, ValueError) as exc:
+        raise ValueError("not_integers") from exc
+    if not ids:
+        raise ValueError("empty")
+    if len(set(ids)) != len(ids):
+        raise ValueError("repeated_ids")
+    if len(ids) > 200:
+        raise ValueError("too_many")
+    return ids
+
+
+def _resolve_pilot_floors(db: Session, pilot: Pilot, floor_ids: list[int]) -> list[Floor]:
+    """Every id must name a floor of this pilot, or nothing is touched.
+
+    Reports every id that failed rather than only the first, so the caller can
+    fix the whole request in one pass. A floor belonging to another pilot and a
+    floor that does not exist give the same answer on purpose: saying which is
+    which would describe a pilot the caller may not be allowed to see.
+    """
+    floors_by_id = {floor.id: floor for floor in pilot.project.floors}
+    missing = [floor_id for floor_id in floor_ids if floor_id not in floors_by_id]
+    if missing:
+        raise SecurityError(
+            "BULK_FLOOR_NOT_FOUND",
+            "برخی از طبقات انتخاب‌شده متعلق به این پرونده نیستند.",
+            404,
+            [{"field": "floor_ids", "reason": "not_in_pilot", "failed_floor_ids": missing}],
+        )
+    return [floors_by_id[floor_id] for floor_id in floor_ids]
+
+
+@router.post(
+    "/pilots/{pilot_id}/floors/bulk",
+    response_model=FloorBulkCreateResult,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_floors_bulk(
+    pilot_id: int,
+    payload: FloorBulkCreate,
+    context: AuthContext = Depends(require_permission("dwg.manage")),
+    db: Session = Depends(get_db),
+) -> FloorBulkCreateResult:
+    pilot = get_pilot(db, pilot_id)
+    existing = pilot.project.floors
+    if len(existing) + len(payload.floors) > pilot.project.total_floors:
+        raise SecurityError(
+            "FLOOR_LIMIT_REACHED",
+            "تعداد Floor از مقدار ثبت‌شده پروژه بیشتر می‌شود.",
+            409,
+            [{
+                "field": "floors",
+                "reason": "exceeds_total_floors",
+                "total_floors": pilot.project.total_floors,
+                "existing": len(existing),
+                "requested": len(payload.floors),
+            }],
+        )
+
+    taken_codes = {floor.code for floor in existing}
+    taken_orders = {floor.level_order for floor in existing}
+    clashes = [
+        item.code for item in payload.floors
+        if item.code in taken_codes or item.level_order in taken_orders
+    ]
+    if clashes:
+        raise SecurityError(
+            "BULK_FLOOR_INVALID",
+            "کد یا ترتیب برخی طبقات از قبل ثبت شده است.",
+            409,
+            [{"field": "floors", "reason": "already_exists", "failed_floor_codes": clashes}],
+        )
+
+    created = [Floor(project=pilot.project, **item.model_dump()) for item in payload.floors]
+    db.add_all(created)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise SecurityError(
+            "BULK_FLOOR_INVALID",
+            "کد یا ترتیب Floor تکراری است.",
+            409,
+            [{"field": "floors", "reason": "duplicate"}],
+        ) from exc
+
+    # One invalidation for the whole batch, not one per floor.
+    invalidate_from_stage(
+        db, pilot, 3,
+        actor_user_id=context.user.id,
+        reason=f"{len(created)} floors added in bulk",
+    )
+    add_audit_log(
+        db,
+        action="floors.bulk_created",
+        entity_type="Project",
+        entity_id=pilot.project.id,
+        actor_user_id=context.user.id,
+        pilot_id=pilot.id,
+        new_data={
+            "count": len(created),
+            "floor_ids": [floor.id for floor in created],
+            "codes": [floor.code for floor in created],
+        },
+        session_id=context.session.id,
+    )
+    db.commit()
+    for floor in created:
+        db.refresh(floor)
+    return FloorBulkCreateResult(
+        pilot_id=pilot.id,
+        total=len(payload.floors),
+        created=len(created),
+        floors=[floor_read(floor) for floor in created],
+    )
+
+
+@router.put(
+    "/pilots/{pilot_id}/floors/dwg-reference/bulk",
+    response_model=FloorDwgReferenceBulkResult,
+)
+def update_floors_dwg_reference_bulk(
+    pilot_id: int,
+    payload: FloorDwgReferenceBulkUpdate,
+    context: AuthContext = Depends(require_permission("dwg.manage")),
+    db: Session = Depends(get_db),
+) -> FloorDwgReferenceBulkResult:
+    pilot = get_pilot(db, pilot_id)
+    floors = _resolve_pilot_floors(db, pilot, payload.floor_ids)
+
+    confirmed_at = product_utc_now() if payload.confirmed else None
+    confirmed_by = context.user.id if payload.confirmed else None
+    previous = {floor.id: floor.dwg_reference_confirmed for floor in floors}
+    for floor in floors:
+        floor.dwg_reference_confirmed = payload.confirmed
+        floor.dwg_reference_confirmed_at = confirmed_at
+        floor.dwg_reference_confirmed_by_user_id = confirmed_by
+
+    invalidate_from_stage(
+        db, pilot, 3,
+        actor_user_id=context.user.id,
+        reason=f"DWG reference confirmation changed for {len(floors)} floors",
+    )
+    add_audit_log(
+        db,
+        action="floors.bulk_dwg_reference_updated",
+        entity_type="Project",
+        entity_id=pilot.project.id,
+        actor_user_id=context.user.id,
+        pilot_id=pilot.id,
+        old_data={"confirmed": previous},
+        new_data={
+            "confirmed": payload.confirmed,
+            "floor_ids": [floor.id for floor in floors],
+        },
+        session_id=context.session.id,
+    )
+    db.commit()
+    for floor in floors:
+        db.refresh(floor)
+    return FloorDwgReferenceBulkResult(
+        pilot_id=pilot.id,
+        total=len(payload.floor_ids),
+        updated=len(floors),
+        floors=[
+            FloorDwgReferenceBulkItem(
+                id=floor.id,
+                dwg_reference_confirmed=floor.dwg_reference_confirmed,
+                has_valid_dwg=floor_read(floor).has_valid_dwg,
+            )
+            for floor in floors
+        ],
+    )
+
+
+@router.post(
+    "/pilots/{pilot_id}/floors/dwg/shared",
+    response_model=SharedDwgUploadResult,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_shared_dwg(
+    pilot_id: int,
+    file: UploadFile = File(...),
+    floor_ids: str = Form(...),
+    idempotency_key: str | None = Form(default=None),
+    context: AuthContext = Depends(require_permission("dwg.manage")),
+    db: Session = Depends(get_db),
+) -> SharedDwgUploadResult:
+    pilot = get_pilot(db, pilot_id)
+    try:
+        requested_ids = _parse_floor_ids(floor_ids)
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise SecurityError(
+            "BULK_FLOOR_INVALID",
+            "فهرست طبقات معتبر نیست.",
+            422,
+            [{"field": "floor_ids", "reason": str(exc)}],
+        ) from exc
+
+    floors = _resolve_pilot_floors(db, pilot, requested_ids)
+
+    # Validate the file before creating anything: stage_upload checks extension,
+    # MIME, signature and size, and writes to a temp path it owns, so a rejected
+    # upload leaves nothing behind.
+    staged = await stage_upload(file)
+
+    already_holding = [
+        floor.code
+        for floor in floors
+        if floor.dwg_file
+        and any(version.sha256 == staged.sha256 for version in floor.dwg_file.versions)
+    ]
+    if already_holding:
+        discard_staged_upload(staged)
+        raise SecurityError(
+            "BULK_DWG_DUPLICATE",
+            "این نسخه DWG قبلاً برای برخی از این طبقات ثبت شده است.",
+            409,
+            [{
+                "field": "file",
+                "reason": "duplicate_sha256",
+                "sha256": staged.sha256,
+                "failed_floor_codes": already_holding,
+            }],
+        )
+
+    # The bytes land once; every floor points at this one key.
+    try:
+        stored = finalize_shared_upload(staged, pilot_code=pilot.code)
+    except SecurityError:
+        raise
+    except OSError as exc:
+        discard_staged_upload(staged)
+        raise SecurityError(
+            "BULK_DWG_STORAGE_FAILED",
+            "ذخیره فایل DWG انجام نشد.",
+            500,
+            [{"field": "file", "reason": "storage_error"}],
+        ) from exc
+
+    versions: list[DwgVersion] = []
+    try:
+        for floor in floors:
+            aggregate = floor.dwg_file
+            if aggregate is None:
+                aggregate = DwgFile(floor=floor)
+                db.add(aggregate)
+                db.flush()
+            version_number = len(aggregate.versions) + 1
+            version = DwgVersion(
+                dwg_file=aggregate,
+                version=version_number,
+                original_filename=staged.original_filename,
+                standardized_filename=stored.standardized_filename,
+                storage_key=stored.storage_key,
+                mime_type=staged.mime_type,
+                size_bytes=staged.size_bytes,
+                sha256=staged.sha256,
+                dwg_signature=staged.signature,
+                uploaded_by_user_id=context.user.id,
+            )
+            db.add(version)
+            versions.append(version)
+
+        # One invalidation for the batch, not one per floor.
+        invalidate_from_stage(
+            db, pilot, 3,
+            actor_user_id=context.user.id,
+            reason=f"Shared DWG uploaded for {len(floors)} floors",
+        )
+        db.flush()
+        add_audit_log(
+            db,
+            action="dwg.shared_version_uploaded",
+            entity_type="Project",
+            entity_id=pilot.project.id,
+            actor_user_id=context.user.id,
+            pilot_id=pilot.id,
+            new_data={
+                "sha256": staged.sha256,
+                "size_bytes": staged.size_bytes,
+                "storage_key": stored.storage_key,
+                "idempotency_key": idempotency_key,
+                "floor_ids": [floor.id for floor in floors],
+                "version_ids": [version.id for version in versions],
+            },
+            session_id=context.session.id,
+        )
+        db.commit()
+    except Exception as exc:
+        # Nothing was committed, so the stored file has no owner. Remove it
+        # rather than leave an unreferenced blob on disk.
+        db.rollback()
+        delete_storage_key(stored.storage_key)
+        if isinstance(exc, SecurityError):
+            raise
+        raise SecurityError(
+            "BULK_DWG_FAILED",
+            "ثبت گروهی نقشه انجام نشد.",
+            409,
+            [{"field": "floor_ids", "reason": "persistence_failed"}],
+        ) from exc
+
+    for version in versions:
+        db.refresh(version)
+    return SharedDwgUploadResult(
+        pilot_id=pilot.id,
+        file=SharedDwgFileSummary(
+            original_filename=staged.original_filename,
+            standardized_filename=stored.standardized_filename,
+            storage_key=stored.storage_key,
+            mime_type=staged.mime_type,
+            size_bytes=staged.size_bytes,
+            sha256=staged.sha256,
+        ),
+        total=len(requested_ids),
+        uploaded=len(versions),
+        versions=[
+            SharedDwgVersionItem(
+                floor_id=version.dwg_file.floor_id,
+                floor_code=version.dwg_file.floor.code,
+                version_id=version.id,
+                version=version.version,
+                has_valid_dwg=floor_read(version.dwg_file.floor).has_valid_dwg,
+            )
+            for version in versions
+        ],
     )

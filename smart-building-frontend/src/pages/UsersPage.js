@@ -6,10 +6,7 @@ import { Pagination } from "../components/Pagination.js";
 import { UserCard } from "../components/UserCard.js";
 import { UserForm } from "../components/UserForm.js";
 import { UserProfileForm } from "../components/UserProfileForm.js";
-import {
-  matchesUserStatus,
-  USER_STATUS_FILTERS,
-} from "../features/users/userFilters.js";
+import { USER_STATUS_FILTERS } from "../features/users/userFilters.js";
 import { roleService } from "../services/roleService.js";
 import { userService } from "../services/userService.js";
 import { authService } from "../services/authService.js";
@@ -38,17 +35,6 @@ const heading = () => {
   return header;
 };
 
-const includesQuery = (user, query) => {
-  const normalized = normalizeDigits(query).trim().toLocaleLowerCase("fa-IR");
-  if (!normalized) return true;
-  return [
-    String(user.id),
-    user.displayName,
-    user.mobile,
-    ...user.roles.flatMap(({ name, displayName }) => [name, displayName]),
-  ].some((value) => value.toLocaleLowerCase("fa-IR").includes(normalized));
-};
-
 export const UsersPage = () => {
   const page = element("div", "page");
   const toolbar = element("div", "page-toolbar");
@@ -62,6 +48,9 @@ export const UsersPage = () => {
   const isSuperAdmin = currentUser?.roles?.some(({ name }) => name === "super_admin") ?? false;
   let users = [];
   let currentPage = 1;
+  let totalUsers = 0;
+  let totalPages = 1;
+  let loadVersion = 0;
   let activeStatusFilter = "all";
   const statusButtons = new Map();
 
@@ -87,7 +76,7 @@ export const UsersPage = () => {
       statusButtons.forEach((item, status) =>
         item.setAttribute("aria-pressed", String(status === activeStatusFilter)),
       );
-      render();
+      loadUsers();
     });
     statusButtons.set(value, button);
     statusFilter.append(button);
@@ -105,15 +94,7 @@ export const UsersPage = () => {
   };
 
   const render = () => {
-    const filtered = users.filter(
-      (user) =>
-        matchesUserStatus(user, activeStatusFilter) &&
-        includesQuery(user, search.value),
-    );
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    currentPage = Math.min(currentPage, totalPages);
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const visibleUsers = filtered.slice(start, start + PAGE_SIZE);
+    const visibleUsers = users;
 
     if (!visibleUsers.length) {
       region.replaceChildren(
@@ -130,7 +111,7 @@ export const UsersPage = () => {
                 statusButtons.forEach((button, status) =>
                   button.setAttribute("aria-pressed", String(status === "all")),
                 );
-                render();
+                loadUsers();
                 search.focus();
               },
             },
@@ -184,7 +165,7 @@ export const UsersPage = () => {
       ),
     );
     region.replaceChildren(
-      element("p", "results-count", `${filtered.length} کاربر`),
+      element("p", "results-count", `${totalUsers} کاربر`),
       list,
     );
     if (totalPages > 1) {
@@ -194,7 +175,7 @@ export const UsersPage = () => {
           totalPages,
           onPageChange: (pageNumber) => {
             currentPage = pageNumber;
-            render();
+            loadUsers();
           },
         }),
       );
@@ -202,14 +183,26 @@ export const UsersPage = () => {
   };
 
   const loadUsers = async () => {
+    const version = ++loadVersion;
     region.replaceChildren(
       element("p", "loading-state", "در حال دریافت کاربران..."),
     );
     region.setAttribute("aria-busy", "true");
     try {
-      users = await userService.getUsers();
+      const result = await userService.getUsersPage({
+        page: currentPage,
+        page_size: PAGE_SIZE,
+        q: normalizeDigits(search.value).trim(),
+        status: activeStatusFilter,
+      });
+      if (version !== loadVersion) return;
+      users = result.items;
+      totalUsers = result.total;
+      totalPages = result.total_pages;
+      currentPage = result.page;
       render();
     } catch (error) {
+      if (version !== loadVersion) return;
       renderError(error.message ?? "دریافت کاربران انجام نشد.", loadUsers);
     } finally {
       region.setAttribute("aria-busy", "false");
@@ -310,7 +303,7 @@ export const UsersPage = () => {
     "input",
     debounce(() => {
       currentPage = 1;
-      render();
+      loadUsers();
     }, 300),
   );
   create.addEventListener("click", () => openForm());

@@ -57,7 +57,7 @@ export const StageNineteenPage = ({ pilotId }) => {
       const outcome = control("select"); outcome.add(new Option("انتخاب نتیجه نهایی", "")); OUTCOMES.forEach(([value, label]) => outcome.add(new Option(label, value))); outcome.value = outcomeData?.outcome ?? "";
       const reason = control("textarea"); reason.rows = 4; reason.value = outcomeData?.reason ?? "";
       const readyAt = control(); readyAt.type = "datetime-local"; readyAt.value = localDateTime(outcomeData?.ready_at);
-      const successOwner = control("select"); successOwner.add(new Option("انتخاب مسئول موفقیت مشتری", ""));
+      const successOwner = control("select"); successOwner.add(new Option("انتخاب مسئول پشتیبانی فرایند موفقیت مشتری", ""));
       users.filter(({ isActive }) => isActive).forEach((user) => successOwner.add(new Option(`${user.displayName} — ${user.mobile}`, user.id))); successOwner.value = outcomeData?.success_owner_user_id ?? "";
       const periodic = control("select"); [["", "انتخاب وضعیت"], ["true", "برداشت دوره‌ای فعال است"], ["false", "برداشت دوره‌ای فعال نیست"]].forEach(([v, l]) => periodic.add(new Option(l, v)));
       periodic.value = outcomeData?.periodic_capture == null ? "" : String(outcomeData.periodic_capture);
@@ -66,11 +66,11 @@ export const StageNineteenPage = ({ pilotId }) => {
       const contractFields = [successOwner, periodic, userCount, firstCapture]; const inputs = [outcome, reason, readyAt, ...contractFields];
       inputs.forEach((input) => { input.disabled = !editable || !canManage || Boolean(outcomeData?.pilot_manager_approved); });
       grid.append(field("نتیجه نهایی", outcome), field("علت و اقدام بعدی", reason, "برای مذاکره، اقدام بعدی و تاریخ قطعی را در همین بخش ثبت کنید."),
-        field("تاریخ آمادگی", readyAt), field("مسئول موفقیت مشتری", successOwner), field("برنامه برداشت دوره‌ای", periodic),
+        field("تاریخ آمادگی", readyAt), field("مسئول پشتیبانی فرایند موفقیت مشتری", successOwner), field("برنامه برداشت دوره‌ای", periodic),
         field("تعداد کاربران نهایی", userCount), field("تاریخ اولین برداشت قراردادی", firstCapture));
       const approval = element("p", "draft-info", outcomeData?.pilot_manager_approved ? "نتیجه نهایی توسط مدیر پایلوت تأیید شده است." : "نتیجه نهایی هنوز تأیید مدیر پایلوت را ندارد.");
       form.append(element("h2", "stage-form__legend", "نتیجه نهایی پرونده"),
-        element("p", "draft-info", "در صورت قرارداد، وضعیت مشتری، مسئول موفقیت، کاربران نهایی و اولین برداشت قراردادی تعیین می‌شوند."), grid, approval); page.append(form);
+        element("p", "draft-info", "در صورت قرارداد، وضعیت مشتری، مسئول پشتیبانی فرایند موفقیت مشتری، کاربران نهایی و اولین برداشت قراردادی تعیین می‌شوند."), grid, approval); page.append(form);
 
       const updateVisibility = () => {
         const isContract = outcome.value === "contract"; const needsReadyDate = outcome.value === "ready_on_date";

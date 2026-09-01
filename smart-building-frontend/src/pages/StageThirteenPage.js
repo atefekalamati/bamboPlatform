@@ -350,7 +350,7 @@ export const StageThirteenPage = ({ pilotId }) => {
       back.href = `#/pilots/${pilot.id}`;
       identity.append(
         element("span", "page-heading__eyebrow", `${pilot.code} — Stage 13 از ۱۹`),
-        element("h1", "page-heading__title", "پیگیری موفقیت مشتری"),
+        element("h1", "page-heading__title", "پیگیری پشتیبانی"),
         element("p", "draft-info", "کنترل استفاده واقعی، تجربه ارزش و رفع مانع؛ پیگیری اول تا ۲۴ ساعت و پیگیری دوم در روزهای ۳ تا ۵."),
         element("p", "draft-info", "شرط عبور: مالک بازدید را مشاهده کرده و تمام مشکلات بحرانی بسته شده باشند."),
       );
@@ -409,7 +409,7 @@ export const StageThirteenPage = ({ pilotId }) => {
         page.append(StageReviewPanel({
           pilotId: pilot.id,
           stageNumber: 13,
-          title: "بررسی نهایی پیگیری موفقیت مشتری — G4",
+          title: "بررسی نهایی پیگیری پشتیبانی — G4",
           approveLabel: "تأیید G4 و ورود به Stage 14",
           approvedNotice: "G4 تأیید شد و Stage 14 باز شد.",
           rejectedNotice: "Stage 13 برای اصلاح برگشت داده شد.",

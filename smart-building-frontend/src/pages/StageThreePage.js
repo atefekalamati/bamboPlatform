@@ -646,11 +646,8 @@ export const StageThreePage = ({ pilotId }) => {
         renderError("Stage 3 تا زمان تأیید Stage 2 قفل است.");
         return;
       }
-      const versions = await Promise.all(
-        floors.map((floor) => dwgService.getVersions(floor.id)),
-      );
       const versionsByFloorId = new Map(
-        floors.map((floor, index) => [floor.id, versions[index]]),
+        floors.map((floor) => [floor.id, floor.dwgVersions]),
       );
       const editable =
         ["open", "needs_revision"].includes(stage.status) && canManageDwg;

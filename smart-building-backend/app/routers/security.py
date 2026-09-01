@@ -4,7 +4,8 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.exceptions import SecurityError
@@ -37,10 +38,12 @@ from app.schemas.security import (
     UserPreferencePatch,
     UserPreferenceRead,
     UserOwnNameEditPermissionPatch,
+    UserPage,
     UserProfilePatch,
     UserRead,
     UserRolesUpdate,
     UserStatusUpdate,
+    normalize_mobile,
 )
 from app.services.security import (
     AuthContext,
@@ -61,6 +64,7 @@ from app.services.security import (
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 users_router = APIRouter(prefix="/users", tags=["users"])
+users_v1_router = APIRouter(prefix="/api/v1/users", tags=["users"])
 roles_router = APIRouter(prefix="/roles", tags=["roles"])
 audit_router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -326,6 +330,54 @@ def list_users(
     db: Session = Depends(get_db),
 ) -> list[UserRead]:
     return [user_read(user) for user in db.query(User).order_by(User.id).all()]
+
+
+@users_v1_router.get("", response_model=UserPage)
+def list_users_page(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    q: str | None = Query(default=None, max_length=160),
+    status_filter: str = Query(default="all", alias="status", pattern="^(all|active|inactive)$"),
+    _: AuthContext = Depends(require_permission("users.read")),
+    db: Session = Depends(get_db),
+) -> UserPage:
+    query = db.query(User)
+    normalized = (q or "").strip()
+    if normalized:
+        search_values = {normalized}
+        try:
+            search_values.add(normalize_mobile(normalized))
+        except ValueError:
+            pass
+        patterns = [f"%{value}%" for value in search_values]
+        query = query.filter(
+            or_(
+                *(User.display_name.ilike(pattern) for pattern in patterns),
+                *(User.mobile.ilike(pattern) for pattern in patterns),
+                *(User.roles.any(or_(Role.name.ilike(pattern), Role.display_name.ilike(pattern))) for pattern in patterns),
+            )
+        )
+    if status_filter == "active":
+        query = query.filter(User.is_active.is_(True))
+    elif status_filter == "inactive":
+        query = query.filter(User.is_active.is_(False))
+    total = query.count()
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    safe_page = min(page, total_pages)
+    users = (
+        query.options(selectinload(User.roles).selectinload(Role.permissions))
+        .order_by(User.id)
+        .offset((safe_page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    return UserPage(
+        items=[user_read(user) for user in users],
+        page=safe_page,
+        page_size=page_size,
+        total=total,
+        total_pages=total_pages,
+    )
 
 
 @users_router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)

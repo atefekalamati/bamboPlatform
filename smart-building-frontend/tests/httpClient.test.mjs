@@ -15,7 +15,7 @@ globalThis.window = {
   clearTimeout,
   setTimeout,
   dispatchEvent: (event) => events.push(event),
-  sessionStorage: {
+  localStorage: {
     getItem: (key) => storage.get(key) ?? null,
     setItem: (key, value) => storage.set(key, value),
     removeItem: (key) => storage.delete(key),

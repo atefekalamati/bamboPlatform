@@ -19,7 +19,24 @@ const PUBLIC_AUTH_PATHS = new Set([
   "/auth/otp/verify",
   REFRESH_PATH,
 ]);
+const REFRESH_LOCK = "bambo-token-refresh";
 let refreshPromise = null;
+
+/**
+ * Serialize refreshes across tabs.
+ *
+ * The refresh token lives in localStorage so a session survives a browser
+ * restart, which also means every tab shares it. The backend rotates the token
+ * on each refresh and treats a replayed one as theft — it revokes every session
+ * the user has. Two tabs refreshing at the same instant would trip exactly that
+ * and sign the person out everywhere. `refreshPromise` only guards one page, so
+ * hold a named lock the whole browser can see.
+ */
+const withRefreshLock = (task) => {
+  const locks = globalThis.navigator?.locks;
+  if (typeof locks?.request !== "function") return task();
+  return locks.request(REFRESH_LOCK, task);
+};
 
 const parsePayload = async (response) => {
   const rawBody = await response.text();
@@ -108,7 +125,12 @@ const endExpiredSession = (error) => {
 const refreshAccessToken = () => {
   if (refreshPromise) return refreshPromise;
 
-  refreshPromise = (async () => {
+  const tokenBeforeLock = sessionStore.getToken();
+  refreshPromise = withRefreshLock(async () => {
+    // Another tab may have refreshed while this one waited for the lock.
+    const current = sessionStore.getToken();
+    if (current && current !== tokenBeforeLock) return current;
+
     const refreshToken = sessionStore.getRefreshToken();
     if (!refreshToken) {
       throw new ApiError({
@@ -142,7 +164,7 @@ const refreshAccessToken = () => {
       user: payload.user,
     });
     return payload.access_token;
-  })()
+  })
     .catch((error) => endExpiredSession(normalizeRequestError(error)))
     .finally(() => {
       refreshPromise = null;
